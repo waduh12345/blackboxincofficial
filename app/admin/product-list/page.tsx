@@ -16,20 +16,25 @@ import { Product } from "@/types/admin/product";
 import FormProduct from "@/components/form-modal/admin/product-form";
 import { Badge } from "@/components/ui/badge";
 import { formatRupiahWithRp } from "@/lib/format-utils";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function ProductPage() {
-  const [form, setForm] = useState<Partial<Product>>({
-    status: true,
-  });
+  const [form, setForm] = useState<Partial<Product>>({ status: true });
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [readonly, setReadonly] = useState(false);
   const { isOpen, openModal, closeModal } = useModal();
+
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
+
+  // 🔎 search text
+  const [search, setSearch] = useState("");
 
   const { data, isLoading, refetch } = useGetProductListQuery({
     page: currentPage,
     paginate: itemsPerPage,
+    // kalau API support search: tambahkan param di sini & service
+    // search,
   });
 
   const { data: merkData } = useGetProductMerkListQuery({
@@ -40,6 +45,18 @@ export default function ProductPage() {
   const categoryList = useMemo(() => data?.data || [], [data]);
   const lastPage = useMemo(() => data?.last_page || 1, [data]);
   const merkList = useMemo(() => merkData?.data || [], [merkData]);
+
+  // Filter client-side berdasarkan nama/merk/kategori
+  const filteredList = useMemo(() => {
+    if (!search.trim()) return categoryList;
+    const q = search.toLowerCase();
+    return categoryList.filter(
+      (p) =>
+        p.name?.toLowerCase().includes(q) ||
+        p.merk_name?.toLowerCase().includes(q) ||
+        p.category_name?.toLowerCase().includes(q)
+    );
+  }, [categoryList, search]);
 
   const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
@@ -92,7 +109,6 @@ export default function ProductPage() {
       payload.append("diameter", String(form.diameter ?? 0));
 
       // === IMAGE HANDLING ===
-      // Kirim HANYA file baru. Jangan kirim string URL lama.
       const imageFields = [
         "image",
         "image_2",
@@ -107,23 +123,18 @@ export default function ProductPage() {
         payload.append("_method", "PUT");
         imageFields.forEach((fieldName) => {
           const val = form[fieldName];
-          if (val instanceof File) {
-            payload.append(fieldName, val);
-          }
+          if (val instanceof File) payload.append(fieldName, val);
         });
 
         await updateProduct({ slug: editingSlug, payload }).unwrap();
         Swal.fire("Sukses", "Produk diperbarui", "success");
       } else {
-        // CREATE: butuh minimal 1 gambar utama
         if (!(form.image instanceof File)) {
           throw new Error("Minimal 1 gambar wajib diisi untuk produk baru");
         }
         imageFields.forEach((fieldName) => {
           const val = form[fieldName];
-          if (val instanceof File) {
-            payload.append(fieldName, val);
-          }
+          if (val instanceof File) payload.append(fieldName, val);
         });
 
         await createProduct(payload).unwrap();
@@ -180,10 +191,18 @@ export default function ProductPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Data Produk</h1>
-        <Button onClick={() => openModal()}>Tambah Produk</Button>
-      </div>
+      {/* Header reusable: satu container rounded-lg bg-white */}
+      <PageHeader
+        title="Data Produk"
+        primaryLabel="Tambah Produk"
+        onPrimaryAction={openModal}
+        searchPlaceholder="Cari nama/kategori/merk…"
+        searchValue={search}
+        onSearchChange={(val) => {
+          setSearch(val);
+          setCurrentPage(1);
+        }}
+      />
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -208,14 +227,14 @@ export default function ProductPage() {
                     Memuat data...
                   </td>
                 </tr>
-              ) : categoryList.length === 0 ? (
+              ) : filteredList.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center p-4">
                     Tidak ada data
                   </td>
                 </tr>
               ) : (
-                categoryList.map((item) => (
+                filteredList.map((item) => (
                   <tr key={item.id} className="border-t">
                     <td className="px-4 py-2">
                       <div className="flex gap-2">
@@ -245,7 +264,7 @@ export default function ProductPage() {
                       {formatRupiahWithRp(item.price)}
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">
-                      {item.duration}
+                      {item.stock}
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">
                       {item.rating}

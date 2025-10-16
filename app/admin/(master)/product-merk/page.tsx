@@ -15,6 +15,7 @@ import { ProductMerk } from "@/types/master/product-merk";
 import FormProductMerk from "@/components/form-modal/product-merk-form";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function ProductMerkPage() {
   const [form, setForm] = useState<Partial<ProductMerk>>({
@@ -26,13 +27,28 @@ export default function ProductMerkPage() {
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
 
+  // 🔎 search (client-side)
+  const [search, setSearch] = useState("");
+
   const { data, isLoading, refetch } = useGetProductMerkListQuery({
     page: currentPage,
     paginate: itemsPerPage,
+    // Jika API mendukung search, tinggal kirimkan `search` di sini dan di service-nya.
   });
 
   const merkList = useMemo(() => data?.data || [], [data]);
   const lastPage = useMemo(() => data?.last_page || 1, [data]);
+
+  // Filter client-side untuk data di halaman saat ini
+  const filteredList = useMemo(() => {
+    if (!search.trim()) return merkList;
+    const q = search.toLowerCase();
+    return merkList.filter(
+      (m) =>
+        m.name?.toLowerCase().includes(q) ||
+        m.description?.toLowerCase().includes(q)
+    );
+  }, [merkList, search]);
 
   const [createMerk, { isLoading: isCreating }] =
     useCreateProductMerkMutation();
@@ -106,10 +122,18 @@ export default function ProductMerkPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Tipe Produk</h1>
-        <Button onClick={() => openModal()}>Tambah Tipe</Button>
-      </div>
+      {/* Header reusable: judul, tombol, dan search dalam satu div rounded-lg bg-white */}
+      <PageHeader
+        title="Tipe Produk"
+        primaryLabel="Tambah Tipe"
+        onPrimaryAction={openModal}
+        searchPlaceholder="Cari tipe/deskripsi…"
+        searchValue={search}
+        onSearchChange={(val) => {
+          setSearch(val);
+          setCurrentPage(1);
+        }}
+      />
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -130,14 +154,14 @@ export default function ProductMerkPage() {
                     Memuat data...
                   </td>
                 </tr>
-              ) : merkList.length === 0 ? (
+              ) : filteredList.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center p-4">
                     Tidak ada data
                   </td>
                 </tr>
               ) : (
-                merkList.map((item) => (
+                filteredList.map((item) => (
                   <tr key={item.id} className="border-t">
                     <td className="px-4 py-2">
                       <div className="flex gap-2">

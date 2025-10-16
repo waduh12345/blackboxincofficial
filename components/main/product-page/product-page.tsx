@@ -53,7 +53,7 @@ export default function ProductsPage() {
   } = useGetProductListQuery({
     page: currentPage,
     paginate: ITEMS_PER_PAGE,
-    product_merk_id: 1,
+    // product_merk_id: 1,
   });
 
   const totalPages = useMemo(() => listResp?.last_page ?? 1, [listResp]);
@@ -716,7 +716,7 @@ export default function ProductsPage() {
                       </div>
                       <div className="flex items-center gap-3 text-sm text-[#6B6B6B]">
                         <span className="font-medium">Stok:</span>
-                        <span>{detailProduct.duration}</span>
+                        <span>{detailProduct.stock}</span>
                       </div>
                     </div>
 

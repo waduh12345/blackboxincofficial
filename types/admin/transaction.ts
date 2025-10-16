@@ -103,22 +103,41 @@ export interface TransactionListParams {
 // Create transaction request payload
 export type PaymentType = "midtrans" | "manual" | "cod";
 
+export type PaymentTypeBackend = "automatic" | "manual" | "cod";
+export type PaymentMethodAutomatic = "bank_transfer" | "qris";
+export type PaymentChannel =
+  | "bnc"
+  | "bjb"
+  | "bca"
+  | "bni"
+  | "bsi"
+  | "bss"
+  | "cimb"
+  | "qris";
+
+// Create transaction request payload (sesuai contoh Postman)
 export interface CreateTransactionRequest {
   address_line_1: string;
+  address_line_2?: string | null;
   postal_code: string;
 
-  // ✅ WAJIB di level ROOT
-  payment_method: PaymentType;
+  // Wajib root:
+  payment_type: PaymentTypeBackend;
+
+  // Wajib kalau payment_type === "automatic":
+  payment_method?: PaymentMethodAutomatic;
+  payment_channel?: PaymentChannel;
 
   data: Array<{
     shop_id: number;
     details: Array<{
       product_id: number;
+      product_variant_id: number; // ← WAJIB oleh backend
       quantity: number;
     }>;
     shipment: {
-      parameter: string; // JSON string
-      shipment_detail: string; // JSON string
+      parameter: string;        // JSON.stringify(...)
+      shipment_detail: string;  // JSON.stringify(...)
       courier: string;
       cost: number;
     };
@@ -131,10 +150,9 @@ export interface CreateTransactionRequest {
       city_id: number;
       district_id: number;
     };
-
   }>;
+  voucher?: number[]; // opsional
 }
-
 export // Produk di detail toko (tanpa any, semua optional & aman)
 interface ShopDetailProduct {
   name?: string;

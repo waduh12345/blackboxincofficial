@@ -42,24 +42,44 @@ import {
   useGetCurrentUserQuery,
   useCheckShippingCostQuery,
 } from "@/services/auth.service";
-import {
-  useCreateTransactionFrontendMutation,
-  useCreateTransactionMutation,
-} from "@/services/admin/transaction.service";
+import { useCreateTransactionMutation } from "@/services/admin/transaction.service";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { useSession } from "next-auth/react";
 import { useGetUserAddressListQuery } from "@/services/address.service";
 import type { Address } from "@/types/address";
 import {
-  CreateTransactionFrontendRequest,
   CreateTransactionRequest,
   PaymentType,
 } from "@/types/admin/transaction";
+import { ProductVariant } from "@/types/admin/product-variant";
+import VariantPicker from "@/components/ui/variant-picker";
+import PaymentPanel, {
+  PaymentResp as GatewayPayment,
+} from "./payment-panel";
+import PaymentModal from "./payment-modal";
 
 const STORAGE_KEY = "cart-storage";
 
-type StoredCartItem = Product & { quantity: number };
+export type StoredCartItem = Product & {
+  quantity: number;
+  selected_variant_id?: number | null;
+  variant_price?: number | null;
+  slug?: string;
+  product_slug?: string;
+};
+
+type AutomaticMethod = "bank_transfer" | "qris";
+type BankChannel =
+  | "bnc"
+  | "bjb"
+  | "bca"
+  | "bni"
+  | "bsi"
+  | "bss"
+  | "cimb"
+  | "qris";
+
 interface CartItemView {
   id: number;
   name: string;
@@ -184,31 +204,57 @@ function writeStorage(nextItems: StoredCartItem[]) {
   window.dispatchEvent(new CustomEvent("cartUpdated"));
 }
 
+interface ProductMediaLike {
+  media?: Array<{ original_url?: string }>;
+}
+
 function getImageUrlFromProduct(p: Product): string {
   if (typeof p.image === "string" && p.image) return p.image;
-  const media = (p as unknown as { media?: Array<{ original_url: string }> })
-    ?.media;
+  const media = (p as ProductMediaLike).media;
   if (Array.isArray(media) && media[0]?.original_url)
-    return media[0].original_url;
+    return media[0].original_url!;
   return "/api/placeholder/300/300";
+}
+
+const getProductSlug = (p: {
+  slug?: string;
+  product_slug?: string;
+}): string | null => p.slug ?? p.product_slug ?? null;
+
+interface CartItemView {
+  id: number;
+  name: string;
+  price: number; // ← harga efektif (varian > produk)
+  originalPrice?: number;
+  image: string;
+  quantity: number;
+  category: string;
+  ageGroup: string;
+  isEcoFriendly: boolean;
+  inStock: boolean;
+  // new:
+  slug: string | null;
+  selectedVariantId: number | null;
 }
 
 function mapStoredToView(items: StoredCartItem[]): CartItemView[] {
   return items.map((it) => ({
     id: it.id,
     name: it.name,
-    price: it.price,
+    // gunakan variant_price jika ada
+    price: typeof it.variant_price === "number" ? it.variant_price : it.price,
     originalPrice: undefined,
     image: getImageUrlFromProduct(it),
     quantity: it.quantity ?? 1,
     category: it.category_name,
     ageGroup: "Semua usia",
     isEcoFriendly: false,
-    inStock: (it.duration ?? 0) > 0,
+    inStock: (it.stock ?? 0) > 0,
+    // new:
+    slug: getProductSlug(it),
+    selectedVariantId: it.selected_variant_id ?? null,
   }));
 }
-
-type ErrorBag = Record<string, string[] | string>;
 
 export default function CartPage() {
   const router = useRouter();
@@ -221,8 +267,9 @@ export default function CartPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
 
   const [paymentType, setPaymentType] = useState<PaymentType>("manual");
+  const [paymentInfo, setPaymentInfo] = useState<GatewayPayment | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  const [paymentMethod, setPaymentMethod] = useState("");
   const [shippingCourier, setShippingCourier] = useState<string | null>(null);
   const [shippingMethod, setShippingMethod] =
     useState<ShippingCostOption | null>(null);
@@ -240,6 +287,9 @@ export default function CartPage() {
     rajaongkir_city_id: 0,
     rajaongkir_district_id: 0,
   });
+
+  const [autoMethod, setAutoMethod] = useState<AutomaticMethod | "">("");
+  const [autoChannel, setAutoChannel] = useState<BankChannel | "">("");
 
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const [hasDefaultAddress, setHasDefaultAddress] = useState(false);
@@ -399,6 +449,20 @@ export default function CartPage() {
     setCartItems(mapStoredToView(next));
   };
 
+  const onPickVariant = (itemId: number, v: ProductVariant) => {
+    updateStorageAndState((items) =>
+      items.map((it) =>
+        it.id === itemId
+          ? {
+              ...it,
+              selected_variant_id: v.id,
+              variant_price: v.price, // harga efektif jadi harga varian
+            }
+          : it
+      )
+    );
+  };
+
   const updateQuantity = (id: number, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeItem(id);
@@ -503,21 +567,83 @@ export default function CartPage() {
       return;
     }
 
+    // ===== Helper varian (tanpa any) =====
+    type VariantObj = { id: number };
+    type VariantCapable = StoredCartItem & {
+      selected_variant_id?: number | null;
+      product_variant_id?: number | null;
+      variant_id?: number | null;
+      variant?: VariantObj | null;
+      variants?: VariantObj[] | null;
+      product_variants?: VariantObj[] | null;
+    };
+    const deriveVariantId = (item: VariantCapable): number | null => {
+      if (typeof item.selected_variant_id === "number")
+        return item.selected_variant_id;
+      if (typeof item.product_variant_id === "number")
+        return item.product_variant_id;
+      if (typeof item.variant_id === "number") return item.variant_id;
+      if (item.variant?.id) return item.variant.id;
+      const list = item.variants ?? item.product_variants ?? [];
+      return Array.isArray(list) && list[0]?.id ? list[0].id : null;
+    };
+
     setIsSubmitting(true);
     try {
       const stored = parseStorage();
 
+      const missingVariant = stored
+        .map((it) => ({ it, v: deriveVariantId(it as VariantCapable) }))
+        .filter(({ v }) => v == null)
+        .map(({ it }) => it.name ?? `#${it.id}`);
+
+      if (missingVariant.length > 0) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Varian belum dipilih",
+          html:
+            `<p class="text-left">Produk berikut belum punya varian:</p>` +
+            `<ul class="text-left mt-2">${missingVariant
+              .map((n) => `<li>• ${n}</li>`)
+              .join("")}</ul>` +
+            `<p class="text-left mt-3">Silakan pilih varian di halaman produk/keranjang terlebih dulu.</p>`,
+        });
+        setIsSubmitting(false);
+        setIsCheckingOut(false);
+        return;
+      }
+
+      const details = stored.map((item) => ({
+        product_id: item.id,
+        product_variant_id: deriveVariantId(item as VariantCapable)!,
+        quantity: item.quantity ?? 1,
+      }));
+
+      const payment_type: "automatic" | "manual" | "cod" =
+        paymentType === "midtrans" ? "automatic" : paymentType;
+
       const payload: CreateTransactionRequest = {
         address_line_1: shippingInfo.address_line_1,
         postal_code: shippingInfo.postal_code,
-        payment_method: paymentType, // "midtrans" | "manual" | "cod"
+        payment_type,
+        ...(payment_type === "automatic"
+          ? {
+              payment_method: autoMethod as "bank_transfer" | "qris",
+              payment_channel: autoChannel as
+                | "bnc"
+                | "bjb"
+                | "bca"
+                | "bni"
+                | "bsi"
+                | "bss"
+                | "cimb"
+                | "qris",
+            }
+          : {}),
         data: [
           {
             shop_id: 1,
-            details: stored.map((item) => ({
-              product_id: item.id,
-              quantity: item.quantity ?? 1,
-            })),
+            details,
             shipment: {
               parameter: JSON.stringify({
                 destination: String(shippingInfo.rajaongkir_district_id),
@@ -545,35 +671,131 @@ export default function CartPage() {
         ],
       };
 
-      const result = await createTransaction(payload).unwrap();
+      // ===== Tipe & type guard respons gateway =====
+      type PaymentTypeResp = "qris" | "bank_transfer";
+      interface PaymentResp {
+        id: number;
+        driver: string;
+        payable_type: string;
+        payable_id: number;
+        order_id: string;
+        transaction_id: string;
+        payment_type: PaymentTypeResp;
+        account_number: string; // QR string atau nomor VA
+        account_code: string | null; // contoh: BCA_VIRTUAL_ACCOUNT
+        channel: string; // contoh: "bca" / "qris"
+        expired_at: string;
+        paid_at: string | null;
+        amount: number;
+        created_at: string;
+        updated_at: string;
+      }
+      interface UserResp {
+        id: number;
+        name: string;
+        phone: string;
+        email: string;
+        email_verified_at: string | null;
+        created_at: string;
+        updated_at: string;
+      }
+      interface TransactionResp {
+        id: number;
+        reference: string;
+        ref_number: number;
+        address_line_1: string;
+        address_line_2?: string | null;
+        postal_code: string;
+        total: number;
+        discount_total: number;
+        shipment_cost: number;
+        grand_total: number;
+        guest_name: string | null;
+        guest_email: string | null;
+        guest_phone: string | null;
+        type: string;
+        created_at: string;
+        updated_at: string;
+        user: UserResp;
+        payment?: PaymentResp;
+      }
+      // ganti nama supaya tidak konflik dengan tipe import
+      interface GatewayCreateTransactionResponse {
+        code?: number;
+        message?: string;
+        data: TransactionResp;
+      }
 
-      if (
-        result &&
-        result.data &&
-        typeof result.data === "object" &&
-        "payment_link" in result.data
-      ) {
-        await Swal.fire({
-          icon: "success",
-          title: "Pesanan Berhasil Dibuat",
-          text: "Silakan lanjutkan ke halaman pembayaran.",
-          confirmButtonText: "Lanjut ke Pembayaran",
-        });
-        window.open(
-          (result.data as { payment_link: string }).payment_link,
-          "_blank"
+      const isObject = (x: unknown): x is Record<string, unknown> =>
+        typeof x === "object" && x !== null;
+
+      const isPaymentResp = (x: unknown): x is GatewayPayment => {
+        if (typeof x !== "object" || x === null) return false;
+        const o = x as Record<string, unknown>;
+        return (
+          typeof o["payment_type"] === "string" &&
+          typeof o["channel"] === "string" &&
+          typeof o["account_number"] === "string" &&
+          typeof o["amount"] === "number" &&
+          typeof o["expired_at"] === "string"
         );
-        clearCart();
-        setTimeout(() => {
-          router.push("/me");
-        }, 2000);
-      } else {
+      };
+
+      const isGatewayCreateTransactionResponse = (
+        x: unknown
+      ): x is GatewayCreateTransactionResponse => {
+        if (!isObject(x)) return false;
+        const data = (x as Record<string, unknown>)["data"];
+        if (!isObject(data)) return false;
+        const hasReference = typeof data["reference"] === "string";
+        const pay = data["payment"];
+        const payOk = pay === undefined || isPaymentResp(pay);
+        return hasReference && payOk;
+      };
+
+      // ==== Panggil API
+      const raw = await createTransaction(payload).unwrap();
+
+      if (!isGatewayCreateTransactionResponse(raw)) {
+        // fallback lama (mis. skema yang mengembalikan payment_link)
         await Swal.fire({
           icon: "info",
           title: "Pesanan Dibuat",
-          text: "Pesanan berhasil dibuat, tetapi tidak dapat membuka link pembayaran.",
+          text: "Pesanan berhasil dibuat, namun format respons pembayaran tidak dikenali. Silakan cek halaman pesanan.",
         });
+        clearCart();
+        router.push("/me");
+        return;
       }
+
+      const trx = raw.data;
+      const pay = trx.payment;
+      const isAutomatic = payment_type === "automatic";
+
+     if (isAutomatic) {
+       if (pay) {
+         setPaymentInfo(pay);
+         setShowPaymentModal(true);
+         // opsional: JANGAN clearCart dulu supaya user masih bisa lihat itemnya
+         // clearCart(); // kalau mau kosongkan keranjang di awal, aktifkan ini
+       } else {
+         await Swal.fire({
+           icon: "info",
+           title: "Pesanan Dibuat",
+           text: "Pesanan berhasil dibuat, namun informasi pembayaran belum tersedia. Silakan cek halaman pesanan Anda.",
+         });
+         clearCart();
+         router.push("/me");
+       }
+     } else {
+       await Swal.fire({
+         icon: "success",
+         title: "Pesanan Berhasil Dibuat",
+         text: "Instruksi pembayaran tersedia di halaman pesanan.",
+       });
+       clearCart();
+       router.push("/me");
+     }
     } catch (err: unknown) {
       console.error("Error creating transaction:", err);
 
@@ -581,31 +803,23 @@ export default function CartPage() {
         "Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.";
       let fieldErrors = "";
 
-      if (typeof err === "object" && err !== null) {
-        const apiErr = err as {
-          data?: {
-            message?: string;
-            errors?: Record<string, string[] | string>;
-          };
-        };
-        const genericErr = err as { message?: string };
+      const apiErr = err as {
+        data?: { message?: string; errors?: Record<string, string[] | string> };
+      };
+      const genericErr = err as { message?: string };
 
-        if (apiErr.data?.message) {
-          serverMessage = apiErr.data.message;
-        } else if (genericErr.message) {
-          serverMessage = genericErr.message;
-        }
+      if (apiErr?.data?.message) serverMessage = apiErr.data.message;
+      else if (genericErr?.message) serverMessage = genericErr.message;
 
-        const rawErrors: Record<string, string[] | string> | undefined =
-          apiErr.data?.errors;
-        if (rawErrors) {
-          fieldErrors = Object.entries(rawErrors)
-            .map(([field, msgs]) => {
-              const list = Array.isArray(msgs) ? msgs : [msgs];
-              return `${field}: ${list.join(", ")}`;
-            })
-            .join("\n");
-        }
+      const rawErrors: Record<string, string[] | string> | undefined =
+        apiErr?.data?.errors;
+      if (rawErrors) {
+        fieldErrors = Object.entries(rawErrors)
+          .map(([field, msgs]) => {
+            const list = Array.isArray(msgs) ? msgs : [msgs];
+            return `${field}: ${list.join(", ")}`;
+          })
+          .join("\n");
       }
 
       await Swal.fire({
@@ -890,6 +1104,12 @@ export default function CartPage() {
                         </div>
                       </div>
                     </div>
+                    <VariantPicker
+                      itemId={item.id}
+                      productSlug={item.slug}
+                      selectedVariantId={item.selectedVariantId}
+                      onPick={(v) => onPickVariant(item.id, v)}
+                    />
                   </div>
                 </div>
               </div>
@@ -1203,9 +1423,13 @@ export default function CartPage() {
                         name="payment-type"
                         value="midtrans"
                         checked={paymentType === "midtrans"}
-                        onChange={(e) =>
-                          setPaymentType(e.currentTarget.value as PaymentType)
-                        }
+                        onChange={(e) => {
+                          const v = e.currentTarget.value as PaymentType;
+                          setPaymentType(v);
+                          // reset pilihan gateway agar tidak ikut terbawa
+                          setAutoMethod("");
+                          setAutoChannel("");
+                        }}
                         className="form-radio text-[#6B6B6B] h-4 w-4"
                       />
                       <div>
@@ -1297,6 +1521,83 @@ export default function CartPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {paymentType === "midtrans" && (
+                  <div className="space-y-3 mt-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Metode Pembayaran Online
+                    </label>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-neutral-50">
+                        <input
+                          type="radio"
+                          name="auto-method"
+                          value="qris"
+                          checked={autoMethod === "qris"}
+                          onChange={() => {
+                            setAutoMethod("qris");
+                            setAutoChannel("qris"); // channel wajib 'qris' untuk QRIS
+                          }}
+                          className="form-radio text-[#6B6B6B] h-4 w-4"
+                        />
+                        <div>
+                          <p className="font-medium">QRIS</p>
+                          <p className="text-sm text-gray-500">
+                            Scan QR (semua e-wallet/bank)
+                          </p>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-neutral-50">
+                        <input
+                          type="radio"
+                          name="auto-method"
+                          value="bank_transfer"
+                          checked={autoMethod === "bank_transfer"}
+                          onChange={() => {
+                            setAutoMethod("bank_transfer");
+                            setAutoChannel(""); // pilih bank di bawah
+                          }}
+                          className="form-radio text-[#6B6B6B] h-4 w-4"
+                        />
+                        <div>
+                          <p className="font-medium">Virtual Account</p>
+                          <p className="text-sm text-gray-500">
+                            VA bank (BCA/BNI/BSI/BJB/BNC/BSS/CIMB)
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+
+                    {autoMethod === "bank_transfer" && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Pilih Bank
+                        </label>
+                        <Select
+                          value={autoChannel}
+                          onValueChange={(val) =>
+                            setAutoChannel(val as BankChannel)
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Pilih Bank" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="bca">BCA</SelectItem>
+                            <SelectItem value="bni">BNI</SelectItem>
+                            <SelectItem value="bsi">BSI</SelectItem>
+                            <SelectItem value="bjb">BJB</SelectItem>
+                            <SelectItem value="bnc">BNC</SelectItem>
+                            <SelectItem value="bss">BSS</SelectItem>
+                            <SelectItem value="cimb">CIMB</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1414,7 +1715,8 @@ export default function CartPage() {
                   !shippingInfo.address_line_1 ||
                   !shippingInfo.postal_code ||
                   !isPhoneValid ||
-                  !paymentType
+                  !paymentType ||
+                  (paymentType === "midtrans" && (!autoMethod || !autoChannel)) // qris akan otomatis set 'qris'
                 }
                 className="w-full bg-[#6B6B6B] text-white py-4 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -1538,6 +1840,24 @@ export default function CartPage() {
           )}
         </div> */}
       </div>
+      <PaymentModal
+        open={showPaymentModal}
+        payment={paymentInfo}
+        onClose={() => {
+          // aksi saat modal ditutup:
+          clearCart();
+          setShowPaymentModal(false);
+          router.push("/me"); // menuju halaman pesanan
+        }}
+        onCopied={(msg) =>
+          Swal.fire({
+            icon: "success",
+            title: msg,
+            timer: 900,
+            showConfirmButton: false,
+          })
+        }
+      />
     </div>
   );
 }

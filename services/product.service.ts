@@ -1,5 +1,5 @@
 import { apiSlice } from "./base-query";
-import { Product } from "@/types/admin/product"; 
+import { Product } from "@/types/admin/product";
 
 export const productCategoryApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
@@ -12,7 +12,7 @@ export const productCategoryApi = apiSlice.injectEndpoints({
         total: number;
         per_page: number;
       },
-      { page: number; paginate: number, product_merk_id: number | null }
+      { page: number; paginate: number; product_merk_id?: number | null }
     >({
       query: ({ page, paginate, product_merk_id }) => ({
         url: `/public/products`,
@@ -20,7 +20,7 @@ export const productCategoryApi = apiSlice.injectEndpoints({
         params: {
           page,
           paginate,
-          product_merk_id
+          product_merk_id,
         },
       }),
       transformResponse: (response: {
@@ -58,7 +58,5 @@ export const productCategoryApi = apiSlice.injectEndpoints({
   overrideExisting: false,
 });
 
-export const {
-  useGetProductListQuery,
-  useGetProductBySlugQuery,
-} = productCategoryApi;
+export const { useGetProductListQuery, useGetProductBySlugQuery } =
+  productCategoryApi;

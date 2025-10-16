@@ -25,6 +25,7 @@ export interface Product {
   weight: number;
   length: number;
   width: number;
+  stock: number;
   height: number;
   diameter: number;
   status: boolean | number;

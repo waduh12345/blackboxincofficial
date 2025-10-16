@@ -5,13 +5,12 @@ import Swal from "sweetalert2";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import useModal from "@/hooks/use-modal";
 import { Combobox } from "@/components/ui/combo-box";
+import { PageHeader } from "@/components/ui/page-header";
 
 import { useGetProductListQuery } from "@/services/admin/product.service";
-
 import {
   useGetProductVariantsQuery,
   useCreateProductVariantMutation,
@@ -26,17 +25,13 @@ import ProductVariantForm from "@/components/form-modal/admin/product-variant-fo
 const ITEMS_PER_PAGE = 10;
 
 export default function ProductVariantPage() {
-  // pilih produk dulu → dapat slug
+  // pilih produk (opsional di header)
   const [productId, setProductId] = useState<number | null>(null);
   const [productSearch, setProductSearch] = useState("");
 
-  // ambil daftar produk untuk combobox (bisa perbesar paginate biar banyak pilihan)
+  // ambil daftar produk untuk combobox
   const { data: productResp, isLoading: productLoading } =
-    useGetProductListQuery({
-      page: 1,
-      paginate: 200,
-      // search: productSearch
-    });
+    useGetProductListQuery({ page: 1, paginate: 200 });
 
   const productList = useMemo(() => {
     const rows = productResp?.data ?? [];
@@ -49,7 +44,6 @@ export default function ProductVariantPage() {
     () => productList.find((p: Product) => p.id === productId),
     [productList, productId]
   );
-
   const productSlug = selectedProduct?.slug ?? null;
 
   // listing variants
@@ -140,10 +134,7 @@ export default function ProductVariantPage() {
         }).unwrap();
         Swal.fire("Sukses", "Varian diperbarui", "success");
       } else {
-        await createVariant({
-          productSlug,
-          body: payload,
-        }).unwrap();
+        await createVariant({ productSlug, body: payload }).unwrap();
         Swal.fire("Sukses", "Varian ditambahkan", "success");
       }
       resetForm();
@@ -210,15 +201,36 @@ export default function ProductVariantPage() {
     }
   };
 
+  // Handler tombol header: validasi produk dipilih
+  const handleOpenCreate = () => {
+    if (!productSlug) {
+      Swal.fire("Perhatian", "Pilih produk terlebih dahulu.", "warning");
+      return;
+    }
+    resetForm();
+    openModal();
+  };
+
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-xl font-bold">Product Variants</h1>
-
-      <div className="flex-1" />
-      {/* Pilih produk dulu */}
-      <div className="w-full flex justify-between items-center">
-        <div className="w-full flex flex-col gap-2">
-          <div className="w-1/2">
+      {/* HEADER: judul + (opsional) select produk + search varian + tombol tambah */}
+      <PageHeader
+        title="Product Variants"
+        primaryLabel="Tambah Varian"
+        onPrimaryAction={handleOpenCreate}
+        searchPlaceholder={
+          productSlug
+            ? "Cari varian (nama / sku)…"
+            : "Pilih produk dulu untuk mencari varian"
+        }
+        searchValue={variantSearch}
+        onSearchChange={(v) => {
+          setVariantSearch(v);
+          setCurrentPage(1);
+        }}
+        rightSlot={
+          // ⬇️ Select produk bersifat opsional (cukup hilangkan rightSlot jika tidak dibutuhkan)
+          <div className="w-72">
             <Combobox<Product>
               value={productId}
               onChange={(val) => {
@@ -232,56 +244,27 @@ export default function ProductVariantPage() {
               placeholder="Pilih Produk"
             />
           </div>
+        }
+      />
 
-          {/* Header info produk terpilih */}
-          {selectedProduct ? (
-            <div className="text-sm text-muted-foreground">
-              Produk terpilih:{" "}
-              <span className="font-semibold text-foreground">
-                {selectedProduct.name}
-              </span>{" "}
-              <span className="ml-2 rounded-md bg-muted px-2 py-0.5 text-xs">
-                slug: {selectedProduct.slug}
-              </span>
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              Pilih produk terlebih dahulu untuk melihat varian.
-            </div>
-          )}
-          {/* Toolbar list varian */}
-          <div className="flex w-1/2 items-center gap-2">
-            <Input
-              placeholder="Cari varian (nama / sku)…"
-              value={variantSearch}
-              onChange={(e) => {
-                setVariantSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-              disabled={!productSlug}
-            />
-          </div>
-        </div>
-
-        <Button
-          onClick={() => {
-            if (!productSlug) {
-              Swal.fire(
-                "Perhatian",
-                "Pilih produk terlebih dahulu.",
-                "warning"
-              );
-              return;
-            }
-            resetForm();
-            openModal();
-          }}
-        >
-          Tambah Varian
-        </Button>
+      {/* Info produk terpilih (opsional) */}
+      <div className="text-sm text-muted-foreground">
+        {selectedProduct ? (
+          <>
+            Produk terpilih:{" "}
+            <span className="font-semibold text-foreground">
+              {selectedProduct.name}
+            </span>
+            <span className="ml-2 rounded-md bg-muted px-2 py-0.5 text-xs">
+              slug: {selectedProduct.slug}
+            </span>
+          </>
+        ) : (
+          <>Pilih produk terlebih dahulu untuk melihat varian.</>
+        )}
       </div>
 
-      {/* Table */}
+      {/* TABLE */}
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">

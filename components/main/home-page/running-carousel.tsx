@@ -1,120 +1,244 @@
-// components/sections/RunningCarousel.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import clsx from "clsx";
+import { useGetGalleryListQuery } from "@/services/gallery.service";
+
+// --- IMPORTS MODE EDIT ---
+import { useEditMode } from "@/hooks/use-edit-mode";
+import { EditableImage } from "@/components/ui/editable";
+
+// --- INTERFACES ---
+interface GaleriItem {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  published_at: string;
+  image: string | File | null;
+}
+
+interface GalleryListShape {
+  data: GaleriItem[];
+  last_page: number;
+  current_page: number;
+  total: number;
+  per_page: number;
+}
 
 type RunningCarouselProps = {
-  images?: string[];
-  heightClass?: string; // e.g. "h-[320px]"
+  heightClass?: string;
   intervalMs?: number;
   showArrows?: boolean;
   showDots?: boolean;
 };
 
-const DEFAULT_IMAGES = [
-  "https://8nc5ppykod.ufs.sh/f/H265ZJJzf6brtBHsuFex0OYVvL2QeijZs4TN9tB6HcnbPodI",
-  "https://8nc5ppykod.ufs.sh/f/H265ZJJzf6brTTHbttWk2QS9m61VxOA4hqLglEHIpdXWi8wU",
-  "https://8nc5ppykod.ufs.sh/f/H265ZJJzf6brlooWQpHmgY8fkG9iJeAzFQyqLh5pudMZH7l2",
-] as const;
+// =========================================
+// DEFAULT EXPORT (WRAPPER SUSPENSE)
+// =========================================
+export default function RunningCarousel(props: RunningCarouselProps) {
+  return (
+    <Suspense
+      fallback={
+        <div
+          className={clsx(
+            "relative w-full overflow-hidden rounded-3xl bg-gray-100 shadow-xl",
+            props.heightClass || "h-[60vh]"
+          )}
+        >
+          <div className="absolute inset-0 grid place-items-center text-sm text-gray-500">
+            Memuat...
+          </div>
+        </div>
+      }
+    >
+      <RunningCarouselContent {...props} />
+    </Suspense>
+  );
+}
 
-export default function RunningCarousel({
-  images,
+// =========================================
+// CONTENT COMPONENT
+// =========================================
+function RunningCarouselContent({
   heightClass = "h-[60vh]",
-  intervalMs = 3500,
+  intervalMs = 3000,
   showArrows = true,
   showDots = true,
 }: RunningCarouselProps) {
-  const items = useMemo<string[]>(() => {
-    const cleaned = (images ?? []).filter(Boolean);
-    return cleaned.length ? cleaned : [...DEFAULT_IMAGES];
-  }, [images]);
+  const isEditMode = useEditMode();
+
+  // Fetch data dari API
+  const { data, isLoading, isError } = useGetGalleryListQuery({
+    page: 1,
+    paginate: 10,
+  });
+
+  // State lokal untuk menyimpan daftar gambar agar bisa diedit
+  const [localItems, setLocalItems] = useState<string[]>([]);
+
+  // Sinkronisasi data API ke state lokal saat data tersedia
+  useEffect(() => {
+    const list = (data as GalleryListShape | undefined)?.data ?? [];
+    const images = list
+      .map((it) => (typeof it.image === "string" ? it.image : ""))
+      .filter((u): u is string => u.length > 0);
+
+    // Hanya set jika localItems masih kosong atau data berubah drastis
+    // (Dalam kasus nyata, logic ini bisa disesuaikan agar tidak menimpa edit user saat re-fetch)
+    if (images.length > 0) {
+      setLocalItems(images);
+    }
+  }, [data]);
 
   const [index, setIndex] = useState(0);
-  const timerRef = useRef<number | null>(null);
   const [paused, setPaused] = useState(false);
+  const timerRef = useRef<number | null>(null);
 
-  // reset index jika jumlah slide berubah
+  // Reset index jika jumlah item berubah
   useEffect(() => {
     setIndex(0);
-  }, [items.length]);
+  }, [localItems.length]);
 
-  // autoplay
+  // Logic Autoplay
   useEffect(() => {
-    if (paused) return;
+    // Pause autoplay jika sedang mode edit agar tidak mengganggu
+    if (paused || isEditMode || localItems.length <= 1) return;
+
     timerRef.current = window.setInterval(() => {
-      setIndex((i) => (i + 1) % items.length);
+      setIndex((i) => (i + 1) % localItems.length);
     }, intervalMs);
+
     return () => {
-      if (timerRef.current) window.clearInterval(timerRef.current);
+      if (timerRef.current !== null) window.clearInterval(timerRef.current);
     };
-  }, [items.length, intervalMs, paused]);
+  }, [localItems.length, intervalMs, paused, isEditMode]);
 
   const go = (dir: -1 | 1) =>
-    setIndex((i) => (i + dir + items.length) % items.length);
+    setIndex((i) => (i + dir + localItems.length) % localItems.length);
+
+  // Handler simpan gambar baru (hanya di state lokal)
+  const handleImageSave = (imgIndex: number, newUrl: string) => {
+    setLocalItems((prev) => {
+      const updated = [...prev];
+      updated[imgIndex] = newUrl;
+      return updated;
+    });
+  };
+
+  // --- RENDERING STATES ---
+
+  if (isLoading && localItems.length === 0) {
+    return (
+      <div
+        className={clsx(
+          "relative w-full overflow-hidden rounded-3xl bg-gray-100 shadow-xl",
+          heightClass
+        )}
+      >
+        <div className="absolute inset-0 grid place-items-center text-sm text-gray-500">
+          Memuat galeri…
+        </div>
+      </div>
+    );
+  }
+
+  if ((isError && localItems.length === 0) || localItems.length === 0) {
+    return (
+      <div
+        className={clsx(
+          "relative w-full overflow-hidden rounded-3xl bg-gray-100 shadow-xl",
+          heightClass
+        )}
+      >
+        <div className="absolute inset-0 grid place-items-center text-sm text-gray-500">
+          Belum ada gambar galeri.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-3xl ${heightClass} bg-rose-100`}
+      className={clsx(
+        `relative w-full overflow-hidden rounded-3xl ${heightClass} bg-gray-100`,
+        "shadow-xl group/carousel"
+      )}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       aria-roledescription="carousel"
     >
-      {/* slides */}
+      {/* Track Slides */}
       <div
         className="flex h-full w-full transition-transform duration-700 ease-out"
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
-        {items.map((src, i) => (
-          <div key={i} className="relative min-w-full">
-            <img
+        {localItems.map((src, i) => (
+          <div key={`${i}-slide`} className="relative min-w-full h-full">
+            {/* Menggunakan EditableImage */}
+            <EditableImage
+              isEditMode={isEditMode}
               src={src}
+              onSave={(url) => handleImageSave(i, url)}
               alt={`Slide ${i + 1}`}
+              containerClassName="w-full h-full"
               className="h-full w-full object-cover"
-              draggable={false}
-              loading="lazy"
+              // Gunakan width/height besar agar kualitas bagus, atau fill jika parent relative
+              width={1200}
+              height={800}
+              priority={i === 0} // Prioritaskan slide pertama
             />
-            {/* red overlay for elegance */}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-rose-900/40 via-rose-800/20 to-transparent" />
+
+            {/* Gradient Overlay (untuk estetika) */}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-[1]" />
           </div>
         ))}
       </div>
 
-      {/* arrows */}
-      {showArrows && (
+      {/* Arrows */}
+      {showArrows && localItems.length > 1 && (
         <>
           <button
             aria-label="Previous slide"
             onClick={() => go(-1)}
-            className="group absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-md ring-1 ring-black/10 backdrop-blur hover:bg-white"
+            className="group absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 shadow-lg ring-1 ring-white/20 backdrop-blur-sm transition-all hover:bg-black z-20"
           >
-            <ChevronLeft className="h-5 w-5 text-rose-700 group-hover:scale-110 transition-transform" />
+            <ChevronLeft className="h-5 w-5 text-white group-hover:scale-110 transition-transform" />
           </button>
           <button
             aria-label="Next slide"
             onClick={() => go(1)}
-            className="group absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-md ring-1 ring-black/10 backdrop-blur hover:bg-white"
+            className="group absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 shadow-lg ring-1 ring-white/20 backdrop-blur-sm transition-all hover:bg-black z-20"
           >
-            <ChevronRight className="h-5 w-5 text-rose-700 group-hover:scale-110 transition-transform" />
+            <ChevronRight className="h-5 w-5 text-white group-hover:scale-110 transition-transform" />
           </button>
         </>
       )}
 
-      {/* dots */}
-      {showDots && (
-        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
-          {items.map((_, i) => (
+      {/* Dots */}
+      {showDots && localItems.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 z-20">
+          {localItems.map((_, i) => (
             <button
-              key={i}
+              key={`dot-${i}`}
               aria-label={`Go to slide ${i + 1}`}
               onClick={() => setIndex(i)}
-              className={`h-2.5 w-2.5 rounded-full transition-all ${
+              className={clsx(
+                "h-2.5 w-2.5 rounded-full transition-all duration-300",
                 i === index
-                  ? "bg-white shadow ring-2 ring-rose-600"
-                  : "bg-white/60 hover:bg-white"
-              }`}
+                  ? "bg-white shadow-md ring-2 ring-gray-400"
+                  : "bg-gray-400/60 hover:bg-gray-300"
+              )}
             />
           ))}
+        </div>
+      )}
+
+      {/* Indikator Mode Edit (Opsional, jika ingin penanda khusus di komponen ini) */}
+      {isEditMode && (
+        <div className="absolute top-4 left-4 z-30 bg-blue-600/80 text-white text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-wider pointer-events-none backdrop-blur-sm">
+          Editable
         </div>
       )}
     </div>

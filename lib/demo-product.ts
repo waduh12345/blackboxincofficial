@@ -29,6 +29,6 @@ export const DEMO_PRODUCTS: ListingProduct[] = Array.from({ length: 42 }).map(
     tags: i % 2 ? ["terbaru"] : ["terlaris"], // ada yang 'terbaru'
     colors: DEF_COLORS,
     sizes: DEF_SIZES,
-    desc: "Material nyaman dipakai harian. Cutting rapi dan detail premium khas Blackboxinc.",
+    desc: "Material nyaman dipakai harian. Cutting rapi dan detail premium khas BLACKBOX.INC.",
   })
 );

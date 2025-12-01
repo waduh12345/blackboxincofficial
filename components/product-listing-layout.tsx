@@ -1,3 +1,4 @@
+// components/layouts/ProductListingLayout.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8,11 +9,14 @@ import {
   X,
   Star,
   Heart,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import FilterBlocks from "@/components/ui/block-filter";
-import Pagination from "@/components/ui/pagination";
-import ProductDetailModal from "./modal/product-detail-modal";
+import { Button } from "@/components/ui/button"; // Asumsi Button sudah B&W
+import FilterBlocks from "@/components/ui/block-filter"; // Asumsi ini sudah B&W
+import Pagination from "@/components/ui/pagination"; // Asumsi ini sudah B&W
+import ProductDetailModal from "./modal/product-detail-modal"; // Asumsi ini sudah B&W
+import clsx from "clsx";
 
 /* ---------- Types ---------- */
 export type ListingProduct = {
@@ -35,7 +39,7 @@ export type ListingProduct = {
   desc: string;
 };
 
-type Chip = { label: string; slug: string }; // slug bisa 'low-stock' | 'newest' | kategori biasa
+type Chip = { label: string; slug: string };
 
 type SortKey =
   | "terendah"
@@ -44,18 +48,18 @@ type SortKey =
   | "terbaru"
   | "diskon-terbesar";
 
-/* ---------- Const ---------- */
+/* ---------- Const & Helpers (B&W Styling) ---------- */
 const DEF_COLORS = [
-  { name: "Maroon", hex: "#7f1d1d" },
-  { name: "Hitam", hex: "#111827" },
-  { name: "Putih", hex: "#F9FAFB" },
   { name: "Navy", hex: "#1f2937" },
+  { name: "Black", hex: "#111827" },
+  { name: "White", hex: "#F9FAFB" },
+  { name: "Grey", hex: "#6b7280" },
 ];
 const DEF_SIZES = ["S", "M", "L", "XL", "XXL"];
 const PAGE_SIZE_DEFAULT = 10;
 const LOW_STOCK_AT_DEFAULT = 5;
 const IMG_FALLBACK =
-  "https://i.pinimg.com/1200x/dc/28/77/dc2877f08ba923ba34c8fa70bae94128.jpg";
+  "https://via.placeholder.com/400x400/000000/FFFFFF?text=BLACKBOX.INC";
 
 const CURRENCY = (n: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -64,18 +68,19 @@ const CURRENCY = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n);
 
+// B&W Star Rating
 function StarRating({ value = 0 }: { value?: number }) {
   const full = Math.floor(value);
   const half = value - full >= 0.5;
   return (
-    <div className="flex items-center gap-0.5 text-amber-500">
+    <div className="flex items-center gap-0.5 text-black">
       {Array.from({ length: 5 }).map((_, i) => {
         const filled = i < full || (i === full && half);
         return (
           <Star
             key={i}
             className={`h-4 w-4 ${
-              filled ? "fill-amber-400" : "fill-transparent"
+              filled ? "fill-black text-black" : "fill-transparent text-gray-300"
             }`}
           />
         );
@@ -83,17 +88,6 @@ function StarRating({ value = 0 }: { value?: number }) {
     </div>
   );
 }
-
-const formatDate = (d: Date) =>
-  d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
-
-const etaRange = () => {
-  const a = new Date();
-  const b = new Date();
-  a.setDate(a.getDate() + 2);
-  b.setDate(b.getDate() + 5);
-  return `${formatDate(a)} – ${formatDate(b)}`;
-};
 
 /* ---------- Layout Component ---------- */
 export default function ProductListingLayout({
@@ -108,7 +102,7 @@ export default function ProductListingLayout({
   title: string;
   subtitle: string;
   products: ListingProduct[];
-  chips: Chip[]; // kategori chips pada scroller (boleh 'low-stock' & 'newest')
+  chips: Chip[];
   pageSize?: number;
   lowStockAt?: number;
   defaultSort?: SortKey;
@@ -137,11 +131,11 @@ export default function ProductListingLayout({
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  // compute filtered + sorted
+  // compute filtered + sorted (logic remains the same)
   const list = useMemo(() => {
     let data = products.slice();
 
-    // search
+    // ... (Filter logic is unchanged) ...
     if (query.trim()) {
       const q = query.toLowerCase();
       data = data.filter(
@@ -150,7 +144,6 @@ export default function ProductListingLayout({
           p.tags?.some((t) => t.toLowerCase().includes(q))
       );
     }
-    // chip filtering
     if (chip && chip !== "semua") {
       if (chip === "low-stock") {
         data = data.filter(
@@ -164,7 +157,6 @@ export default function ProductListingLayout({
           ? byTag
           : data.sort((a, b) => Number(b.id) - Number(a.id)).slice(0);
       } else {
-        // kategori biasa
         data = data.filter((p) => p.category === chip);
       }
     }
@@ -191,7 +183,7 @@ export default function ProductListingLayout({
       });
     }
 
-    // sorting
+    // sorting (logic remains the same)
     data.sort((a, b) => {
       if (sort === "terendah") return a.price - b.price;
       if (sort === "tertinggi") return b.price - a.price;
@@ -201,7 +193,6 @@ export default function ProductListingLayout({
         return db - da;
       }
       if (sort === "terlaris") return (b.reviews ?? 0) - (a.reviews ?? 0);
-      // terbaru: id lebih besar = lebih baru (fallback jika tidak menggunakan tag)
       return Number(b.id) - Number(a.id);
     });
 
@@ -231,7 +222,7 @@ export default function ProductListingLayout({
     [list, page, pageSize]
   );
 
-  /* ===== Modal helpers ===== */
+  /* ===== Modal helpers (logic remains the same) ===== */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setActive(null);
@@ -274,35 +265,37 @@ export default function ProductListingLayout({
 
   const total = useMemo(() => (active ? active.price * qty : 0), [active, qty]);
 
-  /* ===== UI ===== */
+  /* ===== UI (B&W Styling) ===== */
   return (
-    <main className="pb-16">
+    <main className="pb-16 bg-white">
       {/* Top bar */}
-      <div className="border-b bg-white">
+      <div className="border-b border-gray-200 bg-white shadow-sm">
         <div className="container mx-auto max-w-7xl px-4 py-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
+              <h1 className="text-2xl font-extrabold tracking-tight text-black uppercase">
                 {title}
               </h1>
-              <p className="text-sm text-gray-500">{subtitle}</p>
+              <p className="text-sm text-gray-700">{subtitle}</p>
             </div>
 
             {/* Search + filter btn (mobile) */}
             <div className="flex w-full items-center gap-2 md:w-auto">
-              <div className="group flex w-full items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-sm ring-1 ring-transparent transition focus-within:ring-rose-400/40 md:w-80">
+              {/* Search Input (B&W Style) */}
+              <div className="group flex w-full items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm ring-1 ring-transparent transition focus-within:ring-black/40 md:w-80">
                 <SearchIcon className="h-4 w-4 text-gray-400" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Cari produk, kategori, atau merek…"
-                  className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+                  placeholder="Search for items, categories, or tags…"
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400 text-black"
                   aria-label="Cari"
                 />
               </div>
+              {/* Filter Button (B&W Style) */}
               <button
                 onClick={() => setDrawerOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 md:hidden"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-black hover:bg-gray-50 md:hidden transition-colors"
               >
                 <Filter className="h-4 w-4" /> Filter
               </button>
@@ -313,11 +306,12 @@ export default function ProductListingLayout({
 
       {/* Category chips scroller */}
       {chips?.length > 0 && (
-        <div className="border-b bg-gradient-to-b from-rose-50 to-white">
+        <div className="border-b border-gray-100 bg-white">
           <div className="container mx-auto max-w-7xl px-4 py-4">
             <div className="relative">
-              <div className="pointer-events-none absolute left-0 top-0 h-full w-8 bg-gradient-to-r from-rose-50 to-transparent" />
-              <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-rose-50 to-transparent" />
+              {/* Fading Edges B&W */}
+              <div className="pointer-events-none absolute left-0 top-0 h-full w-8 bg-gradient-to-r from-white to-transparent" />
+              <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-white to-transparent" />
               <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2">
                 {chips.map((c) => {
                   const isActive =
@@ -334,18 +328,20 @@ export default function ProductListingLayout({
                             : c.slug
                         )
                       }
-                      className={`group inline-flex snap-start items-center gap-2 rounded-2xl border px-3 py-2 text-sm shadow-sm transition ${
+                      // Chip Styling B&W
+                      className={clsx(
+                        "group inline-flex snap-start items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium shadow-sm transition whitespace-nowrap",
                         isActive
-                          ? "border-rose-600 bg-rose-600 text-white"
-                          : "border-rose-100 bg-white text-gray-700 hover:border-rose-300"
-                      }`}
+                          ? "border-black bg-black text-white"
+                          : "border-gray-300 bg-white text-gray-700 hover:border-black/50"
+                      )}
                       aria-pressed={isActive}
                     >
-                      <span className="relative inline-block h-6 w-6 overflow-hidden rounded-full ring-1 ring-rose-200">
+                      <span className="relative inline-block h-6 w-6 overflow-hidden rounded-full ring-1 ring-gray-300">
                         <img
                           src={IMG_FALLBACK}
                           alt={c.label}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-cover grayscale" // Gambar grayscale
                         />
                       </span>
                       {c.label}
@@ -362,7 +358,8 @@ export default function ProductListingLayout({
       <div className="container mx-auto max-w-7xl px-4">
         <div className="grid grid-cols-1 gap-6 py-8 md:grid-cols-[260px_1fr]">
           {/* Sidebar filter (desktop) */}
-          <aside className="hidden rounded-2xl border border-rose-100 bg-white p-4 shadow-sm md:block">
+          <aside className="hidden rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:block">
+            {/* Asumsikan FilterBlocks sudah di-style B&W */}
             <FilterBlocks
               inStockOnly={inStockOnly}
               setInStockOnly={setInStockOnly}
@@ -377,39 +374,39 @@ export default function ProductListingLayout({
 
           {/* Right: header controls + grid */}
           <section>
-            {/* Sort row */}
+            {/* Sort row (B&W Style) */}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-gray-500">
-                Menampilkan{" "}
+              <div className="text-sm text-gray-700">
+                Showing{" "}
                 <strong>
                   {startIdx}-{endIdx}
                 </strong>{" "}
-                dari <strong>{list.length}</strong> produk
+                of <strong>{list.length}</strong> products
                 {chip ? (
                   <>
                     {" "}
-                    untuk <span className="font-semibold">{chip}</span>
+                    in <span className="font-semibold">{chip}</span>
                   </>
                 ) : null}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">urutan:</span>
+                <span className="text-sm text-gray-700">Sort by:</span>
                 <select
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-black font-medium"
                   value={sort}
                   onChange={(e) => setSort(e.target.value as SortKey)}
                 >
-                  <option value="terendah">Harga Terendah</option>
-                  <option value="tertinggi">Harga Tertinggi</option>
-                  <option value="terlaris">Terlaris</option>
-                  <option value="terbaru">Terbaru</option>
-                  <option value="diskon-terbesar">Diskon Terbesar</option>
+                  <option value="terendah">Price: Low to High</option>
+                  <option value="tertinggi">Price: High to Low</option>
+                  <option value="terlaris">Best Selling</option>
+                  <option value="terbaru">Newest</option>
+                  <option value="diskon-terbesar">Biggest Discount</option>
                 </select>
               </div>
             </div>
 
             {/* Grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {pageItems.map((p) => {
                 const disc =
                   p.was && p.was > p.price
@@ -420,78 +417,84 @@ export default function ProductListingLayout({
                 return (
                   <article
                     key={p.id}
-                    className="group overflow-hidden rounded-2xl border border-rose-100 bg-white shadow-sm ring-1 ring-rose-100 transition hover:shadow-md"
+                    // Card Styling B&W
+                    className="group overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition hover:shadow-lg"
                   >
                     <button
                       type="button"
                       onClick={() => setActive(p)}
                       className="block text-left focus:outline-none"
                       aria-haspopup="dialog"
-                      aria-label={`Lihat detail ${p.name}`}
+                      aria-label={`Quick view ${p.name}`}
                     >
                       <div className="relative">
                         <img
                           src={p.image ?? IMG_FALLBACK}
                           alt={p.name}
-                          className="h-64 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="h-64 w-full object-cover transition-transform duration-500 group-hover:scale-105 grayscale-[10%]" // Grayscale image
                         />
                         {disc > 0 && (
-                          <span className="absolute left-3 top-3 inline-flex items-center rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+                          // Discount Tag B&W
+                          <span className="absolute left-3 top-3 inline-flex items-center rounded-lg bg-black px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
                             -{disc}%
                           </span>
                         )}
+                        {/* Wishlist Button B&W */}
                         <button
                           type="button"
-                          aria-label="Tambah ke wishlist"
+                          aria-label="Add to wishlist"
                           onClick={(e) => {
                             e.stopPropagation();
                             window.dispatchEvent(
                               new CustomEvent("wishlist:add", { detail: p })
                             );
                           }}
-                          className="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-rose-600 shadow-sm hover:bg-white"
+                          className="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-black shadow-sm hover:bg-white transition-colors"
                         >
-                          <Heart className="h-4 w-4" />
+                          <Heart className="h-4 w-4 fill-transparent hover:fill-black" />
                         </button>
                       </div>
                       <div className="p-4">
-                        <h3 className="line-clamp-1 font-semibold text-gray-900">
+                        <h3 className="line-clamp-1 font-semibold text-black uppercase tracking-wide">
                           {p.name}
                         </h3>
                         <div className="mt-1 flex items-center justify-between">
                           <div className="flex items-baseline gap-2">
-                            <span className="font-bold text-rose-700">
+                            {/* Price B&W */}
+                            <span className="font-extrabold text-black text-lg">
                               {CURRENCY(p.price)}
                             </span>
                             {p.was && (
-                              <span className="text-xs text-gray-400 line-through">
+                              <span className="text-xs text-gray-500 line-through">
                                 {CURRENCY(p.was)}
                               </span>
                             )}
                           </div>
                           <div className="flex items-center gap-1">
                             <StarRating value={p.rating ?? 0} />
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-gray-500">
                               {p.reviews ?? 0}
                             </span>
                           </div>
                         </div>
                         {out ? (
-                          <div className="mt-2 text-xs font-semibold text-rose-600">
-                            Stok habis — klik untuk minta notifikasi
+                          // Out of stock B&W
+                          <div className="mt-2 text-xs font-semibold text-red-600">
+                            Sold out — notify me
                           </div>
                         ) : (
-                          <div className="mt-2 text-xs text-gray-500">
-                            Stok: {p.stock} • Siap kirim
+                          <div className="mt-2 text-xs text-gray-600">
+                            Stock: {p.stock} • Ready to ship
                           </div>
                         )}
-                        <div className="mt-3">
+                        <div className="mt-4">
+                          {/* Button B&W (assuming destructive is black) */}
                           <Button
                             size="lg"
-                            variant="destructive"
-                            className="w-full"
+                            variant="default" // Ubah ke default/black jika Button anda punya variant B&W
+                            className="w-full bg-black text-white hover:bg-gray-800 uppercase tracking-wider font-bold"
                           >
-                            Beli
+                            Add to Cart
                           </Button>
                         </div>
                       </div>
@@ -503,6 +506,7 @@ export default function ProductListingLayout({
 
             {/* Pagination */}
             <div className="mt-8 flex items-center justify-center">
+              {/* Asumsikan Pagination sudah di-style B&W */}
               <Pagination
                 page={page}
                 totalPages={totalPages}
@@ -513,24 +517,29 @@ export default function ProductListingLayout({
         </div>
       </div>
 
-      {/* Drawer Filter (mobile) */}
+      {/* Drawer Filter (mobile - B&W Style) */}
       {drawerOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
+          {/* Backdrop B&W */}
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setDrawerOpen(false)}
           />
-          <div className="absolute right-0 top-0 h-full w-[86%] max-w-sm animate-[slideIn_200ms_ease-out] overflow-y-auto rounded-l-2xl bg-white p-4 shadow-2xl">
+          {/* Drawer Panel B&W */}
+          <div className="absolute right-0 top-0 h-full w-[86%] max-w-sm animate-[slideIn_200ms_ease-out] overflow-y-auto rounded-l-xl bg-white p-4 shadow-2xl">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-lg font-extrabold text-gray-900">Filter</h3>
+              <h3 className="text-lg font-extrabold text-black uppercase">
+                Filter Options
+              </h3>
               <button
                 onClick={() => setDrawerOpen(false)}
-                className="rounded-full p-2 hover:bg-gray-100"
+                className="rounded-full p-2 hover:bg-gray-100 text-black"
                 aria-label="Tutup"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
+            {/* Asumsikan FilterBlocks sudah di-style B&W */}
             <FilterBlocks
               inStockOnly={inStockOnly}
               setInStockOnly={setInStockOnly}

@@ -16,17 +16,17 @@ const FaqPage = () => {
       name: "Produk",
       items: [
         {
-          question: "Apakah produkBLACKBOXINC aman untuk semua jenis kulit?",
+          question: "Apakah produk BLACKBOX.INC aman untuk semua jenis kulit?",
           answer:
-            "Ya, seluruh produkBLACKBOXINC diformulasikan dengan bahan-bahan berkualitas tinggi, dermatologically tested, dan aman untuk semua jenis kulit, termasuk kulit sensitif. Namun, kami tetap menyarankan untuk melakukan patch test sebelum pemakaian rutin.",
+            "Ya, seluruh produk BLACKBOX.INC diformulasikan dengan bahan-bahan berkualitas tinggi, dermatologically tested, dan aman untuk semua jenis kulit, termasuk kulit sensitif. Namun, kami tetap menyarankan untuk melakukan patch test sebelum pemakaian rutin.",
         },
         {
-          question: "Apakah produkBLACKBOXINC sudah terdaftar di BPOM?",
+          question: "Apakah produk BLACKBOX.INC sudah terdaftar di BPOM?",
           answer:
-            "Benar, semua produkBLACKBOXINC telah mendapatkan izin edar resmi dari BPOM sehingga terjamin aman digunakan.",
+            "Benar, semua produk BLACKBOX.INC telah mendapatkan izin edar resmi dari BPOM sehingga terjamin aman digunakan.",
         },
         {
-          question: "ApakahBLACKBOXINC menggunakan bahan alami?",
+          question: "Apakah BLACKBOX.INC menggunakan bahan alami?",
           answer:
             "Kami menggabungkan bahan aktif modern dengan ekstrak alami yang sudah terbukti secara klinis, seperti Niacinamide, Hyaluronic Acid, Green Tea, dan Centella Asiatica untuk hasil yang maksimal.",
         },
@@ -42,14 +42,14 @@ const FaqPage = () => {
       items: [
         {
           question:
-            "Apakah produkBLACKBOXINC bisa dipakai oleh ibu hamil dan menyusui?",
+            "Apakah produk BLACKBOX.INC bisa dipakai oleh ibu hamil dan menyusui?",
           answer:
-            "Sebagian besar produkBLACKBOXINC aman digunakan oleh ibu hamil dan menyusui. Namun, untuk produk dengan kandungan tertentu seperti retinol, sebaiknya dikonsultasikan dengan dokter terlebih dahulu.",
+            "Sebagian besar produk BLACKBOX.INC aman digunakan oleh ibu hamil dan menyusui. Namun, untuk produk dengan kandungan tertentu seperti retinol, sebaiknya dikonsultasikan dengan dokter terlebih dahulu.",
         },
         {
           question: "Apakah bisa digabung dengan Shop lain?",
           answer:
-            "Ya, produkBLACKBOXINC dapat dikombinasikan dengan Shop lain. Kami menyarankan untuk mengikuti urutan basic Shop: cleansing → toner → serum → moisturizer → sunscreen.",
+            "Ya, produk BLACKBOX.INC dapat dikombinasikan dengan Shop lain. Kami menyarankan untuk mengikuti urutan basic Shop: cleansing → toner → serum → moisturizer → sunscreen.",
         },
         {
           question:
@@ -63,7 +63,7 @@ const FaqPage = () => {
       name: "Pemesanan & Pengiriman",
       items: [
         {
-          question: "Berapa lama pengiriman produkBLACKBOXINC?",
+          question: "Berapa lama pengiriman produk BLACKBOX.INC?",
           answer:
             "Pengiriman biasanya 2–5 hari kerja untuk wilayah Jabodetabek, dan 5–10 hari kerja untuk luar pulau. Kami bekerja sama dengan ekspedisi terpercaya seperti JNE, SiCepat, dan J&T.",
         },
@@ -88,7 +88,7 @@ const FaqPage = () => {
             "Kami menerima transfer bank (BCA, Mandiri, BRI, BNI), e-wallet (OVO, GoPay, DANA, ShopeePay), kartu kredit, dan pembayaran melalui marketplace resmi kami.",
         },
         {
-          question: "Apakah aman berbelanja di websiteBLACKBOXINC?",
+          question: "Apakah aman berbelanja di website BLACKBOX.INC?",
           answer:
             "Ya, transaksi Anda 100% aman karena diproses melalui payment gateway terpercaya dengan sistem enkripsi tingkat tinggi.",
         },
@@ -98,14 +98,14 @@ const FaqPage = () => {
       name: "Membership & Promo",
       items: [
         {
-          question: "Apakah ada program loyalitasBLACKBOXINC?",
+          question: "Apakah ada program loyalitas BLACKBOX.INC?",
           answer:
-            "Ya! Bergabunglah denganBLACKBOXINC Club untuk mengumpulkan poin dari setiap transaksi. Poin bisa ditukar dengan diskon, voucher, atau produk eksklusif.",
+            "Ya! Bergabunglah dengan BLACKBOX.INC Club untuk mengumpulkan poin dari setiap transaksi. Poin bisa ditukar dengan diskon, voucher, atau produk eksklusif.",
         },
         {
           question: "Apakah ada promo khusus untuk pelanggan baru?",
           answer:
-            "Pelanggan baru mendapatkan diskon 10% untuk pembelian pertama dengan kode voucher WELCOMEBLACKBOXINC.",
+            "Pelanggan baru mendapatkan diskon 10% untuk pembelian pertama dengan kode voucher WELCOME BLACKBOX.INC.",
         },
         {
           question: "Apakah ada bundle atau paket hemat?",
@@ -133,7 +133,7 @@ const FaqPage = () => {
           <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-8">
             Temukan jawaban cepat seputar produk, layanan, dan pengalaman
             berbelanja bersama{" "}
-            <span className="text-[#E53935] font-semibold">BLACKBOXINC</span>.
+            <span className="text-[#E53935] font-semibold">BLACKBOX.INC</span>.
           </p>
         </div>
       </section>

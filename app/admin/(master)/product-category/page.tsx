@@ -16,8 +16,6 @@ import FormProductCategory from "@/components/form-modal/product-category-form";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 
-import { PageHeader } from "@/components/ui/page-header";
-
 export default function ProductCategoryPage() {
   const [form, setForm] = useState<Partial<ProductCategory>>({
     status: true,
@@ -25,33 +23,16 @@ export default function ProductCategoryPage() {
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [readonly, setReadonly] = useState(false);
   const { isOpen, openModal, closeModal } = useModal();
-
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
-
-  // ⬇️ state untuk search (client-side filter)
-  const [search, setSearch] = useState("");
 
   const { data, isLoading, refetch } = useGetProductCategoryListQuery({
     page: currentPage,
     paginate: itemsPerPage,
-    // NOTE: kalau API kamu support search, tinggal aktifkan:
-    // search,
   });
 
   const categoryList = useMemo(() => data?.data || [], [data]);
   const lastPage = useMemo(() => data?.last_page || 1, [data]);
-
-  // ⬇️ Filter client-side pada data halaman saat ini
-  const filteredList = useMemo(() => {
-    if (!search.trim()) return categoryList;
-    const q = search.toLowerCase();
-    return categoryList.filter(
-      (c) =>
-        c.name?.toLowerCase().includes(q) ||
-        c.description?.toLowerCase().includes(q)
-    );
-  }, [categoryList, search]);
 
   const [createCategory, { isLoading: isCreating }] =
     useCreateProductCategoryMutation();
@@ -126,17 +107,10 @@ export default function ProductCategoryPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <PageHeader
-        title="Kategori Produk"
-        primaryLabel="Tambah Kategori"
-        onPrimaryAction={openModal}
-        searchPlaceholder="Cari nama/deskripsi…"
-        searchValue={search}
-        onSearchChange={(val) => {
-          setSearch(val);
-          setCurrentPage(1);
-        }}
-      />
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Kategori Produk</h1>
+        <Button onClick={() => openModal()}>Tambah Kategori</Button>
+      </div>
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -153,19 +127,18 @@ export default function ProductCategoryPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  {/* ⬇️ perbaiki colSpan -> 5 kolom */}
-                  <td colSpan={5} className="text-center p-4">
+                  <td colSpan={4} className="text-center p-4">
                     Memuat data...
                   </td>
                 </tr>
-              ) : filteredList.length === 0 ? (
+              ) : categoryList.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center p-4">
+                  <td colSpan={4} className="text-center p-4">
                     Tidak ada data
                   </td>
                 </tr>
               ) : (
-                filteredList.map((item) => (
+                categoryList.map((item) => (
                   <tr key={item.id} className="border-t">
                     <td className="px-4 py-2">
                       <div className="flex gap-2">

@@ -3,14 +3,22 @@
 
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useState, useEffect, useMemo, useRef, FormEvent } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  FormEvent,
+  Suspense,
+} from "react";
 import { Menu, X, ShoppingCart, User, Globe, Search } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import useCart from "@/hooks/use-cart";
-import Image from "next/image";
 import { MarqueeBanner } from "../ui/marque-text";
+import clsx from "clsx";
 
+/* ---------- Types ---------- */
 interface TranslationContent {
   home: string;
   about?: string;
@@ -21,26 +29,41 @@ interface TranslationContent {
   howToOrder: string;
   tagline: string;
   switchLanguage: string;
+  cekOrder: string;
 }
-
 interface Translations {
   id: TranslationContent;
   en: TranslationContent;
 }
 
-// --- Search Engine UI (reusable) ---
+/* ---------- Suspense-safe reader ---------- */
+function SearchParamsReader({
+  onChange,
+}: {
+  onChange: (sp: URLSearchParams) => void;
+}) {
+  const sp = useSearchParams();
+  useEffect(() => {
+    onChange(sp);
+  }, [sp, onChange]);
+  return null;
+}
+
+/* ---------- Search UI ---------- */
 function SearchEngine({
   placeholder = "Cari produk, kategori, atau merek…",
   className = "",
-  autoFocusShortcut = true, // '/' to focus, Cmd/Ctrl+K to focus
-  autoFocus = false, // focus input saat mount
+  autoFocusShortcut = true,
+  autoFocus = false,
   onNavigate,
+  onClose,
 }: {
   placeholder?: string;
   className?: string;
   autoFocusShortcut?: boolean;
   autoFocus?: boolean;
   onNavigate?: (q: string) => void;
+  onClose?: () => void;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -48,7 +71,6 @@ function SearchEngine({
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
 
-  // Load & persist recent searches
   useEffect(() => {
     try {
       const raw = localStorage.getItem("search:recent");
@@ -73,10 +95,10 @@ function SearchEngine({
     onNavigate?.(q);
     saveRecent(q);
     setOpen(false);
-    router.push(`/product?search=${encodeURIComponent(q)}`);
+    onClose?.();
+    router.push(`/product?q=${encodeURIComponent(q)}`);
   };
 
-  // Auto focus + buka panel saat mount jika diminta
   useEffect(() => {
     if (autoFocus) {
       inputRef.current?.focus();
@@ -84,7 +106,6 @@ function SearchEngine({
     }
   }, [autoFocus]);
 
-  // Keyboard shortcuts to focus
   useEffect(() => {
     if (!autoFocusShortcut) return;
     const handler = (e: KeyboardEvent) => {
@@ -95,10 +116,14 @@ function SearchEngine({
         inputRef.current?.focus();
         setOpen(true);
       }
+      if (e.key === "Escape") {
+        setOpen(false);
+        onClose?.();
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [autoFocusShortcut]);
+  }, [autoFocusShortcut, onClose]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -112,13 +137,7 @@ function SearchEngine({
   }, [recent, query]);
 
   const trending = useMemo(
-    () => [
-      "serum acne",
-      "moisturizer",
-      "sunscreen",
-      "brightening",
-      "anti-aging",
-    ],
+    () => ["denim", "t-shirt", "hoodie", "sneakers", "accessories"],
     []
   );
 
@@ -126,17 +145,14 @@ function SearchEngine({
     <div
       className={["relative", className].join(" ")}
       onBlur={(e) => {
-        // close only if focus leaves the wrapper
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-          setOpen(false);
-        }
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
       }}
     >
       <form
         onSubmit={onSubmit}
-        className="group flex items-center gap-2 rounded-2xl border border-gray-200 bg-white/90 px-3 py-2 shadow-sm ring-1 ring-transparent transition focus-within:ring-black/30 focus-within:border-black/40"
+        className="group flex items-center gap-2 rounded-lg border border-black bg-white/95 px-3 py-2 shadow-lg transition focus-within:ring-2 focus-within:ring-black/20"
       >
-        <Search className="h-4 w-4 text-gray-400" />
+        <Search className="h-5 w-5 text-gray-500" />
         <input
           ref={inputRef}
           value={query}
@@ -146,42 +162,44 @@ function SearchEngine({
           }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+          className="w-full bg-transparent text-base outline-none placeholder:text-gray-400"
           aria-label="Search"
         />
         {query && (
           <button
             type="button"
             onClick={() => setQuery("")}
-            className="rounded-lg px-2 text-xs text-gray-500 hover:text-gray-700"
+            className="rounded-lg px-2 text-xs text-gray-600 hover:text-black"
             aria-label="Clear"
           >
             Esc
           </button>
         )}
-        <kbd className="hidden md:inline-flex select-none items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[10px] font-medium text-gray-500">
-          /
+        <kbd className="hidden md:inline-flex select-none items-center gap-1 rounded-md border border-gray-300 bg-gray-100 px-2 py-1 text-[10px] font-medium text-gray-600">
+          ⌘K
         </kbd>
       </form>
 
-      {/* Suggestion panel */}
       {open && (
-        <div className="absolute left-0 right-0 z-[60] mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-xl backdrop-blur">
+        <div className="absolute left-0 right-0 z-[60] mt-2 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl">
           {query.length >= 3 ? (
             <div className="max-h-80 overflow-auto p-2">
               <button
-                className="w-full text-left rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="w-full text-left rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => doSearch(query)}
               >
-                Cari “
-                <span className="font-semibold text-gray-900">{query}</span>”
+                Search “
+                <span className="font-semibold text-black">{query}</span>”
               </button>
               <div className="mt-1 grid grid-cols-2 gap-1">
+                <div className="col-span-2 px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Trending
+                </div>
                 {trending.map((k) => (
                   <button
                     key={k}
-                    className="truncate rounded-xl px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-100"
+                    className="truncate rounded-lg px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-100"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => doSearch(k)}
                   >
@@ -193,14 +211,14 @@ function SearchEngine({
           ) : (
             <div className="p-3">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Pencarian Terakhir
+                Recent Searches
               </div>
               {filteredRecent.length ? (
                 <div className="flex flex-wrap gap-2">
                   {filteredRecent.map((r) => (
                     <button
                       key={r}
-                      className="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                      className="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:border-black hover:bg-gray-50"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => doSearch(r)}
                     >
@@ -210,7 +228,7 @@ function SearchEngine({
                 </div>
               ) : (
                 <p className="text-sm text-gray-500">
-                  Ketik minimal 3 huruf untuk mulai mencari.
+                  Press **/** or **Cmd/Ctrl+K** to quick search.
                 </p>
               )}
             </div>
@@ -221,9 +239,10 @@ function SearchEngine({
   );
 }
 
+/* ---------- Main Header ---------- */
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false); // ⬅️ toggle panel
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
   const [navHeight, setNavHeight] = useState(0);
 
@@ -232,6 +251,9 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
 
   const pathname = usePathname();
+  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(
+    null
+  );
   const router = useRouter();
   const { data: session, status } = useSession();
 
@@ -244,86 +266,71 @@ export default function Header() {
   const translations: Translations = {
     id: {
       home: "Beranda",
-      products: "Barang Penjualan",
+      products: "Semua Produk",
       service: "Barang Baru",
       howToOrder: "Cara Pemesanan",
       testimonials: "Penjualan Terbaik",
-      tagline: "Kecantikan Alami, Seutuhnya",
+      tagline: "EST 2018",
       switchLanguage: "Ganti ke English",
+      cekOrder: "Lacak Pesanan",
     },
     en: {
       home: "Home",
-      products: "Sale Item",
+      products: "All Products",
       service: "New Arrival",
       howToOrder: "How to Order",
       testimonials: "Best Seller",
-      tagline: "Beauty Redefined, Naturally",
+      tagline: "EST 2018",
       switchLanguage: "Switch to Bahasa",
+      cekOrder: "Track Order",
     },
   };
-
   const t = translations[language];
 
-  const menuItems = [
-    { name: t.howToOrder, href: "/how-to-order" },
-    { name: t.service, href: "/new-arrivals" },
-    { name: t.products, href: "/product" },
-    { name: t.testimonials, href: "/best-seller" },
-  ];
+  // === ACTIVE STATE MENU (fix) ===
+  const isMenuLinkActive = (href: string) => {
+    const currentPath = pathname;
+    const currentQ = searchParams?.get("q") ?? null;
 
-  // Mapping warna hover untuk setiap menu sesuai palet
-  const menuItemColors = [
-    {
-      name: t.about,
-      href: "/about",
-      hoverBg: "hover:bg-gray-100",
-      activeBg: "bg-gray-100",
-      textColor: "text-gray-700",
-    },
-    {
-      name: t.products,
-      href: "/product",
-      hoverBg: "hover:bg-gray-100",
-      activeBg: "bg-gray-100",
-      textColor: "text-gray-700",
-    },
-    {
-      name: t.service,
-      href: "/service",
-      hoverBg: "hover:bg-gray-100",
-      activeBg: "bg-gray-100",
-      textColor: "text-gray-700",
-    },
-    {
-      name: t.howToOrder,
-      href: "/how-to-order",
-      hoverBg: "hover:bg-gray-100",
-      activeBg: "bg-gray-100",
-      textColor: "text-gray-700",
-    },
-    {
-      name: t.news,
-      href: "/news",
-      hoverBg: "hover:bg-gray-100",
-      activeBg: "bg-gray-100",
-      textColor: "text-gray-700",
-    },
-    {
-      name: t.testimonials,
-      href: "/testimonials",
-      hoverBg: "hover:bg-gray-100",
-      activeBg: "bg-gray-100",
-      textColor: "text-gray-700",
-    },
-  ];
+    if (href === "/") return currentPath === "/";
+
+    if (!href.includes("?")) {
+      if (href === "/product") {
+        // All Products aktif hanya ketika /product tanpa q
+        return currentPath === "/product" && currentQ === null;
+      }
+      return currentPath.startsWith(href);
+    }
+
+    // Link dengan query (?q=...)
+    if (currentPath === "/product" && href.startsWith("/product?")) {
+      const url = new URL(`http://dummy${href}`);
+      const menuQ = url.searchParams.get("q"); // "new-arrivals" | "best-seller"
+      return currentQ === menuQ;
+    }
+    return false;
+  };
+
+  const primaryMenuItems = useMemo(
+    () => [
+      { name: t.home, href: "/" },
+      { name: t.products, href: "/product" },
+      { name: t.service, href: "/product?q=new-arrivals" },
+      { name: t.testimonials, href: "/product?q=best-seller" },
+      { name: t.cekOrder, href: "/cek-order" },
+      { name: t.howToOrder, href: "/how-to-order" },
+    ],
+    [t]
+  );
+
+  const mobileMenuItems = primaryMenuItems;
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    const handleScroll = () => setIsScrolled(window.scrollY > 0);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Recalc nav height (includes marquee)
   useEffect(() => {
     const recalc = () =>
       setNavHeight(navRef.current?.getBoundingClientRect().height ?? 0);
@@ -336,31 +343,25 @@ export default function Header() {
       ro.disconnect();
       window.removeEventListener("resize", onResize);
     };
-  }, [isScrolled]);
+  }, []);
 
-  // Close search on route change or ESC
   useEffect(() => {
     setIsSearchOpen(false);
-  }, [pathname]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsSearchOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    setIsMobileMenuOpen(false);
+  }, [pathname, searchParams]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedLanguage = localStorage.getItem("BLACKBOXINC-language");
-      if (savedLanguage === "id" || savedLanguage === "en") {
+      if (savedLanguage === "id" || savedLanguage === "en")
         setLanguage(savedLanguage);
-      }
     }
   }, []);
 
-  const toggleMobileMenu = () => setIsMobileMenuOpen((v) => !v);
-
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen((v) => !v);
+    document.body.style.overflow = !isMobileMenuOpen ? "hidden" : "unset";
+  };
   const toggleLanguage = () => {
     const newLang = language === "id" ? "en" : "id";
     setLanguage(newLang);
@@ -372,149 +373,136 @@ export default function Header() {
       );
     }
   };
-
-  const handleCartClick = () => {
-    window.location.assign("/cart");
-    window.dispatchEvent(new CustomEvent("openCart"));
-  };
-
+  const handleCartClick = () => router.push("/cart");
   const handleUserClick = () => {
     if (status === "loading") return;
-    if (session?.user) {
-      router.push("/me");
-    } else {
-      router.push("/login");
-    }
-  };
-
-  const isActiveLink = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
+    if (session?.user) router.push("/me");
+    else router.push("/login");
   };
 
   return (
     <>
-      {/* Thin top line like reference */}
-      <div className="fixed top-0 z-[60] h-1 w-full bg-black" />
+      <Suspense fallback={null}>
+        <SearchParamsReader onChange={setSearchParams} />
+      </Suspense>
 
       <nav
         ref={navRef}
-        className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+        className={clsx(
+          "fixed top-0 w-full z-50 transition-all duration-300",
           isScrolled
-            ? "bg-white/95 backdrop-blur-lg shadow-sm border-b border-gray-100"
-            : "bg-white/90 backdrop-blur-sm"
-        }`}
+            ? "bg-white/95 backdrop-blur-lg shadow-md border-b border-gray-100"
+            : "bg-white/95 backdrop-blur-sm"
+        )}
       >
-        {/* Optional marquee (kept as-is) */}
         <MarqueeBanner
-          message={
-            "Diskon akhir tahun • Gratis ongkir seluruh Indonesia • Katalog baru rilis hari ini • Dukungan 24/7 via WhatsApp"
-          }
+          message={"NEW ARRIVAL • SALE UP TO 70% • GRATIS ONGKIR"}
           size="sm"
-          speed={70}
+          speed={60}
           pauseOnHover
+          className="bg-black py-1"
         />
 
-        {/* Row 1: centered brand, right icons */}
         <div className="container mx-auto px-4 lg:px-6">
-          <div className="grid grid-cols-3 items-center h-20">
-            {/* Left spacer (could hold language toggle later) */}
-            <div className="hidden md:block" />
+          <div className="flex items-center justify-between h-16 md:h-20 relative">
+            <div className="flex items-center gap-2 md:gap-1">
+              <button
+                onClick={toggleMobileMenu}
+                className="p-2 rounded-full hover:bg-gray-100 transition-all md:hidden"
+                aria-label="Toggle mobile menu"
+                aria-expanded={isMobileMenuOpen}
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-6 h-6 text-black" />
+                ) : (
+                  <Menu className="w-6 h-6 text-black" />
+                )}
+              </button>
+              {/* <button
+                onClick={() => setIsSearchOpen((v) => !v)}
+                className="p-2 rounded-full hover:bg-gray-100 transition-all md:hidden"
+                aria-label="Search"
+                aria-expanded={isSearchOpen}
+              >
+                <Search className="w-5 h-5 text-black" />
+              </button> */}
+              <button
+                onClick={() => setIsSearchOpen((v) => !v)}
+                className="p-2 rounded-full hover:bg-gray-100 transition-all hidden md:block"
+                aria-label="Search"
+                aria-expanded={isSearchOpen}
+                aria-controls="header-search-panel"
+              >
+                <Search className="w-5 h-5 text-black" />
+              </button>
+              <button
+                onClick={toggleLanguage}
+                className="hidden md:flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all"
+                title={t.switchLanguage}
+                aria-label="Toggle language"
+              >
+                <Globe className="w-4 h-4 text-gray-700" />
+                <span className="text-sm font-medium text-gray-700">
+                  {language.toUpperCase()}
+                </span>
+              </button>
+            </div>
 
-            {/* Center brand (Blackboxinc) */}
-            <div className="flex items-center justify-center">
+            <div className="absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0 flex items-center justify-center w-fit">
               <Link
                 href="/"
                 className="group inline-flex flex-col items-center text-center select-none"
               >
-                {/* If you want to keep image, show it subtle; else rely on text brand */}
-                <div className="sr-only">
-                  <Image
-                    src="/images/new/logo/BLACKBOXINC-Shop.png"
-                    alt="BLACKBOXINC"
-                    width={120}
-                    height={48}
-                  />
-                </div>
-                <h1 className="font-extrabold tracking-[0.15em] text-gray-900 text-lg md:text-xl leading-none">
-                  BLACKBOXINC
+                <h1 className="font-extrabold tracking-[0.2em] text-black text-lg md:text-xl leading-none">
+                  BLACKBOX.INC
                 </h1>
-                <span className="mt-1 text-[10px] uppercase tracking-[0.25em] text-gray-500">
+                <span className="mt-1 text-[8px] md:text-[10px] uppercase tracking-[0.3em] text-gray-600">
                   {t.tagline}
                 </span>
               </Link>
             </div>
 
-            {/* Right icons */}
-            <div className="flex items-center justify-end gap-1">
-              {/* Search Icon only (opens panel below header) */}
-              <button
-                onClick={() => setIsSearchOpen((v) => !v)}
-                className="p-3 rounded-full hover:bg-gray-100 transition-all"
-                aria-label="Search"
-                aria-expanded={isSearchOpen}
-                aria-controls="header-search-panel"
-              >
-                <Search className="w-5 h-5 text-gray-900" />
-              </button>
-
-              {/* Language Toggle - Desktop (kept) */}
-              <button
-                onClick={toggleLanguage}
-                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 hover:bg-[#F3F4F6] transition-all"
-                title={t.switchLanguage}
-                aria-label="Toggle language"
-              >
-                <Globe className="w-4 h-4 text-gray-700" />
-                <span className="text-sm font-bold text-gray-700">
-                  {language.toUpperCase()}
-                </span>
-              </button>
-
-              {/* Cart */}
-              <button
-                onClick={handleCartClick}
-                className="relative p-3 rounded-full hover:bg-gray-100 transition-all"
-                aria-label="Cart"
-              >
-                <ShoppingCart className="w-5 h-5 text-gray-900" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-black text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-                    {cartCount > 99 ? "99+" : cartCount}
-                  </span>
-                )}
-              </button>
-
-              {/* User */}
+            <div className="flex items-center gap-1 md:gap-1">
               <button
                 onClick={handleUserClick}
-                className="p-3 rounded-full hover:bg-gray-100 transition-all"
-                aria-label="User"
+                className="p-2 rounded-full hover:bg-gray-100 transition-all"
+                aria-label="User account"
               >
-                <User className="w-5 h-5 text-gray-900" />
+                <User className="w-5 h-5 text-black" />
+              </button>
+              <button
+                onClick={handleCartClick}
+                className="relative p-2 rounded-full hover:bg-gray-100 transition-all"
+                aria-label="Shopping Cart"
+              >
+                <ShoppingCart className="w-5 h-5 text-black" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-black text-white text-[10px] font-bold min-w-[16px] h-[16px] rounded-full flex items-center justify-center border border-white shadow-sm">
+                    {cartCount > 9 ? "9+" : cartCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Row 2: centered nav links */}
-        <div className="border-t border-gray-100">
+        <div className="hidden md:block border-t border-gray-100">
           <div className="container mx-auto px-4 lg:px-6">
-            <div className="flex h-[4rem] items-center justify-center overflow-x-auto">
-              <div className="flex items-center gap-8 md:gap-12 text-[12px] md:text-[13px] font-semibold tracking-[0.12em] uppercase">
-                {menuItems.map((item) => (
+            <div className="flex h-12 items-center justify-center overflow-x-auto">
+              <div className="flex items-center gap-8 text-[12px] font-medium tracking-[0.1em] uppercase">
+                {primaryMenuItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`relative rounded-xl px-3 py-2 transition-colors ${
-                      isActiveLink(item.href)
-                        ? "text-gray-900 bg-[#F3F4F6]"
-                        : "text-gray-700 hover:bg-[#F3F4F6] hover:text-gray-900"
+                    className={`relative py-2 transition-colors duration-200 group ${
+                      isMenuLinkActive(item.href)
+                        ? "text-black"
+                        : "text-gray-600 hover:text-black"
                     }`}
                   >
                     <span>{item.name}</span>
-                    {isActiveLink(item.href) && (
-                      <span className="pointer-events-none absolute -bottom-2 left-1/2 h-[2px] w-8 -translate-x-1/2 bg-black" />
+                    {isMenuLinkActive(item.href) && (
+                      <span className="pointer-events-none absolute -bottom-[1.5px] left-0 h-[1.5px] w-full bg-black transition-all" />
                     )}
                   </Link>
                 ))}
@@ -524,127 +512,127 @@ export default function Header() {
         </div>
       </nav>
 
-      {/* Floating search panel BELOW the header */}
       {isSearchOpen && (
         <>
-          {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]"
+            className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
             onClick={() => setIsSearchOpen(false)}
             aria-hidden
           />
-          {/* Panel */}
           <div
             id="header-search-panel"
             className="fixed left-0 right-0 z-50 animate-[slideDown_0.2s_ease-out]"
             style={{ top: navHeight }}
           >
-            <div className="mx-auto max-w-3xl px-4 md:px-6">
+            <div className="mx-auto max-w-2xl px-4 md:px-6">
               <SearchEngine
                 className="w-full"
                 autoFocus
                 autoFocusShortcut={false}
+                onClose={() => setIsSearchOpen(false)}
               />
             </div>
           </div>
         </>
       )}
 
-      {/* Mobile Menu Overlay */}
-      <div
-        className={`fixed inset-0 bg-black/50 z-50 lg:hidden transition-all duration-300 ${
-          isMobileMenuOpen ? "opacity-100 visible" : "opacity-0 invisible"
-        }`}
-        onClick={toggleMobileMenu}
-      >
+      {isMobileMenuOpen && (
         <div
-          className={`fixed top-0 right-0 w-[90%] max-w-sm h-full bg-white shadow-2xl transform transition-transform duration-300 ${
-            isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
+          className={`fixed inset-0 bg-black/50 z-50 transition-opacity duration-300 ${
+            isMobileMenuOpen ? "opacity-100 visible" : "opacity-0 invisible"
           }`}
-          onClick={(e) => e.stopPropagation()}
+          onClick={toggleMobileMenu}
         >
-          {/* Mobile Header */}
-          <div className="p-6 border-b border-gray-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col">
-                <h2 className="font-extrabold tracking-[0.15em]">
-                  BLACKBOXINC
-                </h2>
-                <p className="text-xs text-gray-500">{t.tagline}</p>
+          <div
+            className={`fixed top-0 left-0 w-full max-w-md h-full bg-white shadow-2xl transform transition-transform duration-300 overflow-y-auto ${
+              isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col">
+                  <h2 className="font-extrabold tracking-[0.15em] text-lg">
+                    MENU
+                  </h2>
+                  <p className="text-xs text-gray-500">{t.tagline}</p>
+                </div>
+                <button
+                  onClick={toggleMobileMenu}
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  aria-label="Close mobile menu"
+                >
+                  <X className="w-6 h-6 text-black" />
+                </button>
               </div>
-              <button
-                onClick={toggleMobileMenu}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                aria-label="Close mobile menu"
-              >
-                <X className="w-5 h-5 text-gray-700" />
-              </button>
+              <SearchEngine
+                className="w-full"
+                placeholder="Cari di BLACKBOX.INC…"
+                autoFocusShortcut={false}
+                onClose={toggleMobileMenu}
+              />
             </div>
 
-            {/* Mobile Search */}
-            <SearchEngine
-              className="w-full"
-              placeholder="Cari di Blackboxinc…"
-            />
-          </div>
+            <div className="p-4 space-y-1">
+              {mobileMenuItems.map((item, index) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={toggleMobileMenu}
+                  className={clsx(
+                    "flex items-center justify-between p-3 rounded-lg font-semibold uppercase tracking-wide transition-colors duration-200",
+                    isMenuLinkActive(item.href)
+                      ? "text-black bg-gray-100"
+                      : "text-gray-700 hover:bg-gray-50"
+                  )}
+                  style={{
+                    animationDelay: `${index * 50}ms`,
+                    animation: isMobileMenuOpen
+                      ? "slideInLeft 0.3s ease-out forwards"
+                      : "none",
+                  }}
+                >
+                  <span className="flex-1">{item.name}</span>
+                  <span className="text-gray-400 font-normal text-sm">›</span>
+                </Link>
+              ))}
+            </div>
 
-          {/* Mobile Menu Items */}
-          <div className="p-6 space-y-2 flex-1 overflow-y-auto">
-            {menuItemColors.map((item, index) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={toggleMobileMenu}
-                className={`flex items-center gap-4 p-4 rounded-2xl font-semibold transition-all duration-300 group ${
-                  pathname.startsWith(item.href)
-                    ? `${item.activeBg} text-gray-800 border-2 border-gray-300 shadow-sm`
-                    : `text-gray-700 ${item.hoverBg} hover:shadow-sm`
-                }`}
-                style={{
-                  animationDelay: `${index * 50}ms`,
-                  animation: isMobileMenuOpen
-                    ? "slideInRight 0.3s ease-out forwards"
-                    : "none",
-                }}
+            <div className="p-4 border-t border-gray-100 space-y-4">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={handleUserClick}
+                  className="flex items-center gap-3 p-3 text-sm font-semibold text-gray-700 hover:text-black hover:bg-gray-50 rounded-lg transition-colors flex-1 justify-start"
+                >
+                  <User className="w-5 h-5" />
+                  {session?.user ? "Akun Saya" : "Masuk / Daftar"}
+                </button>
+              </div>
+
+              <button
+                onClick={toggleLanguage}
+                className="flex items-center gap-4 p-3 w-full rounded-lg text-gray-700 hover:bg-gray-100 font-semibold transition-all duration-300 border border-gray-200"
               >
-                <span className="flex-1 uppercase tracking-[0.12em]">
-                  {item.name}
+                <Globe className="w-5 h-5" />
+                <span className="flex-1 text-left">{t.switchLanguage}</span>
+                <span className="text-xs font-bold text-black bg-gray-100 px-3 py-1 rounded-md">
+                  {language === "id" ? "EN" : "ID"}
                 </span>
-                {pathname.startsWith(item.href) && (
-                  <div className="w-1 h-6 bg-gray-600 rounded-full shadow-sm" />
-                )}
-              </Link>
-            ))}
+              </button>
 
-            {/* Language Toggle - Mobile */}
-            <button
-              onClick={toggleLanguage}
-              className="flex items-center gap-4 p-4 w-full rounded-2xl text-gray-700 hover:bg-gray-100 font-semibold transition-all duration-300 mt-6 border-2 border-gray-200"
-            >
-              <Globe className="w-5 h-5" />
-              <span className="flex-1 text-left">{t.switchLanguage}</span>
-              <span className="text-sm font-bold text-white bg-black px-3 py-1 rounded-lg shadow-md">
-                {language === "id" ? "EN" : "ID"}
-              </span>
-            </button>
-          </div>
-
-          {/* Mobile Footer */}
-          <div className="p-6 border-t border-gray-200">
-            <div className="flex items-center justify-center gap-4">
-              <button className="flex-1 bg-black text-white py-4 rounded-2xl font-bold transition-all shadow-sm hover:shadow-md">
-                Belanja Sekarang
+              <button className="w-full bg-black text-white py-3 rounded-lg font-bold transition-all shadow-lg hover:opacity-90 uppercase tracking-wider">
+                BELANJA SEKARANG
               </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <style jsx>{`
-        @keyframes slideInRight {
+        @keyframes slideInLeft {
           from {
             opacity: 0;
-            transform: translateX(20px);
+            transform: translateX(-20px);
           }
           to {
             opacity: 1;

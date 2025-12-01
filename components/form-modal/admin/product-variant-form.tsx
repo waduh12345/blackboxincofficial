@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import type { ProductVariant } from "@/types/admin/product-variant";
-import { formatRupiah, parseRupiah } from "@/lib/format-utils";
 
 type VariantFormShape = Partial<
   Pick<
@@ -99,11 +98,17 @@ export default function ProductVariantForm({
           <div className="flex flex-col gap-1">
             <Label>price</Label>
             <Input
-              value={formatRupiah(form.price ?? "")}
+              type="number"
+              inputMode="numeric"
+              value={form.price ?? ""}
               onChange={(e) =>
-                setForm({ ...form, price: parseRupiah(e.target.value) })
+                setForm({
+                  ...form,
+                  price:
+                    e.target.value === "" ? undefined : Number(e.target.value),
+                })
               }
-              placeholder="Masukkan nilai price"
+              readOnly={readonly}
             />
           </div>
 

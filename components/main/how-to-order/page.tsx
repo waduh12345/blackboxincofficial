@@ -122,7 +122,7 @@ export default function HowToOrderPage() {
       id: 4,
       title: "Pilih Metode Pembayaran",
       description:
-        "Nikmati proses pembayaran aman melalui Midtrans dengan berbagai metode.",
+        "Nikmati proses pembayaran aman melalui Doku dengan berbagai metode.",
       details: [
         "Pilih metode: Transfer Bank, E-Wallet, Virtual Account, atau Kartu Kredit",
         "Ikuti instruksi sesuai metode yang dipilih",
@@ -191,7 +191,7 @@ export default function HowToOrderPage() {
     {
       question: "Metode pembayaran apa saja yang tersedia?",
       answer:
-        "Kami menerima transfer bank (BCA, Mandiri, BRI, BNI), e-wallet (GoPay, OVO, DANA, ShopeePay), dan virtual account. Semua pembayaran diproses melalui Midtrans yang aman.",
+        "Kami menerima transfer bank (BCA, Mandiri, BRI, BNI), e-wallet (GoPay, OVO, DANA, ShopeePay), dan virtual account. Semua pembayaran diproses melalui Doku yang aman.",
     },
     {
       question: "Bisakah mengubah atau membatalkan pesanan?",
@@ -229,7 +229,7 @@ export default function HowToOrderPage() {
     {
       icon: <Shield className="w-6 h-6" style={{ color: THEME.primary }} />,
       title: "Pembayaran Aman",
-      description: "Dilindungi enkripsi SSL dan gateway Midtrans",
+      description: "Dilindungi enkripsi SSL dan gateway Doku",
     },
     {
       icon: <Truck className="w-6 h-6" style={{ color: THEME.primary }} />,
@@ -526,7 +526,7 @@ export default function HowToOrderPage() {
               </h2>
               <p className="text-gray-600 max-w-2xl mx-auto">
                 Kami menyediakan berbagai metode pembayaran yang aman dan
-                terpercaya melalui gateway Midtrans
+                terpercaya melalui gateway Doku
               </p>
             </div>
 
@@ -565,7 +565,7 @@ export default function HowToOrderPage() {
               </h3>
               <p className="text-gray-600">
                 Semua transaksi dilindungi enkripsi SSL 256-bit dan diproses
-                melalui Midtrans yang telah tersertifikasi PCI DSS Level 1
+                melalui Doku yang telah tersertifikasi PCI DSS Level 1
               </p>
             </div>
           </div>

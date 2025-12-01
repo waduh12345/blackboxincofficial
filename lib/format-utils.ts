@@ -4,95 +4,41 @@ import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 
-// ===== Rupiah Helpers: robust decimal → integer (rounded) =====
-
-// Deteksi pemisah desimal yang "masuk akal":
-// - Jika ada koma & titik → anggap format lokal: desimal = ','
-// - Jika hanya satu pemisah → desimal jika bagian setelahnya ≤ 2 digit (contoh: "12,5" atau "12.50")
-//   selain itu diasumsikan sebagai pemisah ribuan (contoh: "100.000" / "1,234")
-const findDecimalSeparatorIndex = (raw: string): number => {
-  const s = raw;
-  const hasComma = s.includes(",");
-  const hasDot = s.includes(".");
-  if (hasComma && hasDot) {
-    return s.lastIndexOf(","); // format Indonesia: 1.234,56
-  }
-  if (hasComma) {
-    const after = s.split(",").pop() ?? "";
-    return after.length <= 2 ? s.lastIndexOf(",") : -1;
-  }
-  if (hasDot) {
-    const after = s.split(".").pop() ?? "";
-    return after.length <= 2 ? s.lastIndexOf(".") : -1;
-  }
-  return -1;
-};
-
-// Ubah string/id ke float "mentah", memahami Rp, spasi, titik/koma, dan minus.
-// Lalu kembalikan number (bisa desimal). Nanti pemanggil yang membulatkan.
-const parseLocaleNumberToFloat = (input: string | number): number => {
-  if (typeof input === "number") return input;
-  if (input == null) return NaN;
-
-  // Bersihkan simbol non-angka umum (Rp, spasi, huruf)
-  let s = String(input).trim().replace(/Rp/gi, "").replace(/\s+/g, "");
-  if (!s) return NaN;
-
-  // Simpan tanda minus bila ada
-  const negative = s.includes("-");
-  s = s.replace(/-/g, "");
-
-  // Sisakan digit + pemisah [, .]
-  s = s.replace(/[^0-9.,]/g, "");
-  if (!s) return NaN;
-
-  const decIdx = findDecimalSeparatorIndex(s);
-  let intPart = s;
-  let fracPart = "";
-
-  if (decIdx >= 0) {
-    intPart = s.slice(0, decIdx);
-    fracPart = s.slice(decIdx + 1);
-  }
-
-  // Buang semua pemisah ribuan dari bagian integer
-  intPart = intPart.replace(/\D/g, "");
-  // Buang non-digit dari fraksi
-  fracPart = fracPart.replace(/\D/g, "");
-
-  // Rakit ke bentuk standar dengan titik sebagai desimal
-  const numStr = intPart + (fracPart ? "." + fracPart : "");
-  if (!numStr) return NaN;
-
-  const val = parseFloat(numStr);
-  return negative ? -val : val;
-};
-
-// 1) Format saat KETIK (onChange): ribuan saja, dibulatkan ke integer
+// 1) Format saat KETIK (aman untuk onChange): ribuan saja, TANPA ,000
 export const formatRupiah = (value: number | string) => {
   if (value === null || value === undefined || value === "") return "";
-  const f = parseLocaleNumberToFloat(value);
-  if (!Number.isFinite(f)) return "";
-  const rounded = Math.round(f);
-  return rounded.toLocaleString("id-ID"); // contoh: 100000.49 → "100.000"
+  const num =
+    typeof value === "string"
+      ? parseInt(
+          // buang ",000" jika ada, ambil digit saja
+          value.replace(/,000$/, "").replace(/\D/g, ""),
+          10
+        )
+      : value;
+
+  if (!Number.isFinite(num)) return "";
+  return num.toLocaleString("id-ID"); // contoh: 100000 -> "100.000"
 };
 
-// 2) Format FINAL (onBlur/readonly): "Rp " + ribuan (tanpa desimal), dibulatkan
+// 2) Format FINAL (untuk onBlur/readonly): ribuan + selalu tambahkan ,000
 export const formatRupiahWithRp = (value: number | string | null) => {
   if (value === null || value === undefined || value === "") return "Rp ";
-  const f = parseLocaleNumberToFloat(value);
-  if (!Number.isFinite(f)) return "Rp ";
-  const rounded = Math.round(f);
-  return `Rp ${rounded.toLocaleString("id-ID")}`; // "Rp 100.000"
+  const num =
+    typeof value === "string"
+      ? parseInt(value.replace(/,000$/, "").replace(/\D/g, ""), 10)
+      : value;
+
+  if (!Number.isFinite(num)) return "Rp ";
+  const base = num.toLocaleString("id-ID"); // "100.000"
+  return `Rp ${base},000`; // "Rp 100.000,000"
 };
 
-// 3) Parser umum: terima input apa pun (1.234,56 / 1,234.56 / "Rp 1.234")
-//    kembalikan number integer (dibulatkan)
+// 3) Parser umum: terima input dengan/atau tanpa ,000 → kembalikan number mentah
 export const parseRupiah = (raw: string) => {
   if (!raw) return 0;
-  const f = parseLocaleNumberToFloat(raw);
-  if (!Number.isFinite(f)) return 0;
-  return Math.round(f);
+  const digits = raw.replace(/,000$/, "").replace(/\D/g, "");
+  const num = parseInt(digits || "0", 10);
+  return Number.isFinite(num) ? num : 0;
 };
 
 dayjs.extend(utc);

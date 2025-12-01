@@ -44,44 +44,21 @@ import {
 } from "@/services/auth.service";
 import { useCreateTransactionMutation } from "@/services/admin/transaction.service";
 import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
 import { useSession } from "next-auth/react";
 import { useGetUserAddressListQuery } from "@/services/address.service";
 import type { Address } from "@/types/address";
-import {
-  CreateTransactionRequest,
-  PaymentType,
-} from "@/types/admin/transaction";
-import { ProductVariant } from "@/types/admin/product-variant";
-import VariantPicker from "@/components/ui/variant-picker";
-import PaymentPanel, {
-  PaymentResp as GatewayPayment,
-} from "./payment-panel";
-import PaymentModal from "./payment-modal";
+import { PaymentChannel, PaymentMethod } from "@/types/admin/transaction";
+import { CheckoutDeps } from "@/types/checkout";
+import { useCheckout } from "@/hooks/use-checkout";
 
 const STORAGE_KEY = "cart-storage";
 
-export type StoredCartItem = Product & {
-  quantity: number;
-  selected_variant_id?: number | null;
-  variant_price?: number | null;
-  slug?: string;
-  product_slug?: string;
-};
+type PaymentType = "automatic" | "manual" | "cod";
 
-type AutomaticMethod = "bank_transfer" | "qris";
-type BankChannel =
-  | "bnc"
-  | "bjb"
-  | "bca"
-  | "bni"
-  | "bsi"
-  | "bss"
-  | "cimb"
-  | "qris";
-
+type StoredCartItem = Product & { quantity: number };
 interface CartItemView {
   id: number;
+  product_variant_id: number;
   name: string;
   price: number;
   originalPrice?: number;
@@ -204,45 +181,22 @@ function writeStorage(nextItems: StoredCartItem[]) {
   window.dispatchEvent(new CustomEvent("cartUpdated"));
 }
 
-interface ProductMediaLike {
-  media?: Array<{ original_url?: string }>;
-}
-
 function getImageUrlFromProduct(p: Product): string {
   if (typeof p.image === "string" && p.image) return p.image;
-  const media = (p as ProductMediaLike).media;
+  const media = (p as unknown as { media?: Array<{ original_url: string }> })
+    ?.media;
   if (Array.isArray(media) && media[0]?.original_url)
-    return media[0].original_url!;
+    return media[0].original_url;
   return "/api/placeholder/300/300";
-}
-
-const getProductSlug = (p: {
-  slug?: string;
-  product_slug?: string;
-}): string | null => p.slug ?? p.product_slug ?? null;
-
-interface CartItemView {
-  id: number;
-  name: string;
-  price: number; // ← harga efektif (varian > produk)
-  originalPrice?: number;
-  image: string;
-  quantity: number;
-  category: string;
-  ageGroup: string;
-  isEcoFriendly: boolean;
-  inStock: boolean;
-  // new:
-  slug: string | null;
-  selectedVariantId: number | null;
 }
 
 function mapStoredToView(items: StoredCartItem[]): CartItemView[] {
   return items.map((it) => ({
     id: it.id,
+    product_variant_id:
+      typeof it.product_variant_id === "number" ? it.product_variant_id : 0,
     name: it.name,
-    // gunakan variant_price jika ada
-    price: typeof it.variant_price === "number" ? it.variant_price : it.price,
+    price: it.price,
     originalPrice: undefined,
     image: getImageUrlFromProduct(it),
     quantity: it.quantity ?? 1,
@@ -250,25 +204,51 @@ function mapStoredToView(items: StoredCartItem[]): CartItemView[] {
     ageGroup: "Semua usia",
     isEcoFriendly: false,
     inStock: (it.stock ?? 0) > 0,
-    // new:
-    slug: getProductSlug(it),
-    selectedVariantId: it.selected_variant_id ?? null,
   }));
+}
+
+const GUEST_INFO_KEY = "__guest_checkout_info__";
+
+type GuestInfo = {
+  fullName: string;
+  phone: string;
+  email?: string;
+  address_line_1: string;
+  address_line_2?: string;
+  postal_code: string;
+  rajaongkir_province_id: number;
+  rajaongkir_city_id: number;
+  rajaongkir_district_id: number;
+};
+
+function getGuestInfo(): GuestInfo | null {
+  try {
+    const raw = localStorage.getItem(GUEST_INFO_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as GuestInfo;
+    if (!parsed.fullName || !parsed.address_line_1) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 export default function CartPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const isLoggedIn = !!session?.user?.email;
 
   const sessionName = useMemo(() => session?.user?.name ?? "", [session]);
 
   const [cartItems, setCartItems] = useState<CartItemView[]>([]);
+  console.log(cartItems);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [paymentType, setPaymentType] = useState<PaymentType>("automatic");
 
-  const [paymentType, setPaymentType] = useState<PaymentType>("manual");
-  const [paymentInfo, setPaymentInfo] = useState<GatewayPayment | null>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>("bank_transfer");
+  const [paymentChannel, setPaymentChannel] = useState<PaymentChannel>("bca");
 
   const [shippingCourier, setShippingCourier] = useState<string | null>(null);
   const [shippingMethod, setShippingMethod] =
@@ -278,8 +258,10 @@ export default function CartPage() {
 
   const [shippingInfo, setShippingInfo] = useState({
     fullName: "",
+    email: "",
     phone: "",
     address_line_1: "",
+    address_line_2: "",
     city: "",
     postal_code: "",
     kecamatan: "",
@@ -288,15 +270,49 @@ export default function CartPage() {
     rajaongkir_district_id: 0,
   });
 
-  const [autoMethod, setAutoMethod] = useState<AutomaticMethod | "">("");
-  const [autoChannel, setAutoChannel] = useState<BankChannel | "">("");
-
   const [isPhoneValid, setIsPhoneValid] = useState(false);
+  const [isEmailValid, setIsEmailValid] = useState(true);
   const [hasDefaultAddress, setHasDefaultAddress] = useState(false);
-  const validatePhone = (phone: string) => {
-    const regex = /^(?:\+62|62|0)8\d{8,11}$/;
-    return regex.test(phone);
+
+  const { handleCheckout } = useCheckout();
+
+  const onCheckoutClick = async () => {
+    const deps: CheckoutDeps = {
+      sessionEmail: session?.user?.email ?? null,
+      shippingCourier,
+      shippingMethod,
+      shippingInfo: {
+        fullName: shippingInfo.fullName,
+        phone: shippingInfo.phone,
+        address_line_1: shippingInfo.address_line_1,
+        postal_code: shippingInfo.postal_code,
+        rajaongkir_province_id: shippingInfo.rajaongkir_province_id,
+        rajaongkir_city_id: shippingInfo.rajaongkir_city_id,
+        rajaongkir_district_id: shippingInfo.rajaongkir_district_id,
+        email: shippingInfo.email,
+        address_line_2: shippingInfo.address_line_2,
+      },
+      paymentType,
+      paymentMethod,
+      paymentChannel,
+      clearCart,
+    };
+
+
+    setIsCheckingOut(true);
+    setIsSubmitting(true);
+    try {
+      await handleCheckout(deps);
+    } finally {
+      setIsSubmitting(false);
+      setIsCheckingOut(false);
+    }
   };
+
+  const validatePhone = (phone: string) =>
+    /^(?:\+62|62|0)8\d{8,11}$/.test(phone);
+  const validateEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const { data: currentUserResp } = useGetCurrentUserQuery();
   const currentUser = useMemo(() => currentUserResp || null, [currentUserResp]);
   useEffect(() => {
@@ -307,6 +323,21 @@ export default function CartPage() {
     // }
     setIsPhoneValid(validatePhone(shippingInfo.phone));
   }, [shippingInfo.phone]);
+
+  useEffect(() => {
+    setIsPhoneValid(validatePhone(shippingInfo.phone));
+  }, [shippingInfo.phone]);
+
+  useEffect(() => {
+    // wajib valid hanya kalau belum login
+    setIsEmailValid(
+      isLoggedIn
+        ? true
+        : shippingInfo.email
+        ? validateEmail(shippingInfo.email)
+        : false
+    );
+  }, [shippingInfo.email, isLoggedIn]);
 
   const handleInputChange = (field: string, value: string) => {
     setShippingInfo((prev) => ({ ...prev, [field]: value }));
@@ -328,45 +359,39 @@ export default function CartPage() {
     }
   }, [sessionName]);
 
+  function getGuestInfo() {
+    try {
+      const raw = localStorage.getItem(GUEST_INFO_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
   useEffect(() => {
     if (didPrefill.current) return;
 
-    // Check if user has default address from /me API
-    if (currentUser?.default_address) {
-      const defaultAddr = currentUser.default_address;
-      setShippingInfo((prev) => ({
-        ...prev,
-        phone: currentUser?.phone || "",
-        address_line_1: defaultAddr.address_line_1 ?? prev.address_line_1,
-        postal_code: defaultAddr.postal_code ?? prev.postal_code,
-        rajaongkir_province_id:
-          defaultAddr.rajaongkir_province_id ?? prev.rajaongkir_province_id,
-        rajaongkir_city_id:
-          defaultAddr.rajaongkir_city_id ?? prev.rajaongkir_city_id,
-        rajaongkir_district_id:
-          defaultAddr.rajaongkir_district_id ?? prev.rajaongkir_district_id,
-      }));
-      setHasDefaultAddress(true); // Disable form fields
-      didPrefill.current = true;
+    if (!isLoggedIn && !hasDefaultAddress) {
+      const g = getGuestInfo();
+      if (g) {
+        setShippingInfo((prev) => ({
+          ...prev,
+          fullName: g.fullName || prev.fullName,
+          phone: g.phone || prev.phone,
+          email: g.email || prev.email,
+          address_line_1: g.address_line_1 || prev.address_line_1,
+          address_line_2: g.address_line_2 || prev.address_line_2,
+          postal_code: g.postal_code || prev.postal_code,
+          rajaongkir_province_id:
+            g.rajaongkir_province_id || prev.rajaongkir_province_id,
+          rajaongkir_city_id: g.rajaongkir_city_id || prev.rajaongkir_city_id,
+          rajaongkir_district_id:
+            g.rajaongkir_district_id || prev.rajaongkir_district_id,
+        }));
+      }
     }
-    // Fallback to old address list if no default_address from /me API
-    else if (defaultAddress) {
-      setShippingInfo((prev) => ({
-        ...prev,
-        phone: currentUser?.phone || "",
-        address_line_1: defaultAddress.address_line_1 ?? prev.address_line_1,
-        postal_code: defaultAddress.postal_code ?? prev.postal_code,
-        rajaongkir_province_id:
-          defaultAddress.rajaongkir_province_id ?? prev.rajaongkir_province_id,
-        rajaongkir_city_id:
-          defaultAddress.rajaongkir_city_id ?? prev.rajaongkir_city_id,
-        rajaongkir_district_id:
-          defaultAddress.rajaongkir_district_id ?? prev.rajaongkir_district_id,
-      }));
-      setHasDefaultAddress(true); // Disable form fields
-      didPrefill.current = true;
-    }
-  }, [defaultAddress, currentUser]);
+    didPrefill.current = true;
+  }, [isLoggedIn, hasDefaultAddress]);
 
   const { data: provinces = [], isLoading: loadingProvince } =
     useGetProvincesQuery();
@@ -449,20 +474,6 @@ export default function CartPage() {
     setCartItems(mapStoredToView(next));
   };
 
-  const onPickVariant = (itemId: number, v: ProductVariant) => {
-    updateStorageAndState((items) =>
-      items.map((it) =>
-        it.id === itemId
-          ? {
-              ...it,
-              selected_variant_id: v.id,
-              variant_price: v.price, // harga efektif jadi harga varian
-            }
-          : it
-      )
-    );
-  };
-
   const updateQuantity = (id: number, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeItem(id);
@@ -498,7 +509,7 @@ export default function CartPage() {
   } = useGetProductListQuery({
     page: 1,
     paginate: 6,
-    product_merk_id: null,
+    product_merk_id: undefined,
   });
 
   const relatedProducts: RelatedProductView[] = useMemo(() => {
@@ -548,298 +559,9 @@ export default function CartPage() {
 
   const total = subtotal - discount + shippingCost + codFee;
 
-  const handleCheckout = async () => {
-    setIsCheckingOut(true);
-
-    if (
-      !shippingMethod ||
-      !shippingInfo.fullName ||
-      !shippingInfo.address_line_1 ||
-      !shippingInfo.postal_code ||
-      !isPhoneValid
-    ) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Lengkapi Data",
-        text: "Harap lengkapi semua informasi yang diperlukan untuk melanjutkan.",
-      });
-      setIsCheckingOut(false);
-      return;
-    }
-
-    // ===== Helper varian (tanpa any) =====
-    type VariantObj = { id: number };
-    type VariantCapable = StoredCartItem & {
-      selected_variant_id?: number | null;
-      product_variant_id?: number | null;
-      variant_id?: number | null;
-      variant?: VariantObj | null;
-      variants?: VariantObj[] | null;
-      product_variants?: VariantObj[] | null;
-    };
-    const deriveVariantId = (item: VariantCapable): number | null => {
-      if (typeof item.selected_variant_id === "number")
-        return item.selected_variant_id;
-      if (typeof item.product_variant_id === "number")
-        return item.product_variant_id;
-      if (typeof item.variant_id === "number") return item.variant_id;
-      if (item.variant?.id) return item.variant.id;
-      const list = item.variants ?? item.product_variants ?? [];
-      return Array.isArray(list) && list[0]?.id ? list[0].id : null;
-    };
-
-    setIsSubmitting(true);
-    try {
-      const stored = parseStorage();
-
-      const missingVariant = stored
-        .map((it) => ({ it, v: deriveVariantId(it as VariantCapable) }))
-        .filter(({ v }) => v == null)
-        .map(({ it }) => it.name ?? `#${it.id}`);
-
-      if (missingVariant.length > 0) {
-        await Swal.fire({
-          icon: "warning",
-          title: "Varian belum dipilih",
-          html:
-            `<p class="text-left">Produk berikut belum punya varian:</p>` +
-            `<ul class="text-left mt-2">${missingVariant
-              .map((n) => `<li>• ${n}</li>`)
-              .join("")}</ul>` +
-            `<p class="text-left mt-3">Silakan pilih varian di halaman produk/keranjang terlebih dulu.</p>`,
-        });
-        setIsSubmitting(false);
-        setIsCheckingOut(false);
-        return;
-      }
-
-      const details = stored.map((item) => ({
-        product_id: item.id,
-        product_variant_id: deriveVariantId(item as VariantCapable)!,
-        quantity: item.quantity ?? 1,
-      }));
-
-      const payment_type: "automatic" | "manual" | "cod" =
-        paymentType === "midtrans" ? "automatic" : paymentType;
-
-      const payload: CreateTransactionRequest = {
-        address_line_1: shippingInfo.address_line_1,
-        postal_code: shippingInfo.postal_code,
-        payment_type,
-        ...(payment_type === "automatic"
-          ? {
-              payment_method: autoMethod as "bank_transfer" | "qris",
-              payment_channel: autoChannel as
-                | "bnc"
-                | "bjb"
-                | "bca"
-                | "bni"
-                | "bsi"
-                | "bss"
-                | "cimb"
-                | "qris",
-            }
-          : {}),
-        data: [
-          {
-            shop_id: 1,
-            details,
-            shipment: {
-              parameter: JSON.stringify({
-                destination: String(shippingInfo.rajaongkir_district_id),
-                weight: 1000,
-                height: 0,
-                length: 0,
-                width: 0,
-                diameter: 0,
-                courier: shippingCourier ?? "",
-              }),
-              shipment_detail: JSON.stringify(shippingMethod),
-              courier: shippingCourier ?? "",
-              cost: shippingMethod.cost,
-            },
-            customer_info: {
-              name: shippingInfo.fullName,
-              phone: shippingInfo.phone,
-              address_line_1: shippingInfo.address_line_1,
-              postal_code: shippingInfo.postal_code,
-              province_id: shippingInfo.rajaongkir_province_id,
-              city_id: shippingInfo.rajaongkir_city_id,
-              district_id: shippingInfo.rajaongkir_district_id,
-            },
-          },
-        ],
-      };
-
-      // ===== Tipe & type guard respons gateway =====
-      type PaymentTypeResp = "qris" | "bank_transfer";
-      interface PaymentResp {
-        id: number;
-        driver: string;
-        payable_type: string;
-        payable_id: number;
-        order_id: string;
-        transaction_id: string;
-        payment_type: PaymentTypeResp;
-        account_number: string; // QR string atau nomor VA
-        account_code: string | null; // contoh: BCA_VIRTUAL_ACCOUNT
-        channel: string; // contoh: "bca" / "qris"
-        expired_at: string;
-        paid_at: string | null;
-        amount: number;
-        created_at: string;
-        updated_at: string;
-      }
-      interface UserResp {
-        id: number;
-        name: string;
-        phone: string;
-        email: string;
-        email_verified_at: string | null;
-        created_at: string;
-        updated_at: string;
-      }
-      interface TransactionResp {
-        id: number;
-        reference: string;
-        ref_number: number;
-        address_line_1: string;
-        address_line_2?: string | null;
-        postal_code: string;
-        total: number;
-        discount_total: number;
-        shipment_cost: number;
-        grand_total: number;
-        guest_name: string | null;
-        guest_email: string | null;
-        guest_phone: string | null;
-        type: string;
-        created_at: string;
-        updated_at: string;
-        user: UserResp;
-        payment?: PaymentResp;
-      }
-      // ganti nama supaya tidak konflik dengan tipe import
-      interface GatewayCreateTransactionResponse {
-        code?: number;
-        message?: string;
-        data: TransactionResp;
-      }
-
-      const isObject = (x: unknown): x is Record<string, unknown> =>
-        typeof x === "object" && x !== null;
-
-      const isPaymentResp = (x: unknown): x is GatewayPayment => {
-        if (typeof x !== "object" || x === null) return false;
-        const o = x as Record<string, unknown>;
-        return (
-          typeof o["payment_type"] === "string" &&
-          typeof o["channel"] === "string" &&
-          typeof o["account_number"] === "string" &&
-          typeof o["amount"] === "number" &&
-          typeof o["expired_at"] === "string"
-        );
-      };
-
-      const isGatewayCreateTransactionResponse = (
-        x: unknown
-      ): x is GatewayCreateTransactionResponse => {
-        if (!isObject(x)) return false;
-        const data = (x as Record<string, unknown>)["data"];
-        if (!isObject(data)) return false;
-        const hasReference = typeof data["reference"] === "string";
-        const pay = data["payment"];
-        const payOk = pay === undefined || isPaymentResp(pay);
-        return hasReference && payOk;
-      };
-
-      // ==== Panggil API
-      const raw = await createTransaction(payload).unwrap();
-
-      if (!isGatewayCreateTransactionResponse(raw)) {
-        // fallback lama (mis. skema yang mengembalikan payment_link)
-        await Swal.fire({
-          icon: "info",
-          title: "Pesanan Dibuat",
-          text: "Pesanan berhasil dibuat, namun format respons pembayaran tidak dikenali. Silakan cek halaman pesanan.",
-        });
-        clearCart();
-        router.push("/me");
-        return;
-      }
-
-      const trx = raw.data;
-      const pay = trx.payment;
-      const isAutomatic = payment_type === "automatic";
-
-     if (isAutomatic) {
-       if (pay) {
-         setPaymentInfo(pay);
-         setShowPaymentModal(true);
-         // opsional: JANGAN clearCart dulu supaya user masih bisa lihat itemnya
-         // clearCart(); // kalau mau kosongkan keranjang di awal, aktifkan ini
-       } else {
-         await Swal.fire({
-           icon: "info",
-           title: "Pesanan Dibuat",
-           text: "Pesanan berhasil dibuat, namun informasi pembayaran belum tersedia. Silakan cek halaman pesanan Anda.",
-         });
-         clearCart();
-         router.push("/me");
-       }
-     } else {
-       await Swal.fire({
-         icon: "success",
-         title: "Pesanan Berhasil Dibuat",
-         text: "Instruksi pembayaran tersedia di halaman pesanan.",
-       });
-       clearCart();
-       router.push("/me");
-     }
-    } catch (err: unknown) {
-      console.error("Error creating transaction:", err);
-
-      let serverMessage =
-        "Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.";
-      let fieldErrors = "";
-
-      const apiErr = err as {
-        data?: { message?: string; errors?: Record<string, string[] | string> };
-      };
-      const genericErr = err as { message?: string };
-
-      if (apiErr?.data?.message) serverMessage = apiErr.data.message;
-      else if (genericErr?.message) serverMessage = genericErr.message;
-
-      const rawErrors: Record<string, string[] | string> | undefined =
-        apiErr?.data?.errors;
-      if (rawErrors) {
-        fieldErrors = Object.entries(rawErrors)
-          .map(([field, msgs]) => {
-            const list = Array.isArray(msgs) ? msgs : [msgs];
-            return `${field}: ${list.join(", ")}`;
-          })
-          .join("\n");
-      }
-
-      await Swal.fire({
-        icon: "error",
-        title: "Gagal Membuat Pesanan",
-        html:
-          `<p style="text-align:left">${serverMessage}</p>` +
-          (fieldErrors
-            ? `<pre style="text-align:left;white-space:pre-wrap;background:#f8f9fa;padding:12px;border-radius:8px;margin-top:8px">${fieldErrors}</pre>`
-            : ""),
-      });
-    } finally {
-      setIsSubmitting(false);
-      setIsCheckingOut(false);
-    }
-  };
-
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen w-full bg-gradient-to-br from-white to-[#6B6B6B]/10 pt-24">
+      <div className="min-h-screen w-full bg-gradient-to-br from-white to-[#6B6B6B]/10 pt-12">
         <div className="container mx-auto px-6 lg:px-12">
           <div className="max-w-2xl mx-auto text-center py-20">
             <div className="w-32 h-32 bg-[#6B6B6B]/10 rounded-full flex items-center justify-center mx-auto mb-8">
@@ -945,7 +667,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white to-[#DFF19D]/10 pt-24">
+    <div className="min-h-screen bg-gradient-to-br from-white to-[#DFF19D]/10 pt-12">
       <div className="container mx-auto px-6 lg:px-12 pb-12">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-6">
@@ -1038,13 +760,8 @@ export default function CartPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl font-bold text-[#6B6B6B]">
-                          Rp {item.price.toLocaleString("id-ID")}
+                          Rp {(item.price * 1).toLocaleString("id-ID")}
                         </span>
-                        {item.originalPrice && (
-                          <span className="text-lg text-gray-400 line-through">
-                            Rp {item.originalPrice.toLocaleString("id-ID")}
-                          </span>
-                        )}
                       </div>
 
                       <div className="flex items-center gap-3">
@@ -1104,12 +821,6 @@ export default function CartPage() {
                         </div>
                       </div>
                     </div>
-                    <VariantPicker
-                      itemId={item.id}
-                      productSlug={item.slug}
-                      selectedVariantId={item.selectedVariantId}
-                      onPick={(v) => onPickVariant(item.id, v)}
-                    />
                   </div>
                 </div>
               </div>
@@ -1176,6 +887,34 @@ export default function CartPage() {
                   )}
                 </div>
 
+                {/* === EMAIL (wajib untuk guest) === */}
+                {!isLoggedIn && (
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email <span>*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={shippingInfo.email ?? ""}
+                      onChange={(e) =>
+                        handleInputChange("email", e.target.value)
+                      }
+                      placeholder="nama@email.com"
+                      disabled={hasDefaultAddress}
+                      className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent ${
+                        hasDefaultAddress
+                          ? "bg-gray-100 cursor-not-allowed"
+                          : ""
+                      }`}
+                    />
+                    {!isEmailValid && (
+                      <p className="text-sm text-red-500 mt-0.5">
+                        Alamat email tidak valid
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Alamat Lengkap *
@@ -1187,6 +926,26 @@ export default function CartPage() {
                     }
                     rows={3}
                     placeholder="Nama jalan, RT/RW, Kelurahan"
+                    disabled={hasDefaultAddress}
+                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent ${
+                      hasDefaultAddress ? "bg-gray-100 cursor-not-allowed" : ""
+                    }`}
+                  />
+                </div>
+
+                {/* === ALAMAT BARIS 2 (opsional) === */}
+                <div className="col-span-1 sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Alamat (Baris 2){" "}
+                    <span className="text-gray-400">(opsional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={shippingInfo.address_line_2}
+                    onChange={(e) =>
+                      handleInputChange("address_line_2", e.target.value)
+                    }
+                    placeholder="Blok, unit, patokan, dsb (opsional)"
                     disabled={hasDefaultAddress}
                     className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent ${
                       hasDefaultAddress ? "bg-gray-100 cursor-not-allowed" : ""
@@ -1304,7 +1063,8 @@ export default function CartPage() {
 
                     // ✅ Jika kurir Luar Negeri, paksa non-COD
                     if (val === "international" && paymentType === "cod") {
-                      setPaymentType("midtrans");
+                      setPaymentType("automatic");
+                      setPaymentMethod("qris");
                     }
                   }}
                 >
@@ -1421,15 +1181,11 @@ export default function CartPage() {
                       <input
                         type="radio"
                         name="payment-type"
-                        value="midtrans"
-                        checked={paymentType === "midtrans"}
-                        onChange={(e) => {
-                          const v = e.currentTarget.value as PaymentType;
-                          setPaymentType(v);
-                          // reset pilihan gateway agar tidak ikut terbawa
-                          setAutoMethod("");
-                          setAutoChannel("");
-                        }}
+                        value="automatic"
+                        checked={paymentType === "automatic"}
+                        onChange={(e) =>
+                          setPaymentType(e.currentTarget.value as PaymentType)
+                        }
                         className="form-radio text-[#6B6B6B] h-4 w-4"
                       />
                       <div>
@@ -1439,165 +1195,81 @@ export default function CartPage() {
                         </p>
                       </div>
                     </label>
+                  </div>
+                </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Metode Pembayaran
+                  </label>
+                  <div className="space-y-2">
                     <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors hover:bg-neutral-50">
                       <input
                         type="radio"
-                        name="payment-type"
-                        value="manual"
-                        checked={paymentType === "manual"}
+                        name="payment-method"
+                        value="bank_transfer"
+                        checked={paymentMethod === "bank_transfer"}
                         onChange={(e) =>
-                          setPaymentType(e.currentTarget.value as PaymentType)
+                          setPaymentMethod(
+                            e.currentTarget.value as PaymentMethod
+                          )
                         }
                         className="form-radio text-[#6B6B6B] h-4 w-4"
                       />
                       <div>
-                        <p className="font-medium">Manual</p>
+                        <p className="font-medium">Bank Transfer</p>
                         <p className="text-sm text-gray-500">
-                          Transfer bank manual
+                          Transfer ke rekening bank
                         </p>
                       </div>
                     </label>
-
-                    {shippingCourier !== "international" && (
-                      <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors hover:bg-neutral-50">
-                        <input
-                          type="radio"
-                          name="payment-type"
-                          value="cod"
-                          checked={paymentType === "cod"}
-                          onChange={(e) =>
-                            setPaymentType(e.currentTarget.value as PaymentType)
-                          }
-                          className="form-radio text-[#6B6B6B] h-4 w-4"
-                        />
-                        <div>
-                          <p className="font-medium">COD</p>
-                          <p className="text-sm text-gray-500">
-                            +Fee 2% terhadap nilai pesanan
-                          </p>
-                        </div>
-                      </label>
-                    )}
+                    <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors hover:bg-neutral-50">
+                      <input
+                        type="radio"
+                        name="payment-method"
+                        value="qris"
+                        checked={paymentMethod === "qris"}
+                        onChange={(e) =>
+                          setPaymentMethod(
+                            e.currentTarget.value as PaymentMethod
+                          )
+                        }
+                        className="form-radio text-[#6B6B6B] h-4 w-4"
+                      />
+                      <div>
+                        <p className="font-medium">QRIS</p>
+                        <p className="text-sm text-gray-500">
+                          Pembayaran via QRIS
+                        </p>
+                      </div>
+                    </label>
                   </div>
                 </div>
 
-                {paymentType === "manual" && (
-                  <div className="space-y-4">
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-5 h-5 text-blue-600 mt-0.5" />
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-blue-900 mb-2">
-                            Rekening Tujuan Transfer
-                          </h4>
-
-                          <div className="bg-white p-3 rounded-lg mb-3">
-                            <p className="font-semibold text-gray-900">
-                              ISMAIL MARZUKI
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              Bank Mandiri
-                            </p>
-                            <p className="font-mono text-lg font-bold text-gray-900">
-                              1340010955069
-                            </p>
-                          </div>
-
-                          <div className="bg-white p-3 rounded-lg">
-                            <p className="font-semibold text-gray-900">
-                              Herlina Hartosuharto
-                            </p>
-                            <p className="text-sm text-gray-600">Bank BCA</p>
-                            <p className="font-mono text-lg font-bold text-gray-900">
-                              3030727834
-                            </p>
-                          </div>
-
-                          <p className="text-sm text-blue-700 mt-3">
-                            Setelah transfer, Anda dapat mengupload bukti
-                            pembayaran melalui halaman profil pesanan.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {paymentType === "midtrans" && (
-                  <div className="space-y-3 mt-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Metode Pembayaran Online
+                {paymentMethod === "bank_transfer" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pilih Bank
                     </label>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-neutral-50">
-                        <input
-                          type="radio"
-                          name="auto-method"
-                          value="qris"
-                          checked={autoMethod === "qris"}
-                          onChange={() => {
-                            setAutoMethod("qris");
-                            setAutoChannel("qris"); // channel wajib 'qris' untuk QRIS
-                          }}
-                          className="form-radio text-[#6B6B6B] h-4 w-4"
-                        />
-                        <div>
-                          <p className="font-medium">QRIS</p>
-                          <p className="text-sm text-gray-500">
-                            Scan QR (semua e-wallet/bank)
-                          </p>
-                        </div>
-                      </label>
-
-                      <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-neutral-50">
-                        <input
-                          type="radio"
-                          name="auto-method"
-                          value="bank_transfer"
-                          checked={autoMethod === "bank_transfer"}
-                          onChange={() => {
-                            setAutoMethod("bank_transfer");
-                            setAutoChannel(""); // pilih bank di bawah
-                          }}
-                          className="form-radio text-[#6B6B6B] h-4 w-4"
-                        />
-                        <div>
-                          <p className="font-medium">Virtual Account</p>
-                          <p className="text-sm text-gray-500">
-                            VA bank (BCA/BNI/BSI/BJB/BNC/BSS/CIMB)
-                          </p>
-                        </div>
-                      </label>
-                    </div>
-
-                    {autoMethod === "bank_transfer" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Pilih Bank
-                        </label>
-                        <Select
-                          value={autoChannel}
-                          onValueChange={(val) =>
-                            setAutoChannel(val as BankChannel)
-                          }
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Pilih Bank" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="bca">BCA</SelectItem>
-                            <SelectItem value="bni">BNI</SelectItem>
-                            <SelectItem value="bsi">BSI</SelectItem>
-                            <SelectItem value="bjb">BJB</SelectItem>
-                            <SelectItem value="bnc">BNC</SelectItem>
-                            <SelectItem value="bss">BSS</SelectItem>
-                            <SelectItem value="cimb">CIMB</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                    <Select
+                      value={paymentChannel}
+                      onValueChange={(val) =>
+                        setPaymentChannel(val as PaymentChannel)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih Bank" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bnc">BNC</SelectItem>
+                        <SelectItem value="bjb">BJB</SelectItem>
+                        <SelectItem value="bca">BCA</SelectItem>
+                        <SelectItem value="bni">BNI</SelectItem>
+                        <SelectItem value="bsi">BSI</SelectItem>
+                        <SelectItem value="bss">BSS</SelectItem>
+                        <SelectItem value="cimb">CIMB</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
               </div>
@@ -1705,7 +1377,7 @@ export default function CartPage() {
                 </div>
               </div>
               <button
-                onClick={handleCheckout}
+                onClick={onCheckoutClick}
                 disabled={
                   isCheckingOut ||
                   isSubmitting ||
@@ -1716,7 +1388,7 @@ export default function CartPage() {
                   !shippingInfo.postal_code ||
                   !isPhoneValid ||
                   !paymentType ||
-                  (paymentType === "midtrans" && (!autoMethod || !autoChannel)) // qris akan otomatis set 'qris'
+                  (!isLoggedIn && !isEmailValid)
                 }
                 className="w-full bg-[#6B6B6B] text-white py-4 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -1840,24 +1512,6 @@ export default function CartPage() {
           )}
         </div> */}
       </div>
-      <PaymentModal
-        open={showPaymentModal}
-        payment={paymentInfo}
-        onClose={() => {
-          // aksi saat modal ditutup:
-          clearCart();
-          setShowPaymentModal(false);
-          router.push("/me"); // menuju halaman pesanan
-        }}
-        onCopied={(msg) =>
-          Swal.fire({
-            icon: "success",
-            title: msg,
-            timer: 900,
-            showConfirmButton: false,
-          })
-        }
-      />
     </div>
   );
 }

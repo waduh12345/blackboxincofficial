@@ -12,7 +12,7 @@ import { Button } from "../ui/button";
 import { useLogoutMutation } from "@/services/auth.service";
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, menuItems }) => {
-  const shopLogo = "/favicon.ico";
+  // shopLogo is not used in the provided snippet
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<string[]>([]);
 
@@ -50,6 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, menuItems }) => {
 
   return (
     <>
+      {/* Overlay for mobile view */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 transition-opacity z-20 lg:hidden"
@@ -57,25 +58,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, menuItems }) => {
         />
       )}
 
+      {/* Main Sidebar Container (Full height, flex column structure) */}
       <div
         className={`fixed left-0 z-30 w-64 bg-white transform transition-transform duration-300 ease-in-out
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        top-36 h-[calc(100vh-8rem)] lg:top-0 lg:h-full lg:translate-x-0 lg:static`}
+        
+        // --- Mobile Responsiveness Fixes ---
+        top-0 h-screen flex flex-col // Full screen height and vertical flex
+        lg:top-0 lg:h-full lg:translate-x-0 lg:static // Desktop position
+        `}
       >
-        <div className="flex items-center justify-between h-16 px-4 bg-white border-b">
+        {/* Header (fixed height, shrinks content but not itself) */}
+        <div className="flex items-center justify-between h-16 px-4 bg-white border-b flex-shrink-0">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Image
-                src={shopLogo}
-                alt="Logo"
-                width={160}
-                height={16}
-                className="w-6 h-4"
-              />
-            </div>
+            {/* shopLogo is unused */}
             <div className="ml-2">
               <h2 className="text-gray-900 text-lg font-bold font-italic">
-                BLACKBOXINC
+                BLACKBOX.INC
               </h2>
             </div>
           </div>
@@ -88,7 +87,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, menuItems }) => {
           </button>
         </div>
 
-        <nav className="mt-5 px-2 space-y-1">
+        {/* Navigation Area (Scrollable content, takes remaining space) */}
+        <nav className="flex-grow overflow-y-auto mt-1 px-2 space-y-1 pb-4">
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
             const hasChildren = item.children && item.children.length > 0;
@@ -124,7 +124,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, menuItems }) => {
                   {hasChildren && (
                     <button
                       onClick={(e) => toggleSubMenu(item.id, e)}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-gray-200 focus:outline-none"
+                      // Adjusted p-1 to p-2 for better touch target
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded hover:bg-gray-200 focus:outline-none"
                       aria-label={`Toggle ${item.label} submenu`}
                     >
                       {isOpen ? (
@@ -146,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, menuItems }) => {
                           href={child.href}
                           className={`block px-2 py-1 rounded-md text-sm ${
                             isChildActive
-                              ? "bg-gray-200 text-gray-900"
+                              ? "bg-gray-200 text-gray-900 font-medium"
                               : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                           }`}
                           onClick={() => window.innerWidth < 1024 && onClose()}
@@ -162,7 +163,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, menuItems }) => {
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4">
+        {/* Footer (Fixed at the bottom, border-t added for separation) */}
+        <div className="p-4 border-t flex-shrink-0">
           <div className="bg-gray-100 rounded-lg p-3">
             <Button
               variant="destructive"

@@ -167,7 +167,7 @@ export default function NewsPage() {
               <div className="flex flex-wrap items-center gap-6 text-white/90">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4" />
-                  <span>BLACKBOXINC Shop</span>
+                  <span>BLACKBOX.INC Shop</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
@@ -278,7 +278,7 @@ export default function NewsPage() {
                       </div>
                       <div>
                         <div className="font-semibold text-gray-900">
-                          BLACKBOXINC Shop Team
+                          BLACKBOX.INC Shop Team
                         </div>
                         <div className="text-sm text-gray-600">Penulis</div>
                       </div>
@@ -354,14 +354,13 @@ export default function NewsPage() {
           {/* Title */}
           <h1 className="text-4xl lg:text-6xl font-bold text-[#6B6B6B] mb-6">
             Rahasia Kulit Sehat
-            <span className="block text-[#E53935]">bersamaBLACKBOXINC</span>
+            <span className="block text-[#E53935]">bersama BLACKBOX.INC</span>
           </h1>
 
           {/* Subtitle */}
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Dapatkan tips perawatan kulit, rekomendasi produk, dan insight
-            kecantikan untuk menjaga kulit tetap cerah, sehat, dan bercahaya
-            setiap hari.
+            Dapatkan produk terbaik, rekomendasi produk, dan insight produk
+            berkualitas, keren, dan fashionable setiap hari.
           </p>
         </div>
       </section>
@@ -462,7 +461,7 @@ export default function NewsPage() {
                   <div className="flex items-center gap-6 text-sm text-gray-500 mb-6">
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4" />
-                      <span>BLACKBOXINC Shop</span>
+                      <span>BLACKBOX.INC Shop</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
@@ -561,7 +560,7 @@ export default function NewsPage() {
                     <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
                       <div className="flex items-center gap-1">
                         <User className="w-4 h-4" />
-                        <span>BLACKBOXINC Shop</span>
+                        <span>BLACKBOX.INC Shop</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
@@ -722,7 +721,7 @@ export default function NewsPage() {
             {/* Small Note */}
             <p className="text-sm text-gray-500 mt-6">
               Dengan berlangganan, Anda setuju menerima email promosi dari
-              BLACKBOXINC.
+              BLACKBOX.INC.
             </p>
           </div>
         </div>

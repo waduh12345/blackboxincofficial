@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import useModal from "@/hooks/use-modal";
-import { PageHeader } from "@/components/ui/page-header";
 
 import {
   useGetGalleryListQuery,
@@ -27,9 +26,6 @@ export default function GalleryPage() {
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
 
-  // 🔎 state pencarian (opsional via PageHeader)
-  const [search, setSearch] = useState("");
-
   const { data, isLoading, refetch } = useGetGalleryListQuery({
     page: currentPage,
     paginate: itemsPerPage,
@@ -37,17 +33,6 @@ export default function GalleryPage() {
 
   const list = useMemo(() => data?.data || [], [data]);
   const lastPage = useMemo(() => data?.last_page || 1, [data]);
-
-  // Filter client-side per halaman aktif
-  const filteredList = useMemo(() => {
-    if (!search.trim()) return list;
-    const q = search.toLowerCase();
-    return list.filter(
-      (g) =>
-        g.title?.toLowerCase().includes(q) ||
-        (g.description ?? "").toLowerCase().includes(q)
-    );
-  }, [list, search]);
 
   const [createGallery, { isLoading: isCreating }] = useCreateGalleryMutation();
   const [updateGallery, { isLoading: isUpdating }] = useUpdateGalleryMutation();
@@ -84,7 +69,12 @@ export default function GalleryPage() {
   };
 
   const handleCreate = () => {
-    setForm({ title: "", description: "", published_at: "", image: "" });
+    setForm({
+      title: "",
+      description: "",
+      published_at: "",
+      image: "",
+    });
     setEditingSlug(null);
     setReadonly(false);
     openModal();
@@ -127,18 +117,10 @@ export default function GalleryPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header reusable: judul + search + tombol dalam satu div rounded-lg bg-white */}
-      <PageHeader
-        title="Data Galeri"
-        primaryLabel="Tambah Galeri"
-        onPrimaryAction={handleCreate}
-        searchPlaceholder="Cari judul/deskripsi…"
-        searchValue={search}
-        onSearchChange={(v) => {
-          setSearch(v);
-          setCurrentPage(1);
-        }}
-      />
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Data Galeri</h1>
+        <Button onClick={handleCreate}>Tambah Galeri</Button>
+      </div>
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -155,18 +137,18 @@ export default function GalleryPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="text-center p-4">
+                  <td colSpan={6} className="text-center p-4">
                     Memuat data...
                   </td>
                 </tr>
-              ) : filteredList.length === 0 ? (
+              ) : list.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center p-4">
+                  <td colSpan={6} className="text-center p-4">
                     Tidak ada data
                   </td>
                 </tr>
               ) : (
-                filteredList.map((item) => (
+                list.map((item) => (
                   <tr key={item.id} className="border-t">
                     <td className="px-4 py-2">
                       <div className="flex gap-2">

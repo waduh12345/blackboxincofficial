@@ -207,8 +207,8 @@ export default function ReservationModal({
         date: formData.reservationDate,
         hour: formData.reservationTime,
         payment_method:
-          paymentMethod === "midtrans"
-            ? "midtrans"
+          paymentMethod === "doku"
+            ? "doku"
             : paymentMethod === "cod"
             ? "cod"
             : "manual",
@@ -504,9 +504,9 @@ export default function ReservationModal({
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("midtrans")}
+                    onClick={() => setPaymentMethod("doku")}
                     className={`p-4 rounded-2xl border-2 transition-colors ${
-                      paymentMethod === "midtrans"
+                      paymentMethod === "doku"
                         ? "border-[#E53935] bg-[#E53935]/10"
                         : "border-gray-200 hover:border-[#6B6B6B]/50"
                     }`}

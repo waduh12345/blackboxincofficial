@@ -38,7 +38,7 @@ export default function TeamSection() {
         >
           <h2 className="text-4xl lg:text-5xl font-bold text-[#6B6B6B] mb-4">
             Tim di Balik{" "}
-            <span className="text-[#E53935]">BLACKBOXINC Shop</span>
+            <span className="text-[#E53935]">BLACKBOX.INC Shop</span>
           </h2>
           <p className="text-lg text-[#6B6B6B] max-w-2xl mx-auto">
             Profesional berpengalaman yang berdedikasi menghadirkan produk Shop

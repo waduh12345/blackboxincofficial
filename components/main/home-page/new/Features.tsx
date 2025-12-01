@@ -42,7 +42,7 @@ export default function Features() {
           className="text-3xl md:text-4xl font-bold text-gray-800 mb-12"
         >
           {t["why-title-1"]}{" "}
-          <span className="text-[#E53935]">BLACKBOXINC Shop</span>?
+          <span className="text-[#E53935]">BLACKBOX.INC Shop</span>?
         </motion.h2>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">

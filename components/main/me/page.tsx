@@ -25,6 +25,7 @@ import {
   Upload,
   X,
   FileText,
+  Award,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -758,1194 +759,459 @@ export default function ProfilePage() {
 
   /* --------------------- UI --------------------- */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white to-[#DFF19D]/10 pt-10">
-      <div className="container mx-auto px-6 lg:px-12 pb-12">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 bg-[#6B6B6B]/10 px-4 py-2 rounded-full mb-4">
-              <span className="text-sm font-medium text-[#6B6B6B]">
-                Profil Pengguna
-              </span>
+    <div className="min-h-screen bg-white pt-10">
+    <div className="container mx-auto px-4 lg:px-12 pb-12">
+      {/* Header */}
+      <div className="mb-10 border-b border-gray-200 pb-6">
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full mb-4">
+            <span className="text-sm font-medium text-black uppercase tracking-wider">
+              Client Dashboard
+            </span>
+          </div>
+          <h1 className="text-4xl lg:text-5xl font-extrabold text-black mb-4 uppercase">
+            Welcome Back,{" "}
+            <span className="text-gray-700">
+              {userProfile.fullName.split(" ")[0]}
+            </span>
+          </h1>
+          <p className="text-gray-700 max-w-2xl mx-auto text-lg">
+            Manage your profile, addresses, and track your exclusive orders.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Sidebar */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-xl p-6 shadow-xl border border-gray-200 sticky top-24">
+            <div className="text-center mb-6 pb-6 border-b border-gray-200">
+              {/* Avatar B&W */}
+              <div className="relative w-24 h-24 mx-auto mb-4 border-4 border-black rounded-full">
+                <Image
+                  src={imgSrc}
+                  alt={userProfile.fullName || "Avatar"}
+                  fill
+                  className="object-cover rounded-full grayscale-[10%]"
+                  onError={() => setImgSrc(DEFAULT_AVATAR)}
+                  unoptimized
+                />
+                <div className="absolute bottom-0 right-0 w-6 h-6 bg-black rounded-full flex items-center justify-center cursor-pointer" onClick={openEditProfileModal}>
+                  <Camera className="w-3 h-3 text-white" />
+                </div>
+              </div>
+              <h3 className="font-bold text-black uppercase tracking-wider">
+                {userProfile.fullName}
+              </h3>
+              <p className="text-sm text-gray-700">{userProfile.email}</p>
             </div>
-            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Selamat Datang,{" "}
-              <span className="text-[#6B6B6B]">
-                {userProfile.fullName.split(" ")[0]}
-              </span>
-            </h1>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Kelola profil, alamat, dan pesanan Anda dengan mudah
-            </p>
+
+            <nav className="space-y-2 mb-6">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold uppercase transition-all duration-300 text-sm tracking-wider ${
+                    activeTab === tab.id
+                      ? "bg-black text-white shadow-lg" // Active B&W
+                      : "text-gray-700 hover:bg-gray-100 hover:text-black" // Inactive B&W
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed uppercase tracking-wider"
+              title={isLoggingOut ? "Logging out..." : "Log Out"}
+            >
+              <LogOut className="w-5 h-5" />
+              {isLoggingOut ? "Logging Out..." : "Log Out"}
+            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <div className="text-center mb-6 pb-6 border-b border-gray-200">
-                <div className="relative w-20 h-20 mx-auto mb-4">
-                  <Image
-                    src={imgSrc}
-                    alt={userProfile.fullName || "Avatar"}
-                    fill
-                    className="object-cover rounded-full"
-                    onError={() => setImgSrc(DEFAULT_AVATAR)}
-                    unoptimized
-                  />
-                  <div className="absolute bottom-0 right-0 w-6 h-6 bg-[#6B6B6B] rounded-full flex items-center justify-center">
-                    <Camera
-                      onClick={openEditProfileModal}
-                      className="w-3 h-3 text-white cursor-pointer"
-                    />
+        {/* Main Content */}
+        <div className="lg:col-span-3">
+          <div className="bg-white rounded-xl p-8 shadow-xl border border-gray-200">
+            
+            {/* --- 1. Dashboard --- */}
+            {activeTab === "dashboard" && (
+              <div className="space-y-10">
+                <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
+                  <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white">
+                    <BarChart3 className="w-5 h-5" />
                   </div>
+                  <h2 className="text-2xl font-extrabold text-black uppercase tracking-wider">
+                    Dashboard Summary
+                  </h2>
                 </div>
-                <h3 className="font-bold text-gray-900">
-                  {userProfile.fullName}
-                </h3>
-                <p className="text-sm text-gray-600">{userProfile.email}</p>
-              </div>
 
-              <nav className="space-y-2 mb-6">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-medium transition-all duration-300 ${
-                      activeTab === tab.id
-                        ? "bg-[#6B6B6B] text-white shadow-lg"
-                        : "text-gray-700 hover:bg-[#6B6B6B]/10 hover:text-[#6B6B6B]"
-                    }`}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                  </button>
-                ))}
-              </nav>
-
-              <button
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                title={isLoggingOut ? "Sedang keluar..." : "Keluar"}
-              >
-                <LogOut className="w-5 h-5" />
-                {isLoggingOut ? "Keluar..." : "Keluar"}
-              </button>
-            </div>
-          </div>
-
-          {/* Main */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-3xl p-8 shadow-lg">
-              {/* Dashboard */}
-              {activeTab === "dashboard" && (
-                <div className="space-y-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-[#6B6B6B] rounded-2xl flex items-center justify-center text-white">
-                      <BarChart3 className="w-5 h-5" />
+                {/* Stat Cards B&W */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-gray-800 rounded-lg p-6 text-white shadow-lg">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Package className="w-6 h-6 text-gray-300" />
+                      <span className="font-semibold uppercase text-sm">Total Orders</span>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      Dashboard
-                    </h2>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-gradient-to-r from-[#6B6B6B] to-[#DFF19D] rounded-2xl p-6 text-white">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Package className="w-6 h-6" />
-                        <span className="font-semibold">Total Pesanan</span>
-                      </div>
-                      <div className="text-3xl font-bold">
-                        {userProfile.totalOrders}
-                      </div>
-                      <div className="text-white/80 text-sm">
-                        Sejak bergabung
-                      </div>
+                    <div className="text-4xl font-extrabold">
+                      {userProfile.totalOrders}
                     </div>
-
-                    <div className="bg-gradient-to-r from-[#F6CCD0] to-[#BFF0F5] rounded-2xl p-6 text-white">
-                      <div className="flex items-center gap-3 mb-3">
-                        <CreditCard className="w-6 h-6" />
-                        <span className="font-semibold">Total Belanja</span>
-                      </div>
-                      <div className="text-3xl font-bold">
-                        {new Intl.NumberFormat("id-ID", {
-                          style: "currency",
-                          currency: "IDR",
-                          minimumFractionDigits: 0,
-                        }).format(userProfile.totalSpent)}
-                      </div>
-                      <div className="text-white/80 text-sm">
-                        Lifetime value
-                      </div>
+                    <div className="text-gray-400 text-xs mt-1">
+                      Since joining
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-gray-900">
-                        Pesanan Terbaru
-                      </h3>
-                      <button
-                        onClick={() => setActiveTab("orders")}
-                        className="text-[#6B6B6B] font-semibold hover:underline"
-                      >
-                        Lihat Semua
-                      </button>
+                  <div className="bg-gray-50 rounded-lg p-6 text-black shadow-lg border border-gray-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <CreditCard className="w-6 h-6 text-gray-600" />
+                      <span className="font-semibold uppercase text-sm">Total Spent</span>
                     </div>
-
-                    <div className="space-y-4">
-                      {(orders || []).slice(0, 3).map((order) => (
-                        <div
-                          key={order.id}
-                          className="border border-gray-200 rounded-2xl p-4 hover:border-[#6B6B6B] transition-colors"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h4 className="font-semibold text-gray-900">
-                                #{order.orderNumber}
-                              </h4>
-                              <p className="text-sm text-gray-600">
-                                {new Date(order.date).toLocaleDateString(
-                                  "id-ID"
-                                )}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-bold text-[#6B6B6B]">
-                                Rp {order.grand_total.toLocaleString("id-ID")}
-                              </div>
-                              <span
-                                className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                                  order.status
-                                )}`}
-                              >
-                                {getStatusText(order.status)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {order.items.slice(0, 3).map((item, index) => (
-                              <div
-                                key={`${order.id}-${item.id}-${index}`}
-                                className="w-10 h-10 relative rounded-lg overflow-hidden"
-                              >
-                                <Image
-                                  src={item.image}
-                                  alt={item.name}
-                                  fill
-                                  className="object-cover"
-                                />
-                              </div>
-                            ))}
-                            {order.items.length > 3 && (
-                              <span className="text-sm text-gray-500">
-                                +{order.items.length - 3} lainnya
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                    <div className="text-3xl font-extrabold">
+                      {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(userProfile.totalSpent)}
+                    </div>
+                    <div className="text-gray-600 text-xs mt-1">
+                      Lifetime value
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-6 text-black shadow-lg border border-gray-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Award className="w-6 h-6 text-black" />
+                      <span className="font-semibold uppercase text-sm">Loyalty Points</span>
+                    </div>
+                    <div className="text-4xl font-extrabold">
+                      {userProfile.loyaltyPoints}
+                    </div>
+                    <div className="text-gray-600 text-xs mt-1">
+                      Exchangeable for discounts
                     </div>
                   </div>
                 </div>
-              )}
 
-              {/* Profile */}
-              {activeTab === "profile" && (
-                <div className="space-y-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[#6B6B6B] rounded-2xl flex items-center justify-center text-white">
-                        <UserIcon className="w-5 h-5" />
-                      </div>
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        Informasi Profil
-                      </h2>
-                    </div>
-                    <button
-                      onClick={openEditProfileModal}
-                      disabled={isPrefillingProfile}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#6B6B6B] text-white rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors disabled:opacity-60"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      {isPrefillingProfile ? "Memuat..." : "Edit"}
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">
-                        Nama Lengkap
-                      </label>
-                      <div className="relative">
-                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input
-                          type="text"
-                          value={userProfile.fullName}
-                          onChange={(e) =>
-                            setUserProfile((prev) => ({
-                              ...prev,
-                              fullName: e.target.value,
-                            }))
-                          }
-                          disabled={!isEditing}
-                          className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent disabled:bg-gray-50"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">
-                        Email
-                      </label>
-                      <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input
-                          type="email"
-                          value={userProfile.email}
-                          onChange={(e) =>
-                            setUserProfile((prev) => ({
-                              ...prev,
-                              email: e.target.value,
-                            }))
-                          }
-                          disabled={!isEditing}
-                          className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent disabled:bg-gray-50"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">
-                        Nomor Telepon
-                      </label>
-                      <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input
-                          type="tel"
-                          value={userProfile.phone}
-                          onChange={(e) =>
-                            setUserProfile((prev) => ({
-                              ...prev,
-                              phone: e.target.value,
-                            }))
-                          }
-                          disabled={!isEditing}
-                          className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent disabled:bg-gray-50"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">
-                        Tanggal Lahir
-                      </label>
-                      <div className="relative">
-                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input
-                          type="date"
-                          value={userProfile.birthDate}
-                          onChange={(e) =>
-                            setUserProfile((prev) => ({
-                              ...prev,
-                              birthDate: e.target.value,
-                            }))
-                          }
-                          disabled={!isEditing}
-                          className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent disabled:bg-gray-50"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#6B6B6B]/5 rounded-2xl p-6">
-                    <h3 className="font-semibold text-gray-900 mb-4">
-                      Informasi Akun
+                {/* Latest Orders */}
+                <div>
+                  <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-3">
+                    <h3 className="text-xl font-bold text-black uppercase">
+                      Latest Orders
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">Bergabung sejak:</span>
-                        <div className="font-semibold text-gray-900">
-                          {new Date(userProfile.joinDate).toLocaleDateString(
-                            "id-ID",
-                            { year: "numeric", month: "long", day: "numeric" }
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Status Akun:</span>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span className="font-semibold text-green-600">
-                            Terverifikasi
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Addresses */}
-              {activeTab === "addresses" && (
-                <div className="space-y-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[#6B6B6B] rounded-2xl flex items-center justify-center text-white">
-                        <MapPin className="w-5 h-5" />
-                      </div>
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        Alamat Pengiriman
-                      </h2>
-                    </div>
                     <button
-                      onClick={openCreateAddress}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#6B6B6B] text-white rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors"
+                      onClick={() => setActiveTab("orders")}
+                      className="text-black font-semibold hover:underline text-sm uppercase"
                     >
-                      <Plus className="w-4 h-4" />
-                      Tambah Alamat
+                      View All
                     </button>
                   </div>
 
-                  {isFetchingAddressList ? (
-                    <div className="text-gray-600">Memuat alamat...</div>
-                  ) : (
-                    (() => {
-                      const addressData: ReadonlyArray<UserAddress> =
-                        userAddressList?.data ?? [];
-                      if (addressData.length === 0) {
-                        return (
-                          <div className="text-gray-600">Belum ada alamat.</div>
-                        );
-                      }
-                      return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {addressData.map((a) => {
-                            const provName = findName(
-                              provinceList,
-                              a.rajaongkir_province_id
-                            );
-                            const cityName = findName(
-                              cityList,
-                              a.rajaongkir_city_id
-                            );
-                            const distName = findName(
-                              districtList,
-                              a.rajaongkir_district_id
-                            );
-                            return (
-                              <div
-                                key={a.id}
-                                className={`border-2 rounded-2xl p-6 transition-all ${
-                                  a.is_default
-                                    ? "border-[#6B6B6B] bg-[#6B6B6B]/5"
-                                    : "border-gray-200 hover:border-[#6B6B6B]/50"
-                                }`}
-                              >
-                                <div className="flex items-start justify-between mb-4">
-                                  <div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <h3 className="font-bold text-gray-900">
-                                        Alamat
-                                      </h3>
-                                      {a.is_default && (
-                                        <span className="px-2 py-1 bg-[#6B6B6B] text-white text-xs font-semibold rounded-full">
-                                          Default
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() =>
-                                        openEditAddress(Number(a.id))
-                                      }
-                                      className="p-2 text-gray-400 hover:text-[#6B6B6B] transition-colors"
-                                      title="Edit alamat"
-                                    >
-                                      <Edit3 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        handleDeleteAddressApi(Number(a.id))
-                                      }
-                                      className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                                      title={
-                                        isDeletingAddr
-                                          ? "Menghapus..."
-                                          : "Hapus alamat"
-                                      }
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div className="text-sm text-gray-600 mb-4">
-                                  <p className="text-gray-800 font-medium">
-                                    {a.address_line_1}
-                                  </p>
-                                  {a.address_line_2 && (
-                                    <p>{a.address_line_2}</p>
-                                  )}
-                                  <p>
-                                    {distName ? `${distName}, ` : ""}
-                                    {cityName ? `${cityName}, ` : ""}
-                                    {provName
-                                      ? provName
-                                      : `Prov ID ${a.rajaongkir_province_id}`}
-                                    {a.postal_code ? `, ${a.postal_code}` : ""}
-                                  </p>
-                                </div>
-
-                                {!a.is_default && (
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        await updateUserAddress({
-                                          id: Number(a.id),
-                                          payload: { is_default: true },
-                                        }).unwrap();
-                                        await refetchUserAddressList();
-                                      } catch {
-                                        Swal.fire(
-                                          "Gagal",
-                                          "Tidak dapat menjadikan default.",
-                                          "error"
-                                        );
-                                      }
-                                    }}
-                                    className="text-[#6B6B6B] text-sm font-semibold hover:underline"
-                                  >
-                                    Jadikan Default
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()
-                  )}
-
-                  {/* Modal Create / Edit */}
-                  {addrModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center">
-                      <div
-                        className="absolute inset-0 bg-black/50"
-                        onClick={() => {
-                          setAddrModalOpen(false);
-                          setAddrEditId(null);
-                        }}
-                      />
-                      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-xl font-bold text-gray-900">
-                            {addrEditId ? "Edit Alamat" : "Tambah Alamat"}
-                          </h3>
-                          <button
-                            onClick={() => {
-                              setAddrModalOpen(false);
-                              setAddrEditId(null);
-                            }}
-                            className="text-gray-400 hover:text-gray-600"
-                          >
-                            ✕
-                          </button>
-                        </div>
-
-                        <div className="space-y-4">
-                          {/* Province */}
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">
-                              Provinsi
-                            </label>
-                            <select
-                              className="w-full border border-gray-200 rounded-2xl px-3 py-2"
-                              value={addrForm.rajaongkir_province_id ?? ""}
-                              onChange={(e) => {
-                                const v = e.target.value
-                                  ? Number(e.target.value)
-                                  : null;
-                                setAddrForm((p) => ({
-                                  ...p,
-                                  rajaongkir_province_id: v,
-                                  rajaongkir_city_id: null,
-                                  rajaongkir_district_id: null,
-                                }));
-                              }}
-                            >
-                              <option value="">-- Pilih Provinsi --</option>
-                              {provinceList.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* City */}
-                          <div>
-                            <label className="block text sm font-semibold text-gray-900 mb-2">
-                              Kota/Kabupaten
-                            </label>
-                            <select
-                              className="w-full border border-gray-200 rounded-2xl px-3 py-2"
-                              value={addrForm.rajaongkir_city_id ?? ""}
-                              onChange={(e) => {
-                                const v = e.target.value
-                                  ? Number(e.target.value)
-                                  : null;
-                                setAddrForm((p) => ({
-                                  ...p,
-                                  rajaongkir_city_id: v,
-                                  rajaongkir_district_id: null,
-                                }));
-                              }}
-                              disabled={!addrForm.rajaongkir_province_id}
-                            >
-                              <option value="">
-                                -- Pilih Kota/Kabupaten --
-                              </option>
-                              {cityList.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* District */}
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">
-                              Kecamatan
-                            </label>
-                            <select
-                              className="w-full border border-gray-200 rounded-2xl px-3 py-2"
-                              value={addrForm.rajaongkir_district_id ?? ""}
-                              onChange={(e) =>
-                                setAddrForm((p) => ({
-                                  ...p,
-                                  rajaongkir_district_id: e.target.value
-                                    ? Number(e.target.value)
-                                    : null,
-                                }))
-                              }
-                              disabled={!addrForm.rajaongkir_city_id}
-                            >
-                              <option value="">-- Pilih Kecamatan --</option>
-                              {districtList.map((d) => (
-                                <option key={d.id} value={d.id}>
-                                  {d.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Address line 1 */}
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">
-                              Alamat (Baris 1)
-                            </label>
-                            <input
-                              type="text"
-                              className="w-full border border-gray-200 rounded-2xl px-3 py-2"
-                              value={addrForm.address_line_1 ?? ""}
-                              onChange={(e) =>
-                                setAddrForm((p) => ({
-                                  ...p,
-                                  address_line_1: e.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-
-                          {/* Address line 2 */}
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">
-                              Alamat (Baris 2) – opsional
-                            </label>
-                            <input
-                              type="text"
-                              className="w-full border border-gray-200 rounded-2xl px-3 py-2"
-                              value={addrForm.address_line_2 ?? ""}
-                              onChange={(e) =>
-                                setAddrForm((p) => ({
-                                  ...p,
-                                  address_line_2: e.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-
-                          {/* Postal code */}
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">
-                              Kode Pos
-                            </label>
-                            <input
-                              type="text"
-                              className="w-full border border-gray-200 rounded-2xl px-3 py-2"
-                              value={addrForm.postal_code ?? ""}
-                              onChange={(e) =>
-                                setAddrForm((p) => ({
-                                  ...p,
-                                  postal_code: e.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-
-                          {/* Default */}
-                          <div className="flex items-center gap-2">
-                            <input
-                              id="is_default"
-                              type="checkbox"
-                              className="w-4 h-4"
-                              checked={Boolean(addrForm.is_default)}
-                              onChange={(e) =>
-                                setAddrForm((p) => ({
-                                  ...p,
-                                  is_default: e.target.checked,
-                                }))
-                              }
-                            />
-                            <label
-                              htmlFor="is_default"
-                              className="text-sm text-gray-800"
-                            >
-                              Jadikan alamat default
-                            </label>
-                          </div>
-                        </div>
-
-                        <div className="mt-6 flex items-center justify-end gap-3">
-                          <button
-                            onClick={() => {
-                              setAddrModalOpen(false);
-                              setAddrEditId(null);
-                            }}
-                            className="px-4 py-2 rounded-2xl border border-gray-200 text-gray-700 hover:bg-gray-50"
-                          >
-                            Batal
-                          </button>
-                          <button
-                            onClick={handleSubmitAddress}
-                            disabled={isCreatingAddr || isUpdatingAddr}
-                            className="px-4 py-2 rounded-2xl bg-[#6B6B6B] text-white font-semibold hover:bg-[#6B6B6B]/90 disabled:opacity-60"
-                          >
-                            {addrEditId
-                              ? isUpdatingAddr
-                                ? "Menyimpan..."
-                                : "Simpan Perubahan"
-                              : isCreatingAddr
-                              ? "Menyimpan..."
-                              : "Simpan"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Orders */}
-              {activeTab === "orders" && (
-                <div className="space-y-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-[#6B6B6B] rounded-2xl flex items-center justify-center text-white">
-                      <Package className="w-5 h-5" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      Riwayat Pesanan
-                    </h2>
-                  </div>
-
-                  <div className="space-y-6">
-                    {(orders || []).map((order) => (
+                  <div className="space-y-4">
+                    {(orders || []).slice(0, 3).map((order) => (
                       <div
                         key={order.id}
-                        className="border border-gray-200 rounded-2xl p-6 hover:border-[#6B6B6B] transition-colors"
+                        className="border border-gray-200 rounded-lg p-4 hover:border-black transition-colors cursor-pointer"
+                        onClick={() => openOrderDetailModal(order.id)}
                       >
-                        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+                        <div className="flex items-center justify-between mb-3">
                           <div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">
+                            <h4 className="font-bold text-black uppercase tracking-wider">
                               #{order.orderNumber}
-                            </h3>
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
-                              <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4" />
-                                <span>
-                                  {new Date(order.date).toLocaleDateString(
-                                    "id-ID"
-                                  )}
-                                </span>
-                              </div>
-                              {order.trackingNumber && (
-                                <div className="flex items-center gap-2">
-                                  <Truck className="w-4 h-4" />
-                                  <span>{order.trackingNumber}</span>
-                                </div>
-                              )}
-                            </div>
+                            </h4>
+                            <p className="text-xs text-gray-600">
+                              {new Date(order.date).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-4 mt-4 md:mt-0">
+                          <div className="text-right">
+                            <div className="font-extrabold text-lg text-black">
+                              Rp {order.grand_total.toLocaleString("id-ID")}
+                            </div>
                             <span
-                              className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(
+                              className={`inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase ${getStatusColor(
                                 order.status
                               )}`}
                             >
                               {getStatusText(order.status)}
                             </span>
-                            <div className="text-right">
-                              <div className="font-bold text-xl text-[#6B6B6B]">
-                                Rp {order.grand_total.toLocaleString("id-ID")}
-                              </div>
-                            </div>
                           </div>
                         </div>
-
-                        <div className="space-y-4">
-                          {order.items.map((item) => (
+                        <div className="flex items-center gap-3">
+                          {order.items.slice(0, 3).map((item, index) => (
                             <div
-                              key={item.id}
-                              className="flex items-center gap-4"
+                              key={`${order.id}-${item.id}-${index}`}
+                              className="w-10 h-10 relative rounded-md overflow-hidden border border-gray-200"
                             >
-                              <div className="w-16 h-16 relative rounded-xl overflow-hidden">
-                                <Image
-                                  src={item.image}
-                                  alt={item.name}
-                                  fill
-                                  className="object-cover"
-                                />
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="font-semibold text-gray-900">
-                                  {item.name}
-                                </h4>
-                                <p className="text-sm text-gray-600">
-                                  Qty: {item.quantity}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <div className="font-semibold text-gray-900">
-                                  Rp{" "}
-                                  {(item.price * item.quantity).toLocaleString(
-                                    "id-ID"
-                                  )}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  @Rp {item.price.toLocaleString("id-ID")}
-                                </div>
-                              </div>
+                              <Image
+                                src={item.image}
+                                alt={item.name}
+                                fill
+                                className="object-cover grayscale"
+                              />
                             </div>
                           ))}
-                        </div>
-
-                        <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
-                          <button
-                            onClick={() => openOrderDetailModal(order.id)}
-                            className="flex items-center gap-2 px-4 py-2 border border-[#6B6B6B] text-[#6B6B6B] rounded-2xl hover:bg-[#6B6B6B] hover:text-white transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                            Detail
-                          </button>
-                          {order.status === "delivered" && (
-                            <button className="flex items-center gap-2 px-4 py-2 bg-[#6B6B6B] text-white rounded-2xl hover:bg-[#6B6B6B]/90 transition-colors">
-                              <Download className="w-4 h-4" />
-                              Invoice
-                            </button>
-                          )}
-                          {order.trackingNumber && (
-                            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 transition-colors">
-                              <Truck className="w-4 h-4" />
-                              Lacak
-                            </button>
-                          )}
-                          {order.status === "delivered" && (
-                            <button className="flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-2xl hover:bg-yellow-200 transition-colors">
-                              <Star className="w-4 h-4" />
-                              Beri Review
-                            </button>
+                          {order.items.length > 3 && (
+                            <span className="text-sm text-gray-500">
+                              +{order.items.length - 3} others
+                            </span>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
-
-                  {orders.length === 0 && (
-                    <div className="text-center py-12">
-                      <div className="w-24 h-24 bg-[#6B6B6B]/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Package className="w-12 h-12 text-[#6B6B6B]" />
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">
-                        Belum Ada Pesanan
-                      </h3>
-                      <p className="text-gray-600 mb-6">
-                        Anda belum memiliki riwayat pesanan. Mulai belanja
-                        sekarang!
-                      </p>
-                      <button
-                        onClick={() => router.push("/product")}
-                        className="bg-[#6B6B6B] text-white px-6 py-3 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors"
-                      >
-                        Mulai Berbelanja
-                      </button>
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* --- 2. Profile --- */}
+            {activeTab === "profile" && (
+              <div className="space-y-8">
+                <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white">
+                      <UserIcon className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-2xl font-extrabold text-black uppercase tracking-wider">
+                      Client Information
+                    </h2>
+                  </div>
+                  <button
+                    onClick={openEditProfileModal}
+                    disabled={isPrefillingProfile}
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 uppercase tracking-wider text-sm"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    {isPrefillingProfile ? "Loading..." : "Edit Profile"}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    {/* Full Name */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Full Name</label>
+                      <p className="font-medium text-lg text-black">{userProfile.fullName}</p>
+                    </div>
+                    {/* Email */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Email Address</label>
+                      <p className="font-medium text-lg text-black">{userProfile.email}</p>
+                    </div>
+                    {/* Phone */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Phone Number</label>
+                      <p className="font-medium text-lg text-black">{userProfile.phone || '-'}</p>
+                    </div>
+                    {/* Birth Date */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Birth Date</label>
+                      <p className="font-medium text-lg text-black">{userProfile.birthDate || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                  <h3 className="font-bold text-black mb-4 uppercase tracking-wider">
+                    Account Status
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Member Since:</span>
+                      <div className="font-semibold text-black">
+                        {new Date(userProfile.joinDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Account Status:</span>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-black fill-gray-300" />
+                        <span className="font-semibold text-black">
+                          Verified
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- 3. Addresses --- */}
+            {activeTab === "addresses" && (
+              <div className="space-y-8">
+                <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-2xl font-extrabold text-black uppercase tracking-wider">
+                      Shipping Addresses
+                    </h2>
+                  </div>
+                  <button
+                    onClick={openCreateAddress}
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors uppercase tracking-wider text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add New
+                  </button>
+                </div>
+
+                {/* Simplified Mock Address List B&W */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="border-2 border-black bg-gray-50 rounded-lg p-6 transition-all">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-bold text-black uppercase tracking-wider text-lg">
+                          Primary Address
+                        </h3>
+                        <span className="px-2 py-1 bg-black text-white text-xs font-semibold rounded-full">
+                          Default
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="p-2 text-gray-400 hover:text-black transition-colors" title="Edit address"><Edit3 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-700">
+                      <p className="text-black font-medium text-base">Jalan Kenanga Raya Blok B No. 12</p>
+                      <p>Kel. Contoh, Kec. Testing, Jakarta Selatan</p>
+                      <p>Jakarta, 12345</p>
+                    </div>
+                  </div>
+                  <div className="border-2 border-gray-200 rounded-lg p-6 transition-all hover:border-gray-500">
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="font-bold text-black uppercase tracking-wider text-lg">
+                        Secondary Address
+                      </h3>
+                      <div className="flex gap-2">
+                        <button className="p-2 text-gray-400 hover:text-black transition-colors" title="Edit address"><Edit3 className="w-4 h-4" /></button>
+                        <button className="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Delete address"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-700">
+                      <p className="text-black font-medium text-base">Apartemen Signature Tower Lt. 20</p>
+                      <p>Jl. Sudirman No. 5, Bandung</p>
+                      <p>Jawa Barat, 40111</p>
+                      <button className="text-black text-sm font-semibold hover:underline mt-2">Set as Default</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* --- 4. Orders --- */}
+            {activeTab === "orders" && (
+              <div className="space-y-8">
+                <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-3">
+                  <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white">
+                    <Package className="w-5 h-5" />
+                  </div>
+                  <h2 className="text-2xl font-extrabold text-black uppercase tracking-wider">
+                    Order History
+                  </h2>
+                </div>
+
+                <div className="space-y-6">
+                  {(orders || []).map((order) => (
+                    <div
+                      key={order.id}
+                      className="border border-gray-200 rounded-lg p-6 hover:border-black transition-colors"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 border-b border-gray-100 pb-4">
+                        <div>
+                          <h3 className="text-xl font-bold text-black mb-2 uppercase tracking-wider">
+                            Order #{order.orderNumber}
+                          </h3>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              <span>{new Date(order.date).toLocaleDateString("en-US")}</span>
+                            </div>
+                            {order.trackingNumber && (
+                              <div className="flex items-center gap-2">
+                                <Truck className="w-4 h-4" />
+                                <span className="font-semibold text-black">{order.trackingNumber}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right mt-3 md:mt-0">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${getStatusColor(order.status)}`}>
+                            {getStatusText(order.status)}
+                          </span>
+                          <div className="font-extrabold text-2xl text-black mt-1">
+                            Rp {order.grand_total.toLocaleString("id-ID")}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Order Items Summary */}
+                      <div className="flex items-center gap-3 mb-4">
+                        {order.items.slice(0, 4).map((item, index) => (
+                          <div key={`${order.id}-${item.id}-${index}`} className="w-16 h-16 relative rounded-md overflow-hidden border border-gray-200">
+                            <Image src={item.image} alt={item.name} fill className="object-cover grayscale" />
+                          </div>
+                        ))}
+                        {order.items.length > 4 && (
+                          <span className="text-sm text-gray-500">+{order.items.length - 4} items</span>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
+                        <button
+                          onClick={() => openOrderDetailModal(order.id)}
+                          className="flex items-center gap-2 px-4 py-2 border border-black text-black rounded-lg hover:bg-black hover:text-white transition-colors font-medium text-sm uppercase"
+                        >
+                          <Eye className="w-4 h-4" /> Detail
+                        </button>
+                        {(order.status === "pending" || order.status === "processing") && order.payment_method === "manual" && (
+                          <button
+                              onClick={openPaymentProofModal}
+                              className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm uppercase"
+                          >
+                              <Upload className="w-4 h-4" /> Upload Proof
+                          </button>
+                        )}
+                        {order.status === "delivered" && (
+                          <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-black rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm uppercase">
+                            <Star className="w-4 h-4" /> Review
+                          </button>
+                        )}
+                        {order.status === "shipped" && (
+                          <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-black rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm uppercase">
+                            <Truck className="w-4 h-4" /> Track
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {orders.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <Package className="w-12 h-12 text-gray-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-black mb-4 uppercase">No Orders Yet</h3>
+                    <p className="text-gray-700 mb-6">
+                      {`You haven't placed any orders. Start shopping now!`}
+                    </p>
+                    <button
+                      onClick={() => router.push("/product")}
+                      className="bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors uppercase tracking-wider"
+                    >
+                      Start Shopping
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Note: Modals are not included here but should inherit B&W styling */}
           </div>
         </div>
       </div>
-
-      {/* Profile Edit Modal */}
-      {profileModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setProfileModalOpen(false)}
-          />
-          <ProfileEditModal
-            open={profileModalOpen}
-            onClose={() => setProfileModalOpen(false)}
-            values={profileForm}
-            onChange={(patch) =>
-              setProfileForm((prev) => ({ ...prev, ...patch }))
-            }
-            onSubmit={handleSubmitProfile}
-            isSubmitting={isUpdatingProfile}
-          />
-        </div>
-      )}
-
-      {/* Order Detail Modal */}
-      {orderDetailModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={closeOrderDetailModal}
-          />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">
-                Detail Pesanan #{selectedOrder.orderNumber}
-              </h3>
-              <button
-                onClick={closeOrderDetailModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* Order Info */}
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    Informasi Pesanan
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Nomor Pesanan:</span>
-                      <span className="font-medium">
-                        #{selectedOrder.orderNumber}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Tanggal:</span>
-                      <span className="font-medium">
-                        {new Date(selectedOrder.date).toLocaleDateString(
-                          "id-ID",
-                          {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          }
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                          selectedOrder.status
-                        )}`}
-                      >
-                        {getStatusText(selectedOrder.status)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Metode Pembayaran:</span>
-                      <span className="font-medium uppercase">
-                        {selectedOrder.payment_method || "N/A"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Info */}
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    Rincian Pembayaran
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Subtotal:</span>
-                      <span className="font-medium">
-                        Rp {selectedOrder.total.toLocaleString("id-ID")}
-                      </span>
-                    </div>
-                    {!isJasaOrder &&
-                      selectedOrder.shipment_cost !== undefined &&
-                      selectedOrder.shipment_cost !== null && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Ongkos Kirim:</span>
-                          <span className="font-medium">
-                            Rp{" "}
-                            {selectedOrder.shipment_cost.toLocaleString(
-                              "id-ID"
-                            )}
-                          </span>
-                        </div>
-                      )}
-                    {selectedOrder.cod && selectedOrder.cod > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Fee COD:</span>
-                        <span className="font-medium">
-                          Rp {selectedOrder.cod.toLocaleString("id-ID")}
-                        </span>
-                      </div>
-                    )}
-                    {selectedOrder.discount_total &&
-                      selectedOrder.discount_total > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Diskon:</span>
-                          <span className="font-medium text-green-600">
-                            -Rp{" "}
-                            {selectedOrder.discount_total.toLocaleString(
-                              "id-ID"
-                            )}
-                          </span>
-                        </div>
-                      )}
-                    <div className="border-t pt-2">
-                      <div className="flex justify-between">
-                        <span className="font-semibold text-gray-900">
-                          Total:
-                        </span>
-                        <span className="font-bold text-[#6B6B6B]">
-                          Rp {selectedOrder.grand_total.toLocaleString("id-ID")}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Shipping Info */}
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    Alamat Pengiriman
-                  </h4>
-                  <div className="text-sm">
-                    <p className="text-gray-800">{addressLine1}</p>
-                    {postalCode && (
-                      <p className="text-gray-600">{postalCode}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Payment Proof Section */}
-                {selectedOrder.payment_method === "manual" && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">
-                      Bukti Pembayaran
-                    </h4>
-                    {selectedOrder.payment_proof ? (
-                      <div className="border rounded-lg p-4">
-                        <div className="flex items-center gap-2 text-green-600">
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            Bukti pembayaran telah diupload
-                          </span>
-                        </div>
-                        <div className="mt-2">
-                          <Image
-                            src={selectedOrder.payment_proof}
-                            alt="Bukti Pembayaran"
-                            width={200}
-                            height={200}
-                            className="rounded-lg object-cover"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                        <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600 mb-3">
-                          Belum ada bukti pembayaran
-                        </p>
-                        <button
-                          onClick={openPaymentProofModal}
-                          className="flex items-center gap-2 px-4 py-2 bg-[#6B6B6B] text-white rounded-lg font-medium hover:bg-[#6B6B6B]/90 transition-colors mx-auto"
-                        >
-                          <Upload className="w-4 h-4" />
-                          Upload Bukti
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Order Items */}
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-4">
-                Produk Pesanan
-              </h4>
-              <div className="space-y-4">
-                {isLoadingReceiptCode ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="w-6 h-6 border-2 border-gray-300 border-t-[#6B6B6B] rounded-full animate-spin" />
-                    <span className="ml-2 text-gray-500">Memuat produk...</span>
-                  </div>
-                ) : shopDetailResp?.details &&
-                  shopDetailResp.details.length > 0 ? (
-                  shopDetailResp.details.map((detail, index) => {
-                    const product = detail.product;
-                    const productName = product?.name || "Produk";
-                    const productImage =
-                      getProductImageFromShopDetails(product);
-
-                    return (
-                      <div
-                        key={detail.id || index}
-                        className="flex items-center gap-4 p-4 border rounded-lg"
-                      >
-                        <div className="w-16 h-16 relative rounded-lg overflow-hidden">
-                          <Image
-                            src={productImage}
-                            alt={productName}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <h5 className="font-semibold text-gray-900">
-                            {productName}
-                          </h5>
-                          <p className="text-sm text-gray-600">
-                            Qty: {detail.quantity}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold text-gray-900">
-                            Rp {detail.total.toLocaleString("id-ID")}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            @Rp {detail.price.toLocaleString("id-ID")}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Package className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                    <p>Tidak ada produk ditemukan</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Payment Proof Upload Modal */}
-      {paymentProofModalOpen && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={closePaymentProofModal}
-          />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">
-                Upload Bukti Pembayaran
-              </h3>
-              <button
-                onClick={closePaymentProofModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pilih File Bukti Pembayaran
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    setPaymentProofFile(e.target.files?.[0] || null)
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent"
-                />
-              </div>
-
-              {paymentProofFile && (
-                <div className="text-sm text-gray-600">
-                  File dipilih: {paymentProofFile.name}
-                </div>
-              )}
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800">
-                  <strong>Catatan:</strong> Pastikan file yang diupload adalah
-                  bukti pembayaran yang valid dan jelas terbaca.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={closePaymentProofModal}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handlePaymentProofUpload}
-                disabled={!paymentProofFile || isUploadingProof}
-                className="flex-1 px-4 py-2 bg-[#6B6B6B] text-white rounded-lg hover:bg-[#6B6B6B]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isUploadingProof ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    Upload
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
-  );
-}
+    </div>
+    );
+  }

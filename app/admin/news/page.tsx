@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import useModal from "@/hooks/use-modal";
-import { PageHeader } from "@/components/ui/page-header";
 
 import {
   useGetNewsListQuery,
@@ -28,9 +27,6 @@ export default function NewsPage() {
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
 
-  // 🔎 search text untuk header
-  const [search, setSearch] = useState("");
-
   const { data, isLoading, refetch } = useGetNewsListQuery({
     page: currentPage,
     paginate: itemsPerPage,
@@ -39,29 +35,16 @@ export default function NewsPage() {
   const list = useMemo(() => data?.data || [], [data]);
   const lastPage = useMemo(() => data?.last_page || 1, [data]);
 
-  // ringkas html/markdown jadi teks
+  const [createNews, { isLoading: isCreating }] = useCreateNewsMutation();
+  const [updateNews, { isLoading: isUpdating }] = useUpdateNewsMutation();
+  const [deleteNews] = useDeleteNewsMutation();
+
   const toText = (htmlOrMd?: string) =>
     (htmlOrMd || "")
       .replace(/<[^>]*>/g, " ")
       .replace(/^#{1,6}\s+/gm, "")
       .replace(/\s+/g, " ")
       .trim();
-
-  // Filter client-side
-  const filteredList = useMemo(() => {
-    if (!search.trim()) return list;
-    const q = search.toLowerCase();
-    return list.filter((n) => {
-      const title = n.title?.toLowerCase() ?? "";
-      const slug = (n.slug ?? "").toLowerCase();
-      const content = toText(n.content).toLowerCase();
-      return title.includes(q) || slug.includes(q) || content.includes(q);
-    });
-  }, [list, search]);
-
-  const [createNews, { isLoading: isCreating }] = useCreateNewsMutation();
-  const [updateNews, { isLoading: isUpdating }] = useUpdateNewsMutation();
-  const [deleteNews] = useDeleteNewsMutation();
 
   const handleSubmit = async () => {
     try {
@@ -92,7 +75,12 @@ export default function NewsPage() {
   };
 
   const handleCreate = () => {
-    setForm({ title: "", content: "", published_at: "", image: "" });
+    setForm({
+      title: "",
+      content: "",
+      published_at: "",
+      image: "",
+    });
     setEditingSlug(null);
     setReadonly(false);
     openModal();
@@ -136,18 +124,10 @@ export default function NewsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header reusable: judul + search + tombol (tanpa rightSlot) */}
-      <PageHeader
-        title="Data Berita"
-        primaryLabel="Tambah News"
-        onPrimaryAction={handleCreate}
-        searchPlaceholder="Cari judul/slug/konten…"
-        searchValue={search}
-        onSearchChange={(v) => {
-          setSearch(v);
-          setCurrentPage(1);
-        }}
-      />
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Data Berita</h1>
+        <Button onClick={handleCreate}>Tambah News</Button>
+      </div>
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -169,14 +149,14 @@ export default function NewsPage() {
                     Memuat data...
                   </td>
                 </tr>
-              ) : filteredList.length === 0 ? (
+              ) : list.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center p-4">
                     Tidak ada data
                   </td>
                 </tr>
               ) : (
-                filteredList.map((item) => (
+                list.map((item) => (
                   <tr key={item.id} className="border-t">
                     <td className="px-4 py-2">
                       <div className="flex gap-2">

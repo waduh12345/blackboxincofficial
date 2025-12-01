@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Product } from "@/types/admin/product";
 import useCart from "@/hooks/use-cart";
+import Swal from "sweetalert2";
 
 type ProductDetailProps = {
   isOpen: boolean;
@@ -24,6 +25,8 @@ ProductDetailProps) {
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [showDetails, setShowDetails] = useState(false);
+
+  const maxQty = product?.duration ?? product?.stock ?? 0;
 
   useEffect(() => {
     if (product?.image) {
@@ -63,7 +66,7 @@ ProductDetailProps) {
   const hasMultipleImages = allImages.length > 1;
 
   const handleIncreaseQuantity = () => {
-    setQuantity((prev) => prev + 1);
+    setQuantity((prev) => Math.min(maxQty, prev + 1));
   };
 
   const handleDecreaseQuantity = () => {
@@ -72,16 +75,40 @@ ProductDetailProps) {
 
   // Updated handleAddToCart function
   const handleAddToCart = () => {
-    // Add the product to cart multiple times based on quantity
-    for (let i = 0; i < quantity; i++) {
-      addItem(product);
+    if (maxQty === 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Stok Habis",
+        text: "Produk ini sudah habis di stok!",
+        showConfirmButton: true,
+        confirmButtonText: "Tutup",
+      }).then(() => {
+        // Setelah alert selesai, tutup modal
+        onClose();
+      });
+      return;
     }
 
-    // Open the cart sidebar to show the added items
-    openCart();
+    // Add the product to cart multiple times based on quantity
+    for (let i = 0; i < quantity; i++) {
+      addItem(product, product.product_variant_id ?? 0);
+    }
 
-    // Close the modal
-    onClose();
+    // Show SweetAlert confirmation
+    Swal.fire({
+      icon: "success",
+      title: "Berhasil Ditambahkan!",
+      text: `Produk ${product.name} telah ditambahkan ke keranjang (${quantity} item).`,
+      showConfirmButton: false,
+      timer: 1500, // Alert auto-closes after 1.5 seconds
+      toast: true, // Display as a toast notification
+      position: "top-end", // Position at the top-right
+      background: "#28a745", // Green background for success
+      color: "#fff", // White text
+    }).then(() => {
+      // Setelah alert selesai, tutup modal
+      onClose();
+    });
 
     // Reset quantity for next time
     setQuantity(1);
@@ -228,7 +255,7 @@ ProductDetailProps) {
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">Stok tersedia:</span>
               <span className="text-sm font-medium text-green-600">
-                {product.duration} unit
+                {maxQty} unit
               </span>
             </div>
 
@@ -261,7 +288,7 @@ ProductDetailProps) {
                     variant="ghost"
                     className="rounded-full w-10 h-10 p-0 hover:bg-gray-100"
                     onClick={handleIncreaseQuantity}
-                    disabled={quantity >= product.duration} // Prevent exceeding duration
+                    disabled={quantity >= maxQty} // Prevent exceeding duration
                   >
                     +
                   </Button>
@@ -282,10 +309,10 @@ ProductDetailProps) {
               <div className="flex items-center gap-4">
                 <Button
                   onClick={handleAddToCart}
-                  disabled={product.duration === 0}
+                  disabled={maxQty === 0}
                   className="flex-1 bg-green-900 text-white hover:bg-green-800 rounded-full py-6 text-base font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  {product.duration === 0
+                  {maxQty === 0
                     ? "STOK HABIS"
                     : `TAMBAH KE KERANJANG (${quantity})`}
                 </Button>

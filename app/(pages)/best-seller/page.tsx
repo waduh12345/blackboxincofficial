@@ -15,7 +15,7 @@ export default function Page() {
   return (
     <ProductListingLayout
       title="Best Seller"
-      subtitle="Produk-produk paling diminati di Blackboxinc."
+      subtitle="Produk-produk paling diminati di BLACKBOX.INC."
       products={DEMO_PRODUCTS}
       chips={chips}
       pageSize={10}

@@ -6,7 +6,7 @@ const story = [
   {
     year: "2018",
     title: "Awal Mula",
-    desc: "BLACKBOXINC Shop lahir dari keresahan akan Shop yang kurang ramah kulit sensitif di Indonesia.",
+    desc: "BLACKBOXINBLACKBOX.INCShop lahir dari keresahan akan Shop yang kurang ramah kulit sensitif di Indonesia.",
     icon: <Heart className="w-6 h-6 text-white" />,
   },
   {
@@ -18,7 +18,7 @@ const story = [
   {
     year: "2023",
     title: "Dipercaya Ribuan Pelanggan",
-    desc: "ProdukBLACKBOXINC Shop berhasil dipercaya oleh lebih dari 10.000 pelanggan di seluruh Indonesia.",
+    desc: "Produk BLACKBOX.INC Shop berhasil dipercaya oleh lebih dari 10.000 pelanggan di seluruh Indonesia.",
     icon: <Award className="w-6 h-6 text-white" />,
   },
 ];

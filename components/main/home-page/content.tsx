@@ -147,7 +147,7 @@ export default function HomePage() {
     data: productList,
     isLoading: isProductsLoading,
     isError: isProductsError,
-  } = useGetProductListQuery({ page: 1, paginate: 3, product_merk_id: null });
+  } = useGetProductListQuery({ page: 1, paginate: 3, product_merk_id: undefined });
 
   const topProducts: Product[] = useMemo(
     () => productList?.data ?? [],
@@ -163,10 +163,8 @@ export default function HomePage() {
     };
     version: number;
   };
-
   const addToCart = (product: Product, qty: number = 1) => {
     if (typeof window === "undefined") return;
-
     let cartData: CartStorage = {
       state: { isOpen: false, cartItems: [] },
       version: 0,
@@ -184,7 +182,7 @@ export default function HomePage() {
     } catch {
       cartData = { state: { isOpen: false, cartItems: [] }, version: 0 };
     }
-
+    
     const idx = cartData.state.cartItems.findIndex((i) => i.id === product.id);
 
     if (idx >= 0) {

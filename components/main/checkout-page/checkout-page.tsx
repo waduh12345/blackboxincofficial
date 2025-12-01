@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { 
+import {
   ShoppingBag,
   CreditCard,
   User,
@@ -23,7 +23,7 @@ import {
   Heart,
   Tag,
   AlertCircle,
-  Edit3
+  Edit3,
 } from "lucide-react";
 
 interface CheckoutItem {
@@ -69,7 +69,7 @@ export default function CheckoutPage() {
     city: "",
     postalCode: "",
     province: "",
-    notes: ""
+    notes: "",
   });
   const [selectedPayment, setSelectedPayment] = useState<string>("");
   const [selectedShipping, setSelectedShipping] = useState("regular");
@@ -85,7 +85,7 @@ export default function CheckoutPage() {
       quantity: 2,
       category: "Art Supplies",
       ageGroup: "3-6 tahun",
-      isEcoFriendly: true
+      isEcoFriendly: true,
     },
     {
       id: 2,
@@ -94,10 +94,10 @@ export default function CheckoutPage() {
       originalPrice: 119000,
       image: "/api/placeholder/300/300",
       quantity: 1,
-      category: "Craft Kits", 
+      category: "Craft Kits",
       ageGroup: "4-8 tahun",
-      isEcoFriendly: true
-    }
+      isEcoFriendly: true,
+    },
   ];
 
   const paymentMethods: PaymentMethod[] = [
@@ -107,7 +107,7 @@ export default function CheckoutPage() {
       type: "bank",
       icon: "🏦",
       fee: 0,
-      description: "BCA, Mandiri, BRI, BNI"
+      description: "BCA, Mandiri, BRI, BNI",
     },
     {
       id: "ewallet",
@@ -115,7 +115,7 @@ export default function CheckoutPage() {
       type: "digital",
       icon: "📱",
       fee: 0,
-      description: "GoPay, OVO, DANA, ShopeePay"
+      description: "GoPay, OVO, DANA, ShopeePay",
     },
     {
       id: "virtual_account",
@@ -123,7 +123,7 @@ export default function CheckoutPage() {
       type: "va",
       icon: "💳",
       fee: 0,
-      description: "VA Bank & Retail"
+      description: "VA Bank & Retail",
     },
     {
       id: "credit_card",
@@ -131,8 +131,8 @@ export default function CheckoutPage() {
       type: "card",
       icon: "💳",
       fee: 0,
-      description: "Visa, Mastercard, JCB"
-    }
+      description: "Visa, Mastercard, JCB",
+    },
   ];
 
   const shippingOptions = [
@@ -141,47 +141,61 @@ export default function CheckoutPage() {
       name: "Pengiriman Reguler",
       duration: "5-7 hari kerja",
       price: 15000,
-      description: "JNE, TIKI, J&T"
+      description: "JNE, TIKI, J&T",
     },
     {
       id: "express",
       name: "Pengiriman Express",
       duration: "2-3 hari kerja",
       price: 25000,
-      description: "Same day & next day delivery"
+      description: "Same day & next day delivery",
     },
     {
       id: "free",
       name: "Gratis Ongkir",
       duration: "5-7 hari kerja",
       price: 0,
-      description: "Minimum belanja Rp 250.000"
-    }
+      description: "Minimum belanja Rp 250.000",
+    },
   ];
 
   const steps = [
     { id: 1, title: "Informasi", icon: <User className="w-5 h-5" /> },
     { id: 2, title: "Pengiriman", icon: <Truck className="w-5 h-5" /> },
     { id: 3, title: "Pembayaran", icon: <CreditCard className="w-5 h-5" /> },
-    { id: 4, title: "Konfirmasi", icon: <CheckCircle className="w-5 h-5" /> }
+    { id: 4, title: "Konfirmasi", icon: <CheckCircle className="w-5 h-5" /> },
   ];
 
   // Calculations
-  const subtotal = checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shippingCost = subtotal >= 250000 ? 0 : shippingOptions.find(opt => opt.id === selectedShipping)?.price || 0;
-  const paymentFee = paymentMethods.find(method => method.id === selectedPayment)?.fee || 0;
+  const subtotal = checkoutItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+  const shippingCost =
+    subtotal >= 250000
+      ? 0
+      : shippingOptions.find((opt) => opt.id === selectedShipping)?.price || 0;
+  const paymentFee =
+    paymentMethods.find((method) => method.id === selectedPayment)?.fee || 0;
   const total = subtotal + shippingCost + paymentFee;
 
   const handleInputChange = (field: keyof ShippingInfo, value: string) => {
-    setShippingInfo(prev => ({ ...prev, [field]: value }));
+    setShippingInfo((prev) => ({ ...prev, [field]: value }));
   };
 
   const validateStep = () => {
     switch (currentStep) {
       case 1:
-        return shippingInfo.fullName && shippingInfo.email && shippingInfo.phone;
+        return (
+          shippingInfo.fullName && shippingInfo.email && shippingInfo.phone
+        );
       case 2:
-        return shippingInfo.address && shippingInfo.city && shippingInfo.postalCode && shippingInfo.province;
+        return (
+          shippingInfo.address &&
+          shippingInfo.city &&
+          shippingInfo.postalCode &&
+          shippingInfo.province
+        );
       case 3:
         return selectedPayment && selectedShipping;
       case 4:
@@ -208,7 +222,7 @@ export default function CheckoutPage() {
     // Simulate API call
     setTimeout(() => {
       setIsProcessing(false);
-      // Redirect to Midtrans payment page or success page
+      // Redirect to Doku payment page or success page
       alert("Redirecting to payment gateway...");
     }, 2000);
   };
@@ -224,17 +238,20 @@ export default function CheckoutPage() {
               Kembali ke Keranjang
             </button>
           </div>
-          
+
           <div className="text-center">
             <div className="inline-flex items-center gap-2 bg-[#A3B18A]/10 px-4 py-2 rounded-full mb-4">
               <Sparkles className="w-4 h-4 text-[#A3B18A]" />
-              <span className="text-sm font-medium text-[#A3B18A]">Checkout Aman</span>
+              <span className="text-sm font-medium text-[#A3B18A]">
+                Checkout Aman
+              </span>
             </div>
             <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
               Selesaikan <span className="text-[#A3B18A]">Pesanan</span>
             </h1>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Langkah terakhir untuk mendapatkan produk kreatif terbaik untuk si kecil
+              Langkah terakhir untuk mendapatkan produk kreatif terbaik untuk si
+              kecil
             </p>
           </div>
         </div>
@@ -246,27 +263,35 @@ export default function CheckoutPage() {
               {steps.map((step, index) => (
                 <div key={step.id} className="flex items-center">
                   <div className="flex flex-col items-center">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold transition-all duration-300 ${
-                      currentStep >= step.id 
-                        ? "bg-[#A3B18A] text-white shadow-lg" 
-                        : "bg-gray-100 text-gray-500"
-                    }`}>
+                    <div
+                      className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold transition-all duration-300 ${
+                        currentStep >= step.id
+                          ? "bg-[#A3B18A] text-white shadow-lg"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
                       {currentStep > step.id ? (
                         <CheckCircle className="w-6 h-6" />
                       ) : (
                         step.icon
                       )}
                     </div>
-                    <span className={`text-sm font-medium mt-2 ${
-                      currentStep >= step.id ? "text-[#A3B18A]" : "text-gray-500"
-                    }`}>
+                    <span
+                      className={`text-sm font-medium mt-2 ${
+                        currentStep >= step.id
+                          ? "text-[#A3B18A]"
+                          : "text-gray-500"
+                      }`}
+                    >
                       {step.title}
                     </span>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`w-16 h-1 mx-4 rounded-full transition-colors duration-300 ${
-                      currentStep > step.id ? "bg-[#A3B18A]" : "bg-gray-200"
-                    }`} />
+                    <div
+                      className={`w-16 h-1 mx-4 rounded-full transition-colors duration-300 ${
+                        currentStep > step.id ? "bg-[#A3B18A]" : "bg-gray-200"
+                      }`}
+                    />
                   )}
                 </div>
               ))}
@@ -285,7 +310,9 @@ export default function CheckoutPage() {
                     <div className="w-10 h-10 bg-[#A3B18A] rounded-2xl flex items-center justify-center text-white">
                       <User className="w-5 h-5" />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900">Informasi Kontak</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Informasi Kontak
+                    </h2>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -296,7 +323,9 @@ export default function CheckoutPage() {
                       <input
                         type="text"
                         value={shippingInfo.fullName}
-                        onChange={(e) => handleInputChange("fullName", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("fullName", e.target.value)
+                        }
                         className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#A3B18A] focus:border-transparent"
                         placeholder="Masukkan nama lengkap"
                       />
@@ -309,7 +338,9 @@ export default function CheckoutPage() {
                       <input
                         type="email"
                         value={shippingInfo.email}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("email", e.target.value)
+                        }
                         className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#A3B18A] focus:border-transparent"
                         placeholder="email@example.com"
                       />
@@ -322,7 +353,9 @@ export default function CheckoutPage() {
                       <input
                         type="tel"
                         value={shippingInfo.phone}
-                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("phone", e.target.value)
+                        }
                         className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#A3B18A] focus:border-transparent"
                         placeholder="+62 812 3456 7890"
                       />
@@ -333,9 +366,12 @@ export default function CheckoutPage() {
                     <div className="flex items-start gap-3">
                       <Shield className="w-5 h-5 text-[#A3B18A] flex-shrink-0 mt-0.5" />
                       <div>
-                        <h4 className="font-semibold text-gray-900 mb-1">Informasi Aman</h4>
+                        <h4 className="font-semibold text-gray-900 mb-1">
+                          Informasi Aman
+                        </h4>
                         <p className="text-sm text-gray-600">
-                          Data pribadi Anda dilindungi dengan enkripsi SSL dan tidak akan dibagikan kepada pihak ketiga.
+                          Data pribadi Anda dilindungi dengan enkripsi SSL dan
+                          tidak akan dibagikan kepada pihak ketiga.
                         </p>
                       </div>
                     </div>
@@ -350,7 +386,9 @@ export default function CheckoutPage() {
                     <div className="w-10 h-10 bg-[#A3B18A] rounded-2xl flex items-center justify-center text-white">
                       <MapPin className="w-5 h-5" />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900">Alamat Pengiriman</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Alamat Pengiriman
+                    </h2>
                   </div>
 
                   <div className="space-y-6">
@@ -360,7 +398,9 @@ export default function CheckoutPage() {
                       </label>
                       <textarea
                         value={shippingInfo.address}
-                        onChange={(e) => handleInputChange("address", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("address", e.target.value)
+                        }
                         rows={3}
                         className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#A3B18A] focus:border-transparent"
                         placeholder="Jl. Contoh No. 123, RT/RW 01/02, Kelurahan..."
@@ -375,7 +415,9 @@ export default function CheckoutPage() {
                         <input
                           type="text"
                           value={shippingInfo.city}
-                          onChange={(e) => handleInputChange("city", e.target.value)}
+                          onChange={(e) =>
+                            handleInputChange("city", e.target.value)
+                          }
                           className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#A3B18A] focus:border-transparent"
                           placeholder="Jakarta Selatan"
                         />
@@ -388,7 +430,9 @@ export default function CheckoutPage() {
                         <input
                           type="text"
                           value={shippingInfo.postalCode}
-                          onChange={(e) => handleInputChange("postalCode", e.target.value)}
+                          onChange={(e) =>
+                            handleInputChange("postalCode", e.target.value)
+                          }
                           className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#A3B18A] focus:border-transparent"
                           placeholder="12345"
                         />
@@ -400,7 +444,9 @@ export default function CheckoutPage() {
                         </label>
                         <select
                           value={shippingInfo.province}
-                          onChange={(e) => handleInputChange("province", e.target.value)}
+                          onChange={(e) =>
+                            handleInputChange("province", e.target.value)
+                          }
                           className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#A3B18A] focus:border-transparent"
                         >
                           <option value="">Pilih Provinsi</option>
@@ -419,7 +465,9 @@ export default function CheckoutPage() {
                       </label>
                       <textarea
                         value={shippingInfo.notes}
-                        onChange={(e) => handleInputChange("notes", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("notes", e.target.value)
+                        }
                         rows={2}
                         className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#A3B18A] focus:border-transparent"
                         placeholder="Patokan rumah, instruksi khusus, dll."
@@ -429,7 +477,9 @@ export default function CheckoutPage() {
 
                   {/* Shipping Options */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Pilih Metode Pengiriman</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Pilih Metode Pengiriman
+                    </h3>
                     {shippingOptions.map((option) => (
                       <div
                         key={option.id}
@@ -442,24 +492,34 @@ export default function CheckoutPage() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className={`w-5 h-5 rounded-full border-2 ${
-                              selectedShipping === option.id
-                                ? "border-[#A3B18A] bg-[#A3B18A]"
-                                : "border-gray-300"
-                            }`}>
+                            <div
+                              className={`w-5 h-5 rounded-full border-2 ${
+                                selectedShipping === option.id
+                                  ? "border-[#A3B18A] bg-[#A3B18A]"
+                                  : "border-gray-300"
+                              }`}
+                            >
                               {selectedShipping === option.id && (
                                 <div className="w-3 h-3 bg-white rounded-full m-0.5"></div>
                               )}
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-900">{option.name}</h4>
-                              <p className="text-sm text-gray-600">{option.description}</p>
-                              <p className="text-sm text-[#A3B18A]">{option.duration}</p>
+                              <h4 className="font-semibold text-gray-900">
+                                {option.name}
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                {option.description}
+                              </p>
+                              <p className="text-sm text-[#A3B18A]">
+                                {option.duration}
+                              </p>
                             </div>
                           </div>
                           <div className="text-right">
                             <span className="text-lg font-bold text-gray-900">
-                              {option.price === 0 ? "GRATIS" : `Rp ${option.price.toLocaleString('id-ID')}`}
+                              {option.price === 0
+                                ? "GRATIS"
+                                : `Rp ${option.price.toLocaleString("id-ID")}`}
                             </span>
                           </div>
                         </div>
@@ -476,7 +536,9 @@ export default function CheckoutPage() {
                     <div className="w-10 h-10 bg-[#A3B18A] rounded-2xl flex items-center justify-center text-white">
                       <CreditCard className="w-5 h-5" />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900">Metode Pembayaran</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Metode Pembayaran
+                    </h2>
                   </div>
 
                   <div className="space-y-4">
@@ -492,24 +554,32 @@ export default function CheckoutPage() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className={`w-5 h-5 rounded-full border-2 ${
-                              selectedPayment === method.id
-                                ? "border-[#A3B18A] bg-[#A3B18A]"
-                                : "border-gray-300"
-                            }`}>
+                            <div
+                              className={`w-5 h-5 rounded-full border-2 ${
+                                selectedPayment === method.id
+                                  ? "border-[#A3B18A] bg-[#A3B18A]"
+                                  : "border-gray-300"
+                              }`}
+                            >
                               {selectedPayment === method.id && (
                                 <div className="w-3 h-3 bg-white rounded-full m-0.5"></div>
                               )}
                             </div>
                             <div className="text-2xl">{method.icon}</div>
                             <div>
-                              <h4 className="font-semibold text-gray-900">{method.name}</h4>
-                              <p className="text-sm text-gray-600">{method.description}</p>
+                              <h4 className="font-semibold text-gray-900">
+                                {method.name}
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                {method.description}
+                              </p>
                             </div>
                           </div>
                           <div className="text-right">
                             <span className="text-sm text-green-600 font-semibold">
-                              {method.fee === 0 ? "Gratis" : `+Rp ${method.fee.toLocaleString('id-ID')}`}
+                              {method.fee === 0
+                                ? "Gratis"
+                                : `+Rp ${method.fee.toLocaleString("id-ID")}`}
                             </span>
                           </div>
                         </div>
@@ -521,10 +591,13 @@ export default function CheckoutPage() {
                     <div className="flex items-start gap-3">
                       <Lock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <h4 className="font-semibold text-blue-900 mb-1">Pembayaran Aman</h4>
+                        <h4 className="font-semibold text-blue-900 mb-1">
+                          Pembayaran Aman
+                        </h4>
                         <p className="text-sm text-blue-700">
-                          Pembayaran diproses melalui Midtrans yang telah tersertifikasi PCI DSS Level 1. 
-                          Data kartu kredit Anda tidak disimpan di server kami.
+                          Pembayaran diproses melalui Doku yang telah
+                          tersertifikasi PCI DSS Level 1. Data kartu kredit Anda
+                          tidak disimpan di server kami.
                         </p>
                       </div>
                     </div>
@@ -539,22 +612,53 @@ export default function CheckoutPage() {
                     <div className="w-10 h-10 bg-[#A3B18A] rounded-2xl flex items-center justify-center text-white">
                       <CheckCircle className="w-5 h-5" />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900">Konfirmasi Pesanan</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Konfirmasi Pesanan
+                    </h2>
                   </div>
 
                   {/* Order Summary */}
                   <div className="space-y-4">
                     <div className="bg-gray-50 rounded-2xl p-6">
-                      <h3 className="font-semibold text-gray-900 mb-4">Informasi Pengiriman</h3>
+                      <h3 className="font-semibold text-gray-900 mb-4">
+                        Informasi Pengiriman
+                      </h3>
                       <div className="space-y-2 text-sm">
-                        <p><span className="font-medium">Nama:</span> {shippingInfo.fullName}</p>
-                        <p><span className="font-medium">Email:</span> {shippingInfo.email}</p>
-                        <p><span className="font-medium">Telepon:</span> {shippingInfo.phone}</p>
-                        <p><span className="font-medium">Alamat:</span> {shippingInfo.address}, {shippingInfo.city}, {shippingInfo.province} {shippingInfo.postalCode}</p>
-                        <p><span className="font-medium">Pengiriman:</span> {shippingOptions.find(opt => opt.id === selectedShipping)?.name}</p>
-                        <p><span className="font-medium">Pembayaran:</span> {paymentMethods.find(method => method.id === selectedPayment)?.name}</p>
+                        <p>
+                          <span className="font-medium">Nama:</span>{" "}
+                          {shippingInfo.fullName}
+                        </p>
+                        <p>
+                          <span className="font-medium">Email:</span>{" "}
+                          {shippingInfo.email}
+                        </p>
+                        <p>
+                          <span className="font-medium">Telepon:</span>{" "}
+                          {shippingInfo.phone}
+                        </p>
+                        <p>
+                          <span className="font-medium">Alamat:</span>{" "}
+                          {shippingInfo.address}, {shippingInfo.city},{" "}
+                          {shippingInfo.province} {shippingInfo.postalCode}
+                        </p>
+                        <p>
+                          <span className="font-medium">Pengiriman:</span>{" "}
+                          {
+                            shippingOptions.find(
+                              (opt) => opt.id === selectedShipping
+                            )?.name
+                          }
+                        </p>
+                        <p>
+                          <span className="font-medium">Pembayaran:</span>{" "}
+                          {
+                            paymentMethods.find(
+                              (method) => method.id === selectedPayment
+                            )?.name
+                          }
+                        </p>
                       </div>
-                      
+
                       <button className="text-[#A3B18A] text-sm font-medium mt-3 flex items-center gap-1 hover:underline">
                         <Edit3 className="w-4 h-4" />
                         Edit Informasi
@@ -569,13 +673,22 @@ export default function CheckoutPage() {
                         onChange={(e) => setAgreeToTerms(e.target.checked)}
                         className="w-5 h-5 text-[#A3B18A] border-gray-300 rounded focus:ring-[#A3B18A]"
                       />
-                      <label htmlFor="terms" className="ml-3 text-sm text-gray-600">
+                      <label
+                        htmlFor="terms"
+                        className="ml-3 text-sm text-gray-600"
+                      >
                         Saya setuju dengan{" "}
-                        <a href="/terms" className="text-[#A3B18A] hover:underline">
+                        <a
+                          href="/terms"
+                          className="text-[#A3B18A] hover:underline"
+                        >
                           Syarat & Ketentuan
                         </a>{" "}
                         dan{" "}
-                        <a href="/privacy" className="text-[#A3B18A] hover:underline">
+                        <a
+                          href="/privacy"
+                          className="text-[#A3B18A] hover:underline"
+                        >
                           Kebijakan Privasi
                         </a>
                       </label>
@@ -651,15 +764,21 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 text-sm line-clamp-2">{item.name}</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm line-clamp-2">
+                        {item.name}
+                      </h4>
                       <p className="text-xs text-gray-500">{item.category}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="font-bold text-[#A3B18A]">
-                          Rp {(item.price * item.quantity).toLocaleString('id-ID')}
+                          Rp{" "}
+                          {(item.price * item.quantity).toLocaleString("id-ID")}
                         </span>
                         {item.originalPrice && (
                           <span className="text-xs text-gray-400 line-through">
-                            Rp {(item.originalPrice * item.quantity).toLocaleString('id-ID')}
+                            Rp{" "}
+                            {(
+                              item.originalPrice * item.quantity
+                            ).toLocaleString("id-ID")}
                           </span>
                         )}
                       </div>
@@ -672,24 +791,36 @@ export default function CheckoutPage() {
               <div className="space-y-3 pt-4 border-t border-gray-200">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-semibold">Rp {subtotal.toLocaleString('id-ID')}</span>
+                  <span className="font-semibold">
+                    Rp {subtotal.toLocaleString("id-ID")}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Ongkos Kirim</span>
-                  <span className={`font-semibold ${shippingCost === 0 ? 'text-green-600' : ''}`}>
-                    {shippingCost === 0 ? 'GRATIS' : `Rp ${shippingCost.toLocaleString('id-ID')}`}
+                  <span
+                    className={`font-semibold ${
+                      shippingCost === 0 ? "text-green-600" : ""
+                    }`}
+                  >
+                    {shippingCost === 0
+                      ? "GRATIS"
+                      : `Rp ${shippingCost.toLocaleString("id-ID")}`}
                   </span>
                 </div>
                 {paymentFee > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Biaya Admin</span>
-                    <span className="font-semibold">Rp {paymentFee.toLocaleString('id-ID')}</span>
+                    <span className="font-semibold">
+                      Rp {paymentFee.toLocaleString("id-ID")}
+                    </span>
                   </div>
                 )}
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span className="text-[#A3B18A]">Rp {total.toLocaleString('id-ID')}</span>
+                    <span className="text-[#A3B18A]">
+                      Rp {total.toLocaleString("id-ID")}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -697,7 +828,9 @@ export default function CheckoutPage() {
 
             {/* Trust Indicators */}
             <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <h4 className="font-semibold text-gray-900 mb-4">Jaminan Belanja Aman</h4>
+              <h4 className="font-semibold text-gray-900 mb-4">
+                Jaminan Belanja Aman
+              </h4>
               <div className="space-y-4 text-sm">
                 <div className="flex items-center gap-3">
                   <Shield className="w-5 h-5 text-[#A3B18A]" />
@@ -728,7 +861,10 @@ export default function CheckoutPage() {
                 Dapatkan gratis ongkir untuk pembelian di atas Rp 250.000
               </p>
               <div className="bg-white/20 rounded-2xl p-3 text-center">
-                <p className="text-xs">Kurang Rp {Math.max(0, 250000 - subtotal).toLocaleString('id-ID')} lagi</p>
+                <p className="text-xs">
+                  Kurang Rp{" "}
+                  {Math.max(0, 250000 - subtotal).toLocaleString("id-ID")} lagi
+                </p>
               </div>
             </div>
           </div>

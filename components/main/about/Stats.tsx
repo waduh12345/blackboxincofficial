@@ -21,7 +21,7 @@ export default function Stats() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl lg:text-5xl font-bold text-[#6B6B6B] mb-4">
-            Pencapaian <span className="text-[#E53935]">BLACKBOXINC Shop</span>
+            Pencapaian <span className="text-[#E53935]">BLACKBOX.INC Shop</span>
           </h2>
           <p className="text-lg text-[#6B6B6B]">
             Bukti nyata kualitas kami yang dipercaya ribuan pelanggan.

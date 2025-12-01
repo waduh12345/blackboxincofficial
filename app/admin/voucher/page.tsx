@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import useModal from "@/hooks/use-modal";
 import { Voucher } from "@/types/voucher";
 import {
@@ -14,18 +15,14 @@ import {
   useDeleteVoucherMutation,
 } from "@/services/voucher.service";
 import VoucherForm from "@/components/form-modal/voucher-form";
-import { PageHeader } from "@/components/ui/page-header";
 
 export default function VoucherPage() {
   const [form, setForm] = useState<Partial<Voucher>>({});
   const [editingId, setEditingId] = useState<number | null>(null);
-
-  // 🔎 search + filter status (opsional di header)
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<"semua" | "aktif" | "tidak">(
     "semua"
   );
-
   const [page, setPage] = useState(1);
   const { isOpen, openModal, closeModal } = useModal();
 
@@ -115,10 +112,14 @@ export default function VoucherPage() {
     }
   };
 
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value as typeof filterStatus;
+    setFilterStatus(value);
+  };
+
   const list = data?.data || [];
   const lastPage = data?.pageTotal || 1;
 
-  // Filter client-side
   const filteredList = list.filter((item) => {
     const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
     const matchStatus =
@@ -130,36 +131,36 @@ export default function VoucherPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header: judul + search + tombol + (opsional) filter status */}
-      <PageHeader
-        title="Manajemen Voucher"
-        primaryLabel="+ Tambah Voucher"
-        onPrimaryAction={() => {
-          setForm({});
-          setEditingId(null);
-          openModal();
-        }}
-        searchPlaceholder="Cari nama voucher…"
-        searchValue={search}
-        onSearchChange={(v) => {
-          setSearch(v);
-          setPage(1);
-        }}
-        rightSlot={
-          // Filter status opsional: hapus blok ini jika tidak diperlukan
+      <h1 className="text-2xl font-bold">Manajemen Voucher</h1>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <Input
+          placeholder="Cari nama voucher..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full sm:w-1/2"
+        />
+        <div className="flex items-center gap-2">
           <select
             className="border rounded-md px-3 py-2 text-sm bg-white dark:bg-zinc-800"
             value={filterStatus}
-            onChange={(e) =>
-              setFilterStatus(e.target.value as typeof filterStatus)
-            }
+            onChange={handleStatusChange}
           >
             <option value="semua">Semua Status</option>
             <option value="aktif">Aktif</option>
             <option value="tidak">Tidak Aktif</option>
           </select>
-        }
-      />
+          <Button
+            onClick={() => {
+              setForm({});
+              setEditingId(null);
+              openModal();
+            }}
+          >
+            + Tambah Voucher
+          </Button>
+        </div>
+      </div>
 
       <Card>
         <CardContent className="overflow-x-auto p-0">

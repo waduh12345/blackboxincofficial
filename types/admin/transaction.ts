@@ -1,5 +1,86 @@
 import { Voucher } from "../voucher";
 
+export type RawShipmentDetail = {
+  name?: string;
+  code?: string;
+  service?: string;
+  description?: string;
+  cost?: number;
+  etd?: string;
+};
+
+export interface ApiProductMedia {
+  id: number;
+  original_url: string;
+  // ... kalau perlu field lain
+}
+
+export interface ApiProduct {
+  id: number;
+  name: string;
+  image?: string;
+  media?: ApiProductMedia[];
+  // ...other fields you care about
+}
+
+export interface ApiProductVariant {
+  id: number;
+  name: string;
+  sku: string;
+  price: string;
+  // ...
+}
+
+export interface ApiDetail {
+  id: number;
+  transaction_id: number;
+  transaction_shop_id: number;
+  product_id: number;
+  product_variant_id: number | null;
+  product_detail: string | null; // JSON string
+  price: number;
+  quantity: number;
+  total: number;
+  product?: ApiProduct;
+  product_variant?: ApiProductVariant;
+}
+
+export interface ApiShop {
+  id: number;
+  transaction_id: number;
+  shop_id: number;
+  courier?: string | null;
+  shipment_detail?: string | null; // JSON string
+  shipment_parameter?: string | null;
+  total?: number;
+  shipment_cost?: number;
+  grand_total?: number;
+  shipments?: unknown[]; // kalau kamu nggak pakai detailnya
+  details?: ApiDetail[];
+  shop?: {
+    id: number;
+    name: string;
+    slug: string;
+    // ...
+  };
+}
+
+export interface ApiTransaction {
+  id: number;
+  reference: string;
+  encypted_id?: string;
+  status: number;
+  created_at: string;
+  grand_total: number;
+  resi_number?: string | null;
+  courier?: string | null;
+  service?: string | null;
+  guest_name?: string | null;
+  address_line_1?: string | null;
+  shops?: ApiShop[]; // <-- NOTE: shops (bukan stores)
+  // ... other fields
+}
+
 // Main Transaction interface for API responses
 export interface Transaction {
   id: number;
@@ -101,47 +182,29 @@ export interface TransactionListParams {
 }
 
 // Create transaction request payload
-export type PaymentType = "midtrans" | "manual" | "cod";
-
-export type PaymentTypeBackend = "automatic" | "manual" | "cod";
-export type PaymentMethodAutomatic = "bank_transfer" | "qris";
-export type PaymentChannel =
-  | "bnc"
-  | "bjb"
-  | "bca"
-  | "bni"
-  | "bsi"
-  | "bss"
-  | "cimb"
-  | "qris";
-
-// Create transaction request payload (sesuai contoh Postman)
+export type PaymentMethod = "bank_transfer" | "qris";
+export type PaymentChannel = "bca" | "bnc" | "bjb" | "bni" | "bsi" | "bss" | "cimb" | "qris";
 export interface CreateTransactionRequest {
   address_line_1: string;
-  address_line_2?: string | null;
+  address_line_2?: string;
   postal_code: string;
-
-  // Wajib root:
-  payment_type: PaymentTypeBackend;
-
-  // Wajib kalau payment_type === "automatic":
-  payment_method?: PaymentMethodAutomatic;
-  payment_channel?: PaymentChannel;
-
+  payment_type: string;
+  payment_method: PaymentMethod;
+  payment_channel?: string;
   data: Array<{
     shop_id: number;
     details: Array<{
       product_id: number;
-      product_variant_id: number; // ← WAJIB oleh backend
+      product_variant_id: number;
       quantity: number;
     }>;
     shipment: {
-      parameter: string;        // JSON.stringify(...)
-      shipment_detail: string;  // JSON.stringify(...)
+      parameter: string; // JSON string
+      shipment_detail: string; // JSON string
       courier: string;
       cost: number;
     };
-    customer_info: {
+    customer_info?: {
       name: string;
       phone: string;
       address_line_1: string;
@@ -151,8 +214,8 @@ export interface CreateTransactionRequest {
       district_id: number;
     };
   }>;
-  voucher?: number[]; // opsional
 }
+
 export // Produk di detail toko (tanpa any, semua optional & aman)
 interface ShopDetailProduct {
   name?: string;

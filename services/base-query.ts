@@ -51,6 +51,7 @@ export const apiSecondSlice = createApi({
     "AboutUs",
     "Value",
     "Slider",
+    "HomeAbout",
   ],
   endpoints: () => ({}),
 });

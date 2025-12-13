@@ -3,6 +3,7 @@
 import { useMemo, useEffect, useState } from "react";
 import Image from "next/image";
 import Swal from "sweetalert2";
+import { useRouter } from "next/navigation";
 import {
   ShoppingCart,
   Plus,
@@ -44,10 +45,10 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 
-/** ====== Helpers & Types ====== */
-const STORAGE_KEY = "cart-storage";
+// IMPORT ZUSTAND HOOK
+import useCart from "@/hooks/use-cart";
 
-type StoredCartItem = Product & { quantity: number };
+/** ====== Helpers & Types ====== */
 
 interface CartItemView {
   id: number;
@@ -82,35 +83,14 @@ interface ShippingCostOption {
   etd: string;
 }
 
+// Interface for Transaction Response handling
+export interface TransactionResponseData {
+  reference: string;
+  id?: string;
+  payment_link?: string;
+}
+
 type PaymentType = "automatic" | "manual" | "cod";
-
-function parseStorage(): StoredCartItem[] {
-  if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    const items: unknown = parsed?.state?.cartItems;
-    return Array.isArray(items) ? (items as StoredCartItem[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeStorage(nextItems: StoredCartItem[]) {
-  if (typeof window === "undefined") return;
-  const raw = localStorage.getItem(STORAGE_KEY);
-  let base = {
-    state: { cartItems: [] as StoredCartItem[] },
-    version: 0 as number,
-  };
-  try {
-    base = raw ? JSON.parse(raw) : base;
-  } catch {}
-  base.state = { ...(base.state || {}), cartItems: nextItems };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(base));
-  window.dispatchEvent(new CustomEvent("cartUpdated"));
-}
 
 function getImageUrlFromProduct(p: Product): string {
   if (typeof p.image === "string" && p.image) return p.image;
@@ -121,66 +101,43 @@ function getImageUrlFromProduct(p: Product): string {
   return "/api/placeholder/300/300";
 }
 
-function mapStoredToView(items: StoredCartItem[]): CartItemView[] {
-  return items.map((it) => ({
-    id: it.id,
-    product_variant_id: it.product_variant_id ?? 0,
-    name: it.name,
-    price: it.price,
-    originalPrice: undefined,
-    image: getImageUrlFromProduct(it),
-    quantity: it.quantity ?? 1,
-    category: it.category_name,
-    ageGroup: "Semua usia",
-    isEcoFriendly: false,
-    inStock: (it.stock ?? 0) > 0,
-  }));
-}
-
 /** ====== Component ====== */
 export default function PublicTransaction() {
-  /** ——— Cart Logic ——— */
-  const [cartItems, setCartItems] = useState<CartItemView[]>([]);
+  const router = useRouter();
 
+  /** ——— Cart Logic (Menggunakan Zustand) ——— */
+  const {
+    cartItems: rawCartItems,
+    removeItem,
+    increaseItemQuantity,
+    decreaseItemQuantity,
+    addItem,
+    clearCart,
+  } = useCart();
+
+  // Handle Hydration Mismatch
+  const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
-    const sync = () => setCartItems(mapStoredToView(parseStorage()));
-    sync();
-    const onStorage = () => sync();
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("cartUpdated", onStorage);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("cartUpdated", onStorage);
-    };
+    setIsMounted(true);
   }, []);
 
-  const updateStorageAndState = (
-    updater: (items: StoredCartItem[]) => StoredCartItem[]
-  ) => {
-    const current = parseStorage();
-    const next = updater(current);
-    writeStorage(next);
-    setCartItems(mapStoredToView(next));
-  };
-
-  const updateQuantity = (id: number, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeItem(id);
-      return;
-    }
-    updateStorageAndState((items) =>
-      items.map((it) => (it.id === id ? { ...it, quantity: newQuantity } : it))
-    );
-  };
-
-  const removeItem = (id: number) => {
-    updateStorageAndState((items) => items.filter((it) => it.id !== id));
-  };
-
-  const clearCart = () => {
-    writeStorage([]);
-    setCartItems([]);
-  };
+  // Map data dari Zustand ke format View
+  const cartItems: CartItemView[] = useMemo(() => {
+    if (!isMounted) return [];
+    return rawCartItems.map((it) => ({
+      id: it.id,
+      product_variant_id: it.product_variant_id ?? 0,
+      name: it.name,
+      price: it.price,
+      originalPrice: undefined,
+      image: getImageUrlFromProduct(it),
+      quantity: it.quantity ?? 1,
+      category: it.category_name,
+      ageGroup: "Semua usia",
+      isEcoFriendly: false,
+      inStock: (it.stock ?? 0) > 0,
+    }));
+  }, [rawCartItems, isMounted]);
 
   const {
     data: relatedResp,
@@ -209,16 +166,7 @@ export default function PublicTransaction() {
   }, [relatedResp]);
 
   const addRelatedToCart = (p: Product) => {
-    updateStorageAndState((items) => {
-      const found = items.find((it) => it.id === p.id);
-      if (found) {
-        return items.map((it) =>
-          it.id === p.id ? { ...it, quantity: (it.quantity ?? 1) + 1 } : it
-        );
-      }
-      const fresh: StoredCartItem = { ...p, quantity: 1 };
-      return [...items, fresh];
-    });
+    addItem({ ...p, quantity: 1 });
     Swal.fire({
       icon: "success",
       title: "Berhasil!",
@@ -236,7 +184,7 @@ export default function PublicTransaction() {
     address_line_2: "",
     postal_code: "40535",
     guest_name: "Test Guest",
-    guest_email: "akmalrafly875@gmail.com",
+    guest_email: "",
     guest_phone: "08954058734653",
     rajaongkir_province_id: 0,
     rajaongkir_city_id: 0,
@@ -373,8 +321,7 @@ export default function PublicTransaction() {
       return;
     }
 
-    const stored = parseStorage();
-    const details = stored.map((item) => ({
+    const details = rawCartItems.map((item) => ({
       product_id: item.id,
       product_variant_id: item.product_variant_id ?? undefined,
       quantity: item.quantity ?? 1,
@@ -415,25 +362,49 @@ export default function PublicTransaction() {
 
     try {
       const res = await createPublicTransaction(payload).unwrap();
-      if (res && typeof res.data === "object" && "payment_link" in res.data) {
-        await Swal.fire({
-          icon: "success",
-          title: "Pesanan Berhasil Dibuat",
-          text: "Kami arahkan ke halaman pembayaran.",
-          confirmButtonText: "Lanjut",
-        });
-        window.open(
-          (res.data as { payment_link: string }).payment_link,
-          "_blank"
-        );
-        clearCart();
-      } else {
-        await Swal.fire({
-          icon: "success",
-          title: "Pesanan Berhasil Dibuat",
-          text: " Untuk informasi lebih lanjut bisa melalui WhatsApp,email, dan menu track order lalu masukan code transaksi yang dikirim melalui email atau WhatsApp",
-        });
-        clearCart();
+
+      // LOGIKA BARU: Handle respon berdasarkan tipe datanya (string/object)
+      if (res) {
+        // CASE 1: Respon String (Biasanya untuk Manual Payment, String = Encrypted ID)
+        if (typeof res.data === "string") {
+          const encryptedId = res.data;
+
+          await Swal.fire({
+            icon: "success",
+            title: "Pesanan Berhasil Dibuat",
+            text: "Silakan lakukan pembayaran dan upload bukti transfer.",
+            confirmButtonText: "Lanjut",
+          });
+
+          clearCart();
+          // Redirect menggunakan string terenkripsi tersebut
+          router.push(`/transaction/${encryptedId}`);
+        }
+
+        // CASE 2: Respon Object (Biasanya Automatic/Gateway, Object = { payment_link, reference, dll })
+        else if (typeof res.data === "object" && res.data !== null) {
+          const responseData = res.data as unknown as TransactionResponseData;
+
+          if ("payment_link" in responseData && responseData.payment_link) {
+            await Swal.fire({
+              icon: "success",
+              title: "Pesanan Berhasil Dibuat",
+              text: "Kami arahkan ke halaman pembayaran.",
+              confirmButtonText: "Lanjut",
+            });
+            window.open(responseData.payment_link, "_blank");
+            clearCart();
+            router.push(`/cek-order?code=${responseData.reference}`);
+          } else {
+            // Fallback jika object tapi tidak ada link (misal COD)
+            await Swal.fire({
+              icon: "success",
+              title: "Pesanan Berhasil Dibuat",
+              text: "Silakan cek status pesanan Anda.",
+            });
+            clearCart();
+          }
+        }
       }
     } catch (e) {
       console.error(e);
@@ -446,7 +417,7 @@ export default function PublicTransaction() {
   };
 
   /** ——— Render Empty State ——— */
-  if (cartItems.length === 0) {
+  if (isMounted && cartItems.length === 0) {
     return (
       <div
         className={`min-h-screen w-full bg-gradient-to-br from-white to-[#000000]/10 pt-24 ${sniglet.className}`}
@@ -666,9 +637,7 @@ export default function PublicTransaction() {
                       <div className="flex items-center gap-3">
                         <div className="flex items-center bg-gray-100 rounded-2xl">
                           <button
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity - 1)
-                            }
+                            onClick={() => decreaseItemQuantity(item.id)}
                             disabled={!item.inStock}
                             className="p-2 hover:bg-gray-200 rounded-l-2xl transition-colors disabled:opacity-50"
                           >
@@ -678,9 +647,7 @@ export default function PublicTransaction() {
                             {item.quantity}
                           </span>
                           <button
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity + 1)
-                            }
+                            onClick={() => increaseItemQuantity(item.id)}
                             disabled={!item.inStock}
                             className="p-2 hover:bg-gray-200 rounded-r-2xl transition-colors disabled:opacity-50"
                           >

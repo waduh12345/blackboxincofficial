@@ -50,6 +50,7 @@ export const apiSecondSlice = createApi({
     "CTA",
     "AboutUs",
     "Value",
+    "Slider",
   ],
   endpoints: () => ({}),
 });

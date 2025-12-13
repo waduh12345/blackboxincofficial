@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
 // --- IMPORTS MODE EDIT ---
@@ -37,29 +36,25 @@ function TestimonialsContent() {
   const isEditMode = useEditMode();
 
   // === 1. BACKGROUND STATES ===
-  // Background untuk Section Stats (Default Putih)
   const [statsBg, setStatsBg] = useState<BackgroundConfig>({
     type: "solid",
     color1: "#ffffff",
   });
 
-  // Background untuk CTA Card (Default Gradient Abu-abu #6B6B6B)
   const [ctaBg, setCtaBg] = useState<BackgroundConfig>({
     type: "gradient",
     color1: "#6B6B6B",
-    color2: "#555555", // Sedikit lebih gelap
+    color2: "#555555",
     direction: "to right",
   });
 
   // === 2. CONTENT STATES ===
-  // Stats Data
   const [stats, setStats] = useState([
     { id: 1, value: "10K+", label: "Pelanggan Puas" },
     { id: 2, value: "95%", label: "Repeat Order" },
     { id: 3, value: "4.9/5", label: "Rating Rata-rata" },
   ]);
 
-  // CTA Text Data
   const [ctaContent, setCtaContent] = useState({
     title: "Siap Membuktikan Sendiri?",
     description:
@@ -98,20 +93,27 @@ function TestimonialsContent() {
               viewport={{ once: true }}
               className="bg-white rounded-3xl shadow-lg p-8 border border-gray-100"
             >
-              <h3 className="text-4xl font-bold text-[#6B6B6B] mb-2">
+              {/* FIX: Ganti <h3> menjadi <div> dengan class font yg sama.
+                  EditableText merender div/input block, tidak boleh di dalam h3 secara semantik ketat React jika childrennya kompleks
+              */}
+              <div className="text-4xl font-bold text-[#6B6B6B] mb-2">
                 <EditableText
                   isEditMode={isEditMode}
                   text={stat.value}
                   onSave={(v) => updateStat(index, "value", v)}
                 />
-              </h3>
-              <p className="text-gray-600">
+              </div>
+
+              {/* FIX: Ganti <p> menjadi <div>.
+                  EditableText mungkin merender div wrapper, div di dalam p = Hydration Error.
+              */}
+              <div className="text-gray-600">
                 <EditableText
                   isEditMode={isEditMode}
                   text={stat.label}
                   onSave={(v) => updateStat(index, "label", v)}
                 />
-              </p>
+              </div>
             </motion.div>
           ))}
         </div>
@@ -120,9 +122,6 @@ function TestimonialsContent() {
       {/* ===================== CTA SECTION ===================== */}
       <section className="px-6 lg:px-12 py-20 bg-transparent">
         <div className="container mx-auto">
-          {/* Kita menggunakan EditableSection di sini untuk membungkus "Card" CTA 
-             agar user bisa mengubah warna gradient box-nya.
-          */}
           <EditableSection
             isEditMode={isEditMode}
             config={ctaBg}
@@ -135,21 +134,23 @@ function TestimonialsContent() {
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
             >
-              <h3 className="text-3xl lg:text-4xl font-bold mb-4">
+              {/* FIX: Ganti h3 menjadi div */}
+              <div className="text-3xl lg:text-4xl font-bold mb-4">
                 <EditableText
                   isEditMode={isEditMode}
                   text={ctaContent.title}
                   onSave={(v) => updateCta("title", v)}
                 />
-              </h3>
+              </div>
 
+              {/* FIX: Ganti as="p" menjadi as="div" atau biarkan default */}
               <EditableText
                 isEditMode={isEditMode}
                 text={ctaContent.description}
                 onSave={(v) => updateCta("description", v)}
-                as="p"
+                as="div" // Mencegah div inside p
                 multiline
-                className="text-lg text-white/90 mb-8 max-w-2xl mx-auto"
+                className="text-lg text-white/90 mb-8 max-w-2xl mx-auto block"
               />
 
               <div className="flex justify-center">
@@ -161,8 +162,6 @@ function TestimonialsContent() {
                     updateCta("btnText", l);
                     updateCta("btnUrl", h);
                   }}
-                  // Menambahkan styling motion secara manual via class atau wrapper
-                  // Karena EditableLink merender <a> atau <div>, kita styling class-nya mirip button
                   className="bg-white text-[#6B6B6B] px-8 py-4 rounded-2xl font-semibold hover:bg-gray-100 transition-transform active:scale-95 inline-flex items-center justify-center shadow-md"
                 />
               </div>

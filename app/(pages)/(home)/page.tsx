@@ -49,8 +49,6 @@ function HomeContent() {
       className="min-h-screen" // className asli Anda dipindahkan ke sini
     >
       <div className="w-full p-2 md:mt-10">
-        {/* Jika RunningCarousel sudah di-refactor support edit mode di dalamnya,
-            dia akan otomatis mendeteksi hook useEditMode() juga. */}
         <RunningCarousel />
       </div>
 

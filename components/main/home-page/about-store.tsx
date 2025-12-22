@@ -1,18 +1,26 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { ShieldCheck, Truck, Diamond, Save, Loader2 } from "lucide-react";
+import {
+  ShieldCheck,
+  Truck,
+  Diamond,
+  Save,
+  Loader2,
+  AlertCircle,
+} from "lucide-react"; // Added AlertCircle
 import Swal from "sweetalert2";
 
 // --- IMPORTS SERVICES & TYPES ---
 import {
-  useGetAboutUsListQuery,
-  useCreateAboutUsMutation,
-  useUpdateAboutUsMutation,
-} from "@/services/customize/about/about-us.service";
-import type { AboutUs } from "@/types/customization/about/tentang";
+  useGetHomeAboutListQuery,
+  useCreateHomeAboutMutation,
+  useUpdateHomeAboutMutation,
+} from "@/services/customize/home/about.service";
 
-// --- IMPORTS MODE EDIT ---
+import type { About } from "@/types/customization/home/about";
+
+// --- IMPORTS MODE EDIT & COMPONENTS ---
 import { useEditMode } from "@/hooks/use-edit-mode";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { EditableText, EditableImage } from "@/components/ui/editable";
@@ -54,28 +62,43 @@ function AboutStoreContent() {
   const YEAR = new Date().getFullYear();
 
   // === 1. SETUP CLIENT CODE ===
-  const [clientCode, setClientCode] = useState<string>("");
+  // Inisialisasi state, default null agar kita tahu belum di-check
+  const [clientCode, setClientCode] = useState<string | null>(null);
+
   useEffect(() => {
-    const code =
-      typeof window !== "undefined" ? localStorage.getItem("code_client") : "";
-    if (code) setClientCode(code);
+    // Cek localStorage saat mount
+    if (typeof window !== "undefined") {
+      const code = localStorage.getItem("code_client");
+      // Jika code tidak ada, set string kosong atau default agar loading state berhenti
+      setClientCode(code || "");
+
+      if (!code) {
+        console.warn(
+          "⚠️ Client Code not found in LocalStorage ('code_client')"
+        );
+      }
+    }
   }, []);
 
-  // === 2. API HOOKS ===
+  // === 2. API HOOKS (RTK Query) ===
   const {
     data: apiResult,
     isLoading,
+    isFetching,
     refetch,
-  } = useGetAboutUsListQuery(
-    { client_code: clientCode, bahasa: lang },
+  } = useGetHomeAboutListQuery(
+    { client_code: clientCode || "", bahasa: lang },
+    // Skip hanya jika clientCode null (belum dicek) atau string kosong
     { skip: !clientCode }
   );
 
-  const [createAboutUs, { isLoading: isCreating }] = useCreateAboutUsMutation();
-  const [updateAboutUs, { isLoading: isUpdating }] = useUpdateAboutUsMutation();
+  const [createAboutUs, { isLoading: isCreating }] =
+    useCreateHomeAboutMutation();
+  const [updateAboutUs, { isLoading: isUpdating }] =
+    useUpdateHomeAboutMutation();
 
   // === 3. LOCAL STATE ===
-  const [localData, setLocalData] = useState<Partial<AboutUs> | null>(null);
+  const [localData, setLocalData] = useState<Partial<About> | null>(null);
   const [existingId, setExistingId] = useState<number | null>(null);
 
   // === 4. BACKGROUND STATE ===
@@ -86,39 +109,42 @@ function AboutStoreContent() {
 
   // === 5. SYNC DATA API -> LOCAL ===
   useEffect(() => {
+    // Pastikan checking path object aman (Optional Chaining)
     if (apiResult?.data?.items && apiResult.data.items.length > 0) {
       const item = apiResult.data.items[0];
       setExistingId(item.id);
       setLocalData(item);
     } else if (apiResult?.success) {
+      // Jika request sukses tapi array items kosong (Belum ada data di DB)
       setExistingId(null);
       setLocalData({
-        judul: "",
-        deskripsi: "",
-        info_judul_1: "",
-        info_judul_2: "",
-        info_judul_3: "",
+        judul: "Judul Default",
+        sub_judul: "Sub Judul Default",
+        deskripsi: "Deskripsi Default",
+        info_1: "Info 1 Default",
+        info_2: "Info 2 Default",
+        info_3: "Info 3 Default",
+        info_4: "-",
         image: null,
+        status: "1",
+        client_id: "6",
+        bahasa: lang,
       });
     }
-  }, [apiResult]);
+  }, [apiResult, lang]);
 
-  // === 6. HANDLE SAVE (CREATE / UPDATE) ===
+  // === 6. HANDLE SAVE ===
   const handleSave = async (
-    field: keyof AboutUs,
+    field: keyof About,
     value: string | File | Blob
   ) => {
-    if (!clientCode || !localData) return;
+    if (!clientCode || !localData) {
+      Swal.fire("Error", "Client Code missing or Data not ready", "error");
+      return;
+    }
 
-    // 1. Optimistic Update Local State
-    setLocalData((prev) =>
-      prev
-        ? {
-            ...prev,
-            [field]: value,
-          }
-        : null
-    );
+    // Optimistic Update
+    setLocalData((prev) => (prev ? { ...prev, [field]: value } : null));
 
     try {
       const formData = new FormData();
@@ -126,74 +152,47 @@ function AboutStoreContent() {
       formData.append("bahasa", lang);
       formData.append("status", "1");
 
-      // Helper untuk mengambil value (Prioritas: Value baru -> Value Local -> Default Strip)
-      const getVal = (key: keyof AboutUs) => {
-        if (key === field) return value; // Value yang sedang diedit
+      const getVal = (key: keyof About) => {
+        if (key === field) return value;
         return localData[key] ?? "-";
       };
 
-      // --- MAPPING DATA KE FORMDATA ---
       formData.append("judul", getVal("judul") as string);
+      formData.append("sub_judul", getVal("sub_judul") as string);
       formData.append("deskripsi", getVal("deskripsi") as string);
-      formData.append("info_judul_1", getVal("info_judul_1") as string);
-      formData.append("info_judul_2", getVal("info_judul_2") as string);
-      formData.append("info_judul_3", getVal("info_judul_3") as string);
+      formData.append("info_1", getVal("info_1") as string);
+      formData.append("info_2", getVal("info_2") as string);
+      formData.append("info_3", getVal("info_3") as string);
+      formData.append("info_4", getVal("info_4") as string);
 
-      // Dummy Fields (Required by Backend)
-      formData.append("info_deskripsi_1", "-");
-      formData.append("info_deskripsi_2", "-");
-      formData.append("info_deskripsi_3", "-");
-      formData.append("visi_judul", "Visi");
-      formData.append("visi_deskripsi", "-");
-      formData.append("visi_icon", "-");
-      formData.append("misi_judul", "Misi");
-      formData.append("misi_deskripsi", "-");
-      formData.append("misi_icon", "-");
-
-      // --- HANDLE IMAGE UPLOAD ---
-      // Pastikan value adalah File/Blob. Jika string (URL), jangan di-append ke 'image'
-      const isFileOrBlob = value instanceof File || value instanceof Blob;
-
-      if (field === "image") {
-        if (isFileOrBlob) {
-          console.log("📁 Appending Image File:", value); // Debugging
-          // Pastikan backend menangkap key 'image'
-          formData.append("image", value as Blob);
-        } else {
-          console.warn("⚠️ Value is not a File/Blob, skipping image append");
-        }
+      if (
+        field === "image" &&
+        (value instanceof File || value instanceof Blob)
+      ) {
+        formData.append("image", value as Blob);
       }
 
-      // Debugging: Lihat isi FormData di Console
-      // for (const pair of formData.entries()) {
-      //   console.log(pair[0] + ', ' + pair[1]);
-      // }
-
-      // --- EKSEKUSI API ---
       if (!existingId) {
-        // Mode: CREATE
         await createAboutUs(formData).unwrap();
         Swal.fire({
           icon: "success",
-          title: "Profile Created",
+          title: "Created Successfully",
           toast: true,
           position: "top-end",
           showConfirmButton: false,
           timer: 1500,
         });
       } else {
-        // Mode: UPDATE
         await updateAboutUs({ id: existingId, data: formData }).unwrap();
         Swal.fire({
           icon: "success",
-          title: "Profile Updated",
+          title: "Updated Successfully",
           toast: true,
           position: "top-end",
           showConfirmButton: false,
           timer: 1500,
         });
       }
-
       refetch();
     } catch (error) {
       console.error("Save error:", error);
@@ -208,28 +207,52 @@ function AboutStoreContent() {
       return URL.createObjectURL(source);
     }
     if (typeof source === "string") {
-      if (source.startsWith("http") || source.startsWith("data:")) {
+      if (source.startsWith("http") || source.startsWith("data:"))
         return source;
-      }
       return `${BASE_IMAGE_URL}/media/${source}`;
     }
     return FALLBACK_IMAGE;
   };
 
-  // Loading State
-  if (isLoading && !localData) {
+  // --- RENDERING STATES ---
+
+  // 1. Loading State (Menunggu Client Code atau API)
+  if (clientCode === null || isLoading || isFetching) {
     return (
-      <div className="py-24 flex justify-center">
+      <div className="py-24 flex flex-col items-center justify-center gap-4">
         <DotdLoader />
+        {clientCode === null && (
+          <span className="text-gray-400 text-sm">Initializing...</span>
+        )}
       </div>
     );
   }
 
-  // Error State / No Data
-  if (!localData) return null;
+  // 2. Missing Client Code State (Supaya tidak blank screen)
+  if (!clientCode) {
+    return (
+      <div className="py-24 flex flex-col items-center justify-center text-red-500 gap-2">
+        <AlertCircle size={32} />
+        <p className="font-semibold">Client Code Not Found</p>
+        <p className="text-sm text-gray-500">
+         {` Please set 'code_client' in localStorage`}
+        </p>
+      </div>
+    );
+  }
+
+  // 3. Data Not Ready (Logic fallback terakhir)
+  if (!localData) {
+    return (
+      <div className="py-24 flex justify-center text-gray-400">
+        No data available to display.
+      </div>
+    );
+  }
 
   const isSaving = isCreating || isUpdating;
 
+  // --- MAIN RENDER ---
   return (
     <EditableSection
       isEditMode={isEditMode}
@@ -237,7 +260,7 @@ function AboutStoreContent() {
       onSave={setBgConfig}
       className="relative overflow-hidden"
     >
-      {/* Indikator Saving */}
+      {/* Saving Indicator */}
       {isEditMode && isSaving && (
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-emerald-600/90 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm shadow-md animate-pulse">
           <Loader2 className="w-3 h-3 animate-spin" />
@@ -254,7 +277,7 @@ function AboutStoreContent() {
 
       <div className="container mx-auto py-12 md:px-4 md:py-24">
         <div className="grid items-center gap-12 md:grid-cols-2">
-          {/* Kiri: Teks & Value */}
+          {/* Text Content */}
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-700 ring-1 ring-gray-300">
               <Diamond className="h-3.5 w-3.5 text-black" />
@@ -284,8 +307,8 @@ function AboutStoreContent() {
                 <ShieldCheck className="h-5 w-5 text-black flex-shrink-0" />
                 <EditableText
                   isEditMode={isEditMode}
-                  text={localData.info_judul_1 || ""}
-                  onSave={(v) => handleSave("info_judul_1", v)}
+                  text={localData.info_1 || ""}
+                  onSave={(v) => handleSave("info_1", v)}
                   as="span"
                 />
               </li>
@@ -293,8 +316,8 @@ function AboutStoreContent() {
                 <Truck className="h-5 w-5 text-black flex-shrink-0" />
                 <EditableText
                   isEditMode={isEditMode}
-                  text={localData.info_judul_2 || ""}
-                  onSave={(v) => handleSave("info_judul_2", v)}
+                  text={localData.info_2 || ""}
+                  onSave={(v) => handleSave("info_2", v)}
                   as="span"
                 />
               </li>
@@ -302,15 +325,15 @@ function AboutStoreContent() {
                 <Diamond className="h-5 w-5 text-black flex-shrink-0" />
                 <EditableText
                   isEditMode={isEditMode}
-                  text={localData.info_judul_3 || ""}
-                  onSave={(v) => handleSave("info_judul_3", v)}
+                  text={localData.info_3 || ""}
+                  onSave={(v) => handleSave("info_3", v)}
                   as="span"
                 />
               </li>
             </ul>
           </div>
 
-          {/* Kanan: Gambar Editable */}
+          {/* Image Content */}
           <div className="relative order-first md:order-last">
             <div className="overflow-hidden rounded-2xl border-4 border-black shadow-2xl relative h-[380px] md:h-[500px] w-full bg-gray-100">
               <EditableImage
@@ -325,8 +348,6 @@ function AboutStoreContent() {
                 className="object-cover grayscale-[10%]"
               />
             </div>
-
-            {/* Overlay kecil (Est Year) */}
             <div className="absolute bottom-4 left-4 rounded-lg bg-white/90 px-4 py-2 text-sm font-semibold text-black shadow-md backdrop-blur-sm">
               <span>Est. {YEAR}</span>
             </div>

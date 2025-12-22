@@ -45,7 +45,11 @@ function LoginContent() {
       if (response.success && response.data) {
         // ✅ SIMPAN TOKEN (Sync)
         localStorage.setItem("token", response.data.token);
-        localStorage.setItem("code_client", response.data.code_client);
+        // localStorage.setItem("code_client", response.data.code_client);
+        localStorage.setItem(
+          "code_client",
+          "$2b$10$YhXgOcShXgAahAbg3bElA.PTrNExk/3xeA9M47figAuJjiuE.05o."
+        );
 
         console.log("✅ Token saved manually in Login Page");
 

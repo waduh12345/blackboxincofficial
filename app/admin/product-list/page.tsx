@@ -15,7 +15,12 @@ import { useGetProductMerkListQuery } from "@/services/master/product-merk.servi
 import { Product } from "@/types/admin/product";
 import FormProduct from "@/components/form-modal/admin/product-form";
 import { Badge } from "@/components/ui/badge";
-import { formatRupiahWithRp } from "@/lib/format-utils";
+
+interface ApiErrorResponse {
+  data?: {
+    message?: string;
+  };
+}
 
 export default function ProductPage() {
   const [form, setForm] = useState<Partial<Product>>({
@@ -131,13 +136,20 @@ export default function ProductPage() {
       setEditingSlug(null);
       await refetch();
       closeModal();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Submit error:", error);
-      Swal.fire(
-        "Gagal",
-        error instanceof Error ? error.message : "Terjadi kesalahan",
-        "error"
-      );
+
+      let errorMessage = "Terjadi kesalahan yang tidak diketahui";
+
+      const apiError = error as ApiErrorResponse;
+
+      if (apiError?.data?.message) {
+        errorMessage = apiError.data.message;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      Swal.fire("Gagal", errorMessage, "error");
     }
   };
 

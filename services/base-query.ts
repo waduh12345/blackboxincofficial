@@ -33,7 +33,7 @@ const baseSecondQuery = fetchBaseQuery({
 
 export const apiSlice = createApi({
   baseQuery: baseQuery,
-  tagTypes: ["ProductVariant"] as const,
+  tagTypes: ["ProductVariant", "ProductVariantSize"] as const,
   endpoints: () => ({}),
 });
 

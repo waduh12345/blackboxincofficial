@@ -19,6 +19,8 @@ import {
   Upload,
   Shield,
   Package,
+  Layers, // Icon untuk Variant
+  Maximize2, // Icon untuk Size
 } from "lucide-react";
 
 // Hapus import mutation manual, ganti dengan hook useCheckout
@@ -46,27 +48,16 @@ import {
 } from "@/components/ui/select";
 
 // IMPORT ZUSTAND HOOK
-import useCart from "@/hooks/use-cart";
+import useCart, { CartItem } from "@/hooks/use-cart"; // Pastikan import CartItem type juga
 
 // IMPORT USE CHECKOUT & TYPES
-import { useCheckout } from "@/hooks/use-checkout"; // Sesuaikan path hook Anda
+import { useCheckout } from "@/hooks/use-checkout";
 import type { CheckoutDeps } from "@/types/checkout";
 
 /** ====== Helpers & Types ====== */
 
-interface CartItemView {
-  id: number;
-  product_variant_id: number;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  quantity: number;
-  category: string;
-  ageGroup: string;
-  isEcoFriendly: boolean;
-  inStock: boolean;
-}
+// Kita tidak lagi butuh CartItemView manual karena pakai CartItem dari hook
+// Tapi untuk konsistensi dengan kode lama, kita bisa pakai tipe CartItem langsung
 
 interface RelatedProductView {
   id: number;
@@ -147,7 +138,7 @@ export default function PublicTransaction() {
 
   /** ——— Cart Logic (Menggunakan Zustand) ——— */
   const {
-    cartItems: rawCartItems,
+    cartItems, // Ini sudah array CartItem[] dari zustand
     removeItem,
     increaseItemQuantity,
     decreaseItemQuantity,
@@ -161,24 +152,26 @@ export default function PublicTransaction() {
     setIsMounted(true);
   }, []);
 
-  // Map data dari Zustand ke format View
-  const cartItems: CartItemView[] = useMemo(() => {
+  // --- GROUPING LOGIC ---
+  // Mengelompokkan item berdasarkan Product ID agar tampil dalam satu kartu
+  // Struktur: { [productId]: { common: ProductInfo, items: [Variant1, Variant2] } }
+  const groupedCartItems = useMemo(() => {
     if (!isMounted) return [];
-    return rawCartItems.map((it) => ({
-      id: it.id,
-      product_variant_id:
-        typeof it.product_variant_id === "number" ? it.product_variant_id : 0,
-      name: it.name,
-      price: it.price,
-      originalPrice: undefined,
-      image: getImageUrlFromProduct(it),
-      quantity: it.quantity ?? 1,
-      category: it.category_name,
-      ageGroup: "Semua usia",
-      isEcoFriendly: false,
-      inStock: (it.stock ?? 0) > 0,
-    }));
-  }, [rawCartItems, isMounted]);
+
+    const groups: Record<number, { common: CartItem; items: CartItem[] }> = {};
+
+    cartItems.forEach((item) => {
+      if (!groups[item.id]) {
+        groups[item.id] = {
+          common: item, // Data umum produk (nama, gambar, kategori) diambil dari item pertama
+          items: [], // Array untuk varian/size spesifik
+        };
+      }
+      groups[item.id].items.push(item);
+    });
+
+    return Object.values(groups);
+  }, [cartItems, isMounted]);
 
   const {
     data: relatedResp,
@@ -207,6 +200,7 @@ export default function PublicTransaction() {
   }, [relatedResp]);
 
   const addRelatedToCart = (p: Product) => {
+    // Gunakan addItem dari useCart, logic varian default akan dihandle di hook/modal (di sini asumsi simple product)
     addItem({ ...p, quantity: 1 });
     Swal.fire({
       icon: "success",
@@ -354,8 +348,13 @@ export default function PublicTransaction() {
 
   /** ——— Checkout Action (REFACTORED USING useCheckout) ——— */
   const onCheckout = async () => {
-    // 1. Validasi Stock
-    if (cartItems.some((it) => !it.inStock)) {
+    // 1. Validasi Stock (Perbaiki akses property stock yang mungkin undefined di tipe Product)
+    if (
+      cartItems.some((it) => {
+        const stock = typeof it.stock === "number" ? it.stock : 0;
+        return stock <= 0;
+      })
+    ) {
       await Swal.fire({
         icon: "error",
         title: "Stok Habis",
@@ -500,9 +499,10 @@ export default function PublicTransaction() {
     );
   }
 
+  // --- MAIN CONTENT ---
   return (
     <div
-      className={`min-h-screen bg-gradient-to-br from-white to-[#000000]/10 pt-24 ${sniglet.className}`}
+      className={`min-h-screen bg-gradient-to-br from-white to-[#DFF19D]/10 pt-24 ${sniglet.className}`}
     >
       <div className="container mx-auto px-6 lg:px-12 pb-12">
         {/* Header */}
@@ -520,7 +520,7 @@ export default function PublicTransaction() {
             <div className="inline-flex items-center gap-2 bg-[#000000]/10 px-4 py-2 rounded-full mb-4">
               <Sparkles className="w-4 h-4 text-[#000000]" />
               <span className="text-sm font-medium text-[#000000]">
-                Checkout Publik
+                Keranjang Belanja
               </span>
             </div>
             <h1
@@ -535,113 +535,132 @@ export default function PublicTransaction() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* --- KOLOM KIRI --- */}
           <div className="lg:col-span-2 space-y-6">
-            {/* 1. Cart Items */}
-            {cartItems.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white rounded-3xl p-6 shadow-lg hover:shadow-xl transition-shadow"
-              >
-                <div className="flex flex-col sm:flex-row gap-6">
-                  <div className="relative w-full sm:w-32 h-48 sm:h-32 flex-shrink-0">
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      fill
-                      className="object-cover rounded-2xl"
-                    />
-                    {!item.inStock && (
-                      <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center">
-                        <span className="text-white text-sm font-semibold">
-                          Stok Habis
-                        </span>
-                      </div>
-                    )}
-                    {item.isEcoFriendly && (
-                      <div className="absolute top-2 left-2 bg-[#DFF19D] text-gray-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" />
-                        Eco
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4">
-                      <div>
-                        <span className="text-sm text-[#000000] font-medium">
-                          {item.category}
-                        </span>
-                        <h3 className="text-lg font-bold text-black mt-1">
-                          {item.name}
-                        </h3>
-                        <p className="text-sm text-black">
-                          Untuk anak {item.ageGroup}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                        <button
-                          className="p-2 text-black hover:text-red-500 transition-colors"
-                          title="Wishlist"
-                        >
-                          <Heart className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => removeItem(item.id)}
-                          className="p-2 text-black hover:text-red-500 transition-colors"
-                          title="Hapus"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
+            {/* 1. Cart Items Grouped by Product ID */}
+            {groupedCartItems.map((group) => {
+              const { common, items } = group;
+              return (
+                <div
+                  key={`group-${common.id}`}
+                  className="bg-white rounded-3xl p-6 shadow-lg hover:shadow-xl transition-shadow"
+                >
+                  <div className="flex flex-col sm:flex-row gap-6">
+                    <div className="relative w-full sm:w-32 h-48 sm:h-32 flex-shrink-0 self-start">
+                      <Image
+                        src={getImageUrlFromProduct(common)}
+                        alt={common.name}
+                        fill
+                        className="object-cover rounded-2xl"
+                      />
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold text-[#000000]">
-                          Rp {item.price.toLocaleString("id-ID")}
+                    <div className="flex-1">
+                      <div className="mb-4 border-b border-gray-100 pb-2">
+                        <span className="text-sm text-[#000000] font-medium">
+                          {common.category_name}
                         </span>
-                        {item.originalPrice && (
-                          <span className="text-lg text-gray-400 line-through">
-                            Rp {item.originalPrice.toLocaleString("id-ID")}
-                          </span>
-                        )}
+                        <h3 className="text-lg font-bold text-black mt-1">
+                          {common.name}
+                        </h3>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center bg-gray-100 rounded-2xl">
-                          <button
-                            onClick={() => decreaseItemQuantity(item.id)}
-                            disabled={!item.inStock}
-                            className="p-2 hover:bg-gray-200 rounded-l-2xl transition-colors disabled:opacity-50"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="px-4 py-2 font-semibold min-w-[3rem] text-center">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => increaseItemQuantity(item.id)}
-                            disabled={!item.inStock}
-                            className="p-2 hover:bg-gray-200 rounded-r-2xl transition-colors disabled:opacity-50"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
+                      {/* --- List Varian --- */}
+                      <div className="space-y-4">
+                        {items.map((item) => {
+                          const currentStock =
+                            typeof item.stock === "number" ? item.stock : 0;
+                          const inStock = currentStock > 0;
 
-                        <div className="text-right">
-                          <div className="font-bold text-black">
-                            Rp{" "}
-                            {(item.price * item.quantity).toLocaleString(
-                              "id-ID"
-                            )}
-                          </div>
-                        </div>
+                          return (
+                            <div
+                              key={item.cartId}
+                              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gray-50 p-3 rounded-xl border border-gray-100"
+                            >
+                              {/* Info Varian */}
+                              <div className="flex-1">
+                                <div className="flex flex-wrap gap-2 mb-1">
+                                  {item.variant_name && (
+                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
+                                      <Layers className="w-3 h-3 text-gray-500" />
+                                      <span>Varian: {item.variant_name}</span>
+                                    </div>
+                                  )}
+                                  {item.size_name && (
+                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
+                                      <Maximize2 className="w-3 h-3 text-gray-500" />
+                                      <span>Size: {item.size_name}</span>
+                                    </div>
+                                  )}
+                                  {!item.variant_name && !item.size_name && (
+                                    <span className="text-xs text-gray-400 italic">
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-base font-bold text-[#000000]">
+                                  Rp {(item.price * 1).toLocaleString("id-ID")}
+                                </div>
+                              </div>
+
+                              {/* Controls */}
+                              <div className="flex items-center gap-3 justify-between sm:justify-end w-full sm:w-auto">
+                                <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm">
+                                  <button
+                                    onClick={() =>
+                                      decreaseItemQuantity(item.cartId)
+                                    }
+                                    disabled={!inStock}
+                                    className="p-1.5 hover:bg-gray-100 rounded-l-xl transition-colors disabled:opacity-50 text-gray-600"
+                                  >
+                                    <Minus className="w-3.5 h-3.5" />
+                                  </button>
+                                  <input
+                                    type="number"
+                                    value={item.quantity}
+                                    readOnly
+                                    className="w-10 px-1 py-1 text-center bg-transparent text-sm focus:outline-none disabled:opacity-50 pointer-events-none text-gray-900 font-medium"
+                                  />
+                                  <button
+                                    onClick={() =>
+                                      increaseItemQuantity(item.cartId)
+                                    }
+                                    disabled={!inStock}
+                                    className="p-1.5 hover:bg-gray-100 rounded-r-xl transition-colors disabled:opacity-50 text-gray-600"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+
+                                <div className="text-right min-w-[80px]">
+                                  <div className="font-bold text-black text-sm">
+                                    Rp{" "}
+                                    {(
+                                      item.price * item.quantity
+                                    ).toLocaleString("id-ID")}
+                                  </div>
+                                  {!inStock && (
+                                    <div className="text-[10px] text-red-500 font-medium">
+                                      Stok Habis
+                                    </div>
+                                  )}
+                                </div>
+
+                                <button
+                                  onClick={() => removeItem(item.cartId)}
+                                  className="p-2 text-gray-400 hover:text-red-500 transition-colors bg-white rounded-full shadow-sm hover:shadow-md border border-transparent hover:border-red-100"
+                                  title="Hapus varian ini"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* 2. Informasi Pengiriman (Form Guest) */}
             <div className="bg-white rounded-3xl p-6 shadow-lg">
@@ -657,12 +676,12 @@ export default function PublicTransaction() {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent"
                     value={guest.guest_name}
                     onChange={(e) =>
                       setGuest((s) => ({ ...s, guest_name: e.target.value }))
                     }
                     placeholder="Masukkan nama lengkap"
+                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
                   />
                 </div>
 
@@ -671,13 +690,13 @@ export default function PublicTransaction() {
                     Nomor Telepon *
                   </label>
                   <input
-                    type="text"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent"
+                    type="tel"
                     value={guest.guest_phone}
                     onChange={(e) =>
                       setGuest((s) => ({ ...s, guest_phone: e.target.value }))
                     }
                     placeholder="08xxxxxxxxxx"
+                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
                   />
                   {!isPhoneValid && guest.guest_phone && (
                     <p className="text-sm text-red-500 mt-1">
@@ -692,12 +711,12 @@ export default function PublicTransaction() {
                   </label>
                   <input
                     type="email"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent"
                     value={guest.guest_email}
                     onChange={(e) =>
                       setGuest((s) => ({ ...s, guest_email: e.target.value }))
                     }
-                    placeholder="email@contoh.com"
+                    placeholder="nama@email.com"
+                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
                   />
                   {!isEmailValid && guest.guest_email && (
                     <p className="text-sm text-red-500 mt-1">
@@ -711,8 +730,6 @@ export default function PublicTransaction() {
                     Alamat Lengkap *
                   </label>
                   <textarea
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent"
                     value={guest.address_line_1}
                     onChange={(e) =>
                       setGuest((s) => ({
@@ -720,17 +737,19 @@ export default function PublicTransaction() {
                         address_line_1: e.target.value,
                       }))
                     }
-                    placeholder="Nama jalan, RT/RW"
+                    rows={3}
+                    placeholder="Nama jalan, RT/RW, Kelurahan"
+                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
                   />
                 </div>
 
                 <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-medium text-black mb-2">
-                    Alamat Tambahan (Opsional)
+                    Alamat (Baris 2){" "}
+                    <span className="text-gray-400">(opsional)</span>
                   </label>
                   <input
                     type="text"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent"
                     value={guest.address_line_2}
                     onChange={(e) =>
                       setGuest((s) => ({
@@ -738,7 +757,8 @@ export default function PublicTransaction() {
                         address_line_2: e.target.value,
                       }))
                     }
-                    placeholder="Patokan atau detail lain"
+                    placeholder="Blok, unit, patokan, dsb (opsional)"
+                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
                   />
                 </div>
 
@@ -822,18 +842,19 @@ export default function PublicTransaction() {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent"
                     value={guest.postal_code}
                     onChange={(e) =>
                       setGuest((s) => ({ ...s, postal_code: e.target.value }))
                     }
                     placeholder="12345"
+                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
                   />
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* 3. Metode Pengiriman (Kurir) */}
+          <div className="space-y-6">
             <div className="bg-white rounded-3xl p-6 shadow-lg">
               <h3 className="font-bold text-black mb-4">Metode Pengiriman</h3>
               <div className="mb-4">
@@ -845,7 +866,6 @@ export default function PublicTransaction() {
                   onValueChange={(val) => {
                     setShippingCourier(val);
                     setShippingMethod(null);
-                    // Reset payment to automatic if international selected while cod
                     if (val === "international" && paymentType === "cod") {
                       setPaymentType("automatic");
                     }
@@ -906,7 +926,7 @@ export default function PublicTransaction() {
                       ))
                     ) : (
                       <p className="text-center text-gray-500">
-                        Tidak ada opsi pengiriman tersedia.
+                        Pilih kecamatan untuk melihat opsi pengiriman.
                       </p>
                     )}
                   </>
@@ -949,19 +969,7 @@ export default function PublicTransaction() {
                 )}
               </div>
             </div>
-          </div>
 
-          {/* --- KOLOM KANAN (Sticky) --- */}
-          <div className="lg:col-span-1 space-y-6 sticky top-24">
-            {/* 1. Voucher Picker */}
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <VoucherPicker
-                selected={selectedVoucher}
-                onChange={setSelectedVoucher}
-              />
-            </div>
-
-            {/* 2. Metode Pembayaran (Inline Implementation from CartPage) */}
             <div className="bg-white rounded-3xl p-6 shadow-lg">
               <h3 className="font-bold text-black mb-4 flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-[#000000]" />
@@ -974,7 +982,6 @@ export default function PublicTransaction() {
                     Tipe Pembayaran
                   </label>
                   <div className="space-y-2">
-                    {/* Automatic */}
                     <div
                       className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                         paymentType === "automatic"
@@ -1002,7 +1009,6 @@ export default function PublicTransaction() {
                       </div>
                     </div>
 
-                    {/* Manual */}
                     <div
                       className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                         paymentType === "manual"
@@ -1032,7 +1038,6 @@ export default function PublicTransaction() {
                   </div>
                 </div>
 
-                {/* INFO PEMBAYARAN */}
                 {paymentType === "automatic" && (
                   <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
                     <div className="mt-0.5">
@@ -1042,7 +1047,8 @@ export default function PublicTransaction() {
                       <p className="font-semibold mb-1">Pembayaran via Doku</p>
                       <p>
                         Anda akan diarahkan ke halaman pembayaran aman setelah
-                        menekan tombol Checkout.
+                        menekan tombol Checkout. Tersedia berbagai metode (QRIS,
+                        VA, E-Wallet).
                       </p>
                     </div>
                   </div>
@@ -1061,7 +1067,13 @@ export default function PublicTransaction() {
               </div>
             </div>
 
-            {/* 3. Ringkasan Pesanan */}
+            <div className="bg-white rounded-3xl p-6 shadow-lg">
+              <VoucherPicker
+                selected={selectedVoucher}
+                onChange={setSelectedVoucher}
+              />
+            </div>
+
             <div className="bg-white rounded-3xl p-6 shadow-lg">
               <h3 className="font-bold text-black mb-4">Ringkasan Pesanan</h3>
               <div className="space-y-3 mb-6">
@@ -1073,7 +1085,6 @@ export default function PublicTransaction() {
                     Rp {subtotal.toLocaleString("id-ID")}
                   </span>
                 </div>
-
                 {discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>
@@ -1085,14 +1096,12 @@ export default function PublicTransaction() {
                     <span>- Rp {discount.toLocaleString("id-ID")}</span>
                   </div>
                 )}
-
                 <div className="flex justify-between">
                   <span className="text-black">Ongkos Kirim</span>
                   <span className="font-semibold">
                     Rp {shippingCost.toLocaleString("id-ID")}
                   </span>
                 </div>
-
                 {paymentType === "cod" && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Fee COD (2%)</span>
@@ -1101,7 +1110,6 @@ export default function PublicTransaction() {
                     </span>
                   </div>
                 )}
-
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
@@ -1127,10 +1135,11 @@ export default function PublicTransaction() {
                 onClick={onCheckout}
                 disabled={
                   isProcessing ||
-                  cartItems.some((it) => !it.inStock) ||
+                  cartItems.some((it) => !it.stock) ||
                   !shippingMethod ||
                   !guest.guest_name ||
                   !guest.address_line_1 ||
+                  !guest.postal_code ||
                   !isPhoneValid ||
                   !isEmailValid
                 }
@@ -1149,7 +1158,7 @@ export default function PublicTransaction() {
                 ) : (
                   <>
                     <CreditCard className="w-5 h-5" />
-                    Bayar Sekarang
+                    Checkout Sekarang
                   </>
                 )}
               </button>
@@ -1164,64 +1173,6 @@ export default function PublicTransaction() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Produk Rekomendasi */}
-        <div className="mt-16">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-black mb-4">
-              Produk <span className="text-[#000000]">Rekomendasi</span>
-            </h2>
-            <p className="text-black max-w-2xl mx-auto">
-              Lengkapi koleksi kreatif si kecil dengan produk pilihan lainnya
-            </p>
-          </div>
-          {isRelLoading && (
-            <div className="text-center text-black">
-              <DotdLoader />
-            </div>
-          )}
-          {!isRelLoading && !isRelError && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {relatedProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group"
-                >
-                  <div className="relative h-48">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  </div>
-                  <div className="p-6">
-                    <span className="text-sm text-[#000000] font-medium">
-                      {product.category}
-                    </span>
-                    <h3 className="text-lg font-bold text-black mt-1 mb-3">
-                      {product.name}
-                    </h3>
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="text-xl font-bold text-[#000000]">
-                        Rp {product.price.toLocaleString("id-ID")}
-                      </span>
-                    </div>
-                    <div className="flex gap-2 bg-[#000000] rounded-2xl">
-                      <button
-                        onClick={() => addRelatedToCart(product.__raw)}
-                        className="w-full bg-[#000000] text-white py-3 rounded-2xl font-semibold hover:bg-[#000000]/90 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Tambah ke Keranjang
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

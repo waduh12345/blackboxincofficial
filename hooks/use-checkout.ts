@@ -37,7 +37,7 @@ type GuestInfo = {
   rajaongkir_district_id: number;
 };
 
-// Interface khusus untuk menangani respon data transaksi (pengganti any)
+// Interface khusus untuk menangani respon data transaksi
 interface TransactionResponseData {
   reference?: string;
   payment?: {
@@ -106,11 +106,22 @@ function saveGuestInfo(info: GuestInfo): void {
   } catch {}
 }
 
-/** Hindari `any`: guard aman utk baca `product_variant_id` jika ada */
-type MaybeVariant = { product_variant_id?: unknown };
+/** Helper Type untuk ekstraksi properti dinamis dari StoredCartItem */
+type CartItemIds = {
+  product_variant_id?: unknown;
+  product_variant_size_id?: unknown;
+};
+
+/** Helper: Ambil Variant ID dengan aman */
 function getVariantId(item: StoredCartItem): number | null {
-  const v = (item as unknown as MaybeVariant).product_variant_id;
+  const v = (item as unknown as CartItemIds).product_variant_id;
   return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/** Helper: Ambil Size ID dengan aman (BARU) */
+function getSizeId(item: StoredCartItem): number | null {
+  const s = (item as unknown as CartItemIds).product_variant_size_id;
+  return typeof s === "number" && Number.isFinite(s) ? s : null;
 }
 
 /* =========================
@@ -128,7 +139,7 @@ export function useCheckout() {
         shippingCourier,
         shippingMethod,
         shippingInfo,
-        paymentType, // reserved
+        paymentType,
         paymentMethod,
         paymentChannel,
         clearCart,
@@ -153,23 +164,35 @@ export function useCheckout() {
       const stored = parseStorage();
 
       /* =========================
-         LOGIN → /transaction
+          LOGIN → /transaction
          ========================= */
       if (sessionEmail) {
-        // details utk endpoint private: WAJIB keduanya ada (number)
-        const privateDetails: PrivateDetailItem[] = stored.map((item) => {
-          const variantId = getVariantId(item) ?? item.id; // fallback aman
-          return {
+        // Tipe lokal untuk Private Detail agar mencakup size_id
+        type PrivateDetailWithSize = PrivateDetailItem & {
+          product_variant_size_id?: number;
+        };
+
+        const privateDetails: PrivateDetailWithSize[] = stored.map((item) => {
+          const variantId = getVariantId(item) ?? item.id; // fallback
+          const sizeId = getSizeId(item); // Ambil Size ID
+
+          const detail: PrivateDetailWithSize = {
             product_id: item.id,
             product_variant_id: variantId,
             quantity: item.quantity ?? 1,
           };
+
+          // Masukkan size_id jika ada
+          if (sizeId) {
+            detail.product_variant_size_id = sizeId;
+          }
+
+          return detail;
         });
 
         const payload: CreateTransactionRequest = {
           address_line_1: shippingInfo.address_line_1,
           postal_code: shippingInfo.postal_code,
-          // Gunakan paymentType dinamis
           payment_type: paymentType as "automatic" | "manual",
           payment_method: paymentMethod,
           payment_channel: paymentChannel,
@@ -177,7 +200,8 @@ export function useCheckout() {
           data: [
             {
               shop_id: 1,
-              details: privateDetails,
+              // Casting ke tipe yang diharapkan service (asumsi service menerima extra field)
+              details: privateDetails as PrivateDetailItem[],
               shipment: buildShipmentPayload(
                 shippingCourier,
                 shippingMethod,
@@ -250,7 +274,7 @@ export function useCheckout() {
       }
 
       /* =========================
-         GUEST → /public/transaction
+          GUEST → /public/transaction
          ========================= */
       if (!shippingInfo.email) {
         await Swal.fire({
@@ -261,20 +285,26 @@ export function useCheckout() {
         return;
       }
 
-      // union detail utk endpoint public
+      // Definition lokal untuk Public Detail Item dengan Size
       type PublicDetailItemFixed = {
         product_id: number;
         quantity: number;
         product_variant_id?: number;
+        product_variant_size_id?: number; // FIELD PENTING
       };
 
       const publicDetails: PublicDetailItemFixed[] = stored.map((item) => {
         const variantId = getVariantId(item);
+        const sizeId = getSizeId(item); // Ambil Size ID
+
         const base: PublicDetailItemFixed = {
           product_id: item.id,
           quantity: item.quantity ?? 1,
         };
+
         if (variantId && variantId > 0) base.product_variant_id = variantId;
+        if (sizeId && sizeId > 0) base.product_variant_size_id = sizeId; // Masukkan ke payload
+
         return base;
       });
 
@@ -289,7 +319,7 @@ export function useCheckout() {
         wallet_id?: number;
         data: Array<{
           shop_id: number;
-          details: PublicDetailItem[];
+          details: PublicDetailItemFixed[]; // Gunakan tipe yang sudah diperbaiki
           shipment: {
             parameter: string;
             shipment_detail: string;
@@ -307,7 +337,6 @@ export function useCheckout() {
         guest_name: shippingInfo.fullName,
         guest_email: shippingInfo.email!,
         guest_phone: shippingInfo.phone,
-        // Gunakan paymentType dinamis
         payment_type: paymentType as "automatic" | "manual",
         data: [
           {
@@ -324,6 +353,7 @@ export function useCheckout() {
       };
 
       // Kirim ke endpoint public
+      // Casting diperlukan jika tipe di service belum diupdate untuk menerima size_id
       const res = await createPublicTx(
         publicPayload as unknown as Parameters<typeof createPublicTx>[0]
       ).unwrap();
@@ -341,12 +371,10 @@ export function useCheckout() {
         rajaongkir_district_id: shippingInfo.rajaongkir_district_id,
       });
 
-      // ✅ LOGIC HANDLING RESPONSE PUBLIC (TANPA ANY)
+      // Handle Response
       if (res && typeof res === "object" && "data" in res) {
-        // Casting ke interface yang sudah didefinisikan
         const dataRes = res.data as TransactionResponseData;
 
-        // Jika Automatic & ada Link
         if (paymentType === "automatic" && dataRes.payment?.account_number) {
           await Swal.fire({
             icon: "success",
@@ -357,7 +385,6 @@ export function useCheckout() {
           });
           window.open(dataRes.payment.account_number, "_blank");
         } else {
-          // Manual atau Automatic tanpa link (payment null)
           await Swal.fire({
             icon: "success",
             title: "Pesanan Berhasil Dibuat",

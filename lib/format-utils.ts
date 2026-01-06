@@ -30,7 +30,7 @@ export const formatRupiahWithRp = (value: number | string | null) => {
 
   if (!Number.isFinite(num)) return "Rp ";
   const base = num.toLocaleString("id-ID"); // "100.000"
-  return `Rp ${base},000`; // "Rp 100.000,000"
+  return `Rp ${base},00`; // "Rp 100.000,00"
 };
 
 // 3) Parser umum: terima input dengan/atau tanpa ,000 → kembalikan number mentah

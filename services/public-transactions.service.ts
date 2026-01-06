@@ -1,4 +1,5 @@
 import { apiSlice } from "@/services/base-query";
+import { PaymentResp } from "@/components/main/cart/payment-panel";
 
 /** ===== Types persis payload publik ===== */
 
@@ -47,6 +48,25 @@ export interface Product {
   media?: ProductMedia[];
 }
 
+export interface ProductVariantSize {
+  id: number;
+  product_variant_id: number;
+  name: string;
+  sku: string;
+  price: string;
+  stock: number;
+  weight: number;
+  length: number;
+  width: number;
+  height: number;
+  diameter: number;
+  rating: string;
+  total_reviews: number;
+  status: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProductVariant {
   id: number;
   product_id: number;
@@ -65,6 +85,8 @@ export interface ProductVariant {
   status?: number;
   created_at?: string;
   updated_at?: string;
+  // PERBAIKAN 1: Pastikan ini Array []
+  product_variant_sizes?: ProductVariantSize[];
 }
 
 export interface ShopDetail {
@@ -73,13 +95,15 @@ export interface ShopDetail {
   transaction_shop_id?: number;
   product_id: number;
   product_variant_id: number | null;
-  product_detail?: string | null; // JSON string of variant detail
+  // PERBAIKAN 2: Tambahkan field ini agar dikenali
+  product_variant_size_id?: number | null;
+  product_detail?: string | null;
   price: number;
   quantity: number;
   total: number;
   created_at?: string;
   updated_at?: string;
-  product?: Product;
+  product?: Product; // Sesuaikan import Product
   product_variant?: ProductVariant;
 }
 
@@ -156,6 +180,7 @@ export interface Transaction {
   service?: string;
   shipping_cost?: number;
   resi_number?: string | null;
+  payment: PaymentResp | null;
 
   // NOTE: response uses "shops" (not "stores")
   shops?: ShopPayload[];

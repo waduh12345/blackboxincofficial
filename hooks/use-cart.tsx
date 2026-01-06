@@ -2,24 +2,33 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { Product } from "@/types/admin/product";
 
-// Tambahkan properti 'quantity' ke tipe Product untuk menyimpan jumlah produk di keranjang.
+// Perluas tipe Product untuk CartItem agar bisa menampung info varian/size
 export type CartItem = Product & {
+  cartId: string; // ID Unik untuk keranjang (Composite Key)
   quantity: number;
+  // Field opsional untuk menampung nama variant/size
+  variant_name?: string | number;
+  size_name?: string | number;
+  product_variant_size_id?: number | null;
 };
 
 type CartStore = {
   isOpen: boolean;
-  cartItems: CartItem[]; // Ubah tipe menjadi CartItem[]
+  cartItems: CartItem[];
   open: () => void;
   close: () => void;
   toggle: () => void;
-  addItem: (product: Product, product_variant_id?: number) => void;
-  removeItem: (id: number) => void;
-  increaseItemQuantity: (id: number) => void; // Fungsi baru untuk menambah kuantitas
-  decreaseItemQuantity: (id: number) => void; // Fungsi baru untuk mengurangi kuantitas
-  clearCart: () => void; // Fungsi baru untuk menghapus semua item dan clear cache
-  getTotalItems: () => number; // Fungsi tambahan untuk mendapatkan total item
-  getTotalPrice: () => number; // Fungsi tambahan untuk mendapatkan total harga
+  // addItem sekarang menerima partial object agar bisa inject variant_name/size_name
+  addItem: (
+    product: Product & Partial<CartItem>,
+    product_variant_id?: number
+  ) => void;
+  removeItem: (cartId: string) => void;
+  increaseItemQuantity: (cartId: string) => void;
+  decreaseItemQuantity: (cartId: string) => void;
+  clearCart: () => void;
+  getTotalItems: () => number;
+  getTotalPrice: () => number;
 };
 
 const useCart = create<CartStore>()(
@@ -29,73 +38,92 @@ const useCart = create<CartStore>()(
       cartItems: [],
 
       open: () => set({ isOpen: true }),
-
       close: () => set({ isOpen: false }),
-
       toggle: () => set((state) => ({ isOpen: !state.isOpen })),
 
-      addItem: (product: Product, product_variant_id?: number) => {
-        const variant = product_variant_id ?? product.product_variant_id ?? 0;
+      addItem: (product, product_variant_id) => {
+        // 1. Tentukan ID Variant & Size
+        const variantId = product_variant_id ?? product.product_variant_id ?? 0;
+        const sizeId = product.product_variant_size_id ?? 0;
+
+        // 2. Buat UNIQUE KEY (cartId)
+        // Format: productID-variantID-sizeID
+        const uniqueCartId = `${product.id}-${variantId}-${sizeId}`;
 
         set((state) => {
+          // Cek apakah item dengan kombinasi PERSIS sama sudah ada
           const existingItem = state.cartItems.find(
-            (item) => item.id === product.id
+            (item) => item.cartId === uniqueCartId
           );
 
           if (existingItem) {
+            // Jika ada, update quantity saja
             const updatedCartItems = state.cartItems.map((item) =>
-              item.id === product.id
+              item.cartId === uniqueCartId
                 ? { ...item, quantity: item.quantity + 1 }
                 : item
             );
             return { cartItems: updatedCartItems };
           }
 
+          // Jika tidak ada, tambah item baru dengan cartId baru
           return {
             cartItems: [
               ...state.cartItems,
-              { ...product, quantity: 1, product_variant_id: variant },
+              {
+                ...product,
+                quantity: 1,
+                product_variant_id: variantId,
+                product_variant_size_id: sizeId,
+                cartId: uniqueCartId, // Simpan ID unik ini
+              },
             ],
           };
         });
       },
 
-      removeItem: (id) =>
+      // Hapus berdasarkan cartId (bukan product id)
+      removeItem: (cartId) =>
         set((state) => ({
-          cartItems: state.cartItems.filter((item) => item.id !== id),
+          cartItems: state.cartItems.filter((item) => item.cartId !== cartId),
         })),
 
-      increaseItemQuantity: (id) => {
+      increaseItemQuantity: (cartId) => {
         set((state) => ({
           cartItems: state.cartItems.map((item) =>
-            item.id === id ? { ...item, quantity: item.quantity + 1 } : item
+            item.cartId === cartId
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
           ),
         }));
       },
 
-      decreaseItemQuantity: (id) => {
+      decreaseItemQuantity: (cartId) => {
         set((state) => {
-          const itemToDecrease = state.cartItems.find((item) => item.id === id);
+          const itemToDecrease = state.cartItems.find(
+            (item) => item.cartId === cartId
+          );
 
           if (itemToDecrease && itemToDecrease.quantity > 1) {
             return {
               cartItems: state.cartItems.map((item) =>
-                item.id === id ? { ...item, quantity: item.quantity - 1 } : item
+                item.cartId === cartId
+                  ? { ...item, quantity: item.quantity - 1 }
+                  : item
               ),
             };
           } else {
-            // Jika kuantitas 1, hapus item dari keranjang
             return {
-              cartItems: state.cartItems.filter((item) => item.id !== id),
+              cartItems: state.cartItems.filter(
+                (item) => item.cartId !== cartId
+              ),
             };
           }
         });
       },
 
-      // Fungsi untuk menghapus semua item dari keranjang
       clearCart: () => set({ cartItems: [] }),
 
-      // Fungsi tambahan untuk mendapatkan total jumlah item
       getTotalItems: () => {
         const state = get();
         return state.cartItems.reduce(
@@ -104,7 +132,6 @@ const useCart = create<CartStore>()(
         );
       },
 
-      // Fungsi tambahan untuk mendapatkan total harga (asumsi ada properti price di Product)
       getTotalPrice: () => {
         const state = get();
         return state.cartItems.reduce(
@@ -119,6 +146,5 @@ const useCart = create<CartStore>()(
     }
   )
 );
-
 
 export default useCart;

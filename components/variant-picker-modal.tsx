@@ -5,8 +5,13 @@ import Image from "next/image";
 import { Minus, Plus, ShoppingCart, X } from "lucide-react";
 import { Product } from "@/types/admin/product";
 import { useGetProductVariantBySlugQuery } from "@/services/product.service";
+// Pastikan path service size ini sesuai dengan struktur project Anda
+import { useGetProductVariantSizesQuery } from "@/services/admin/product-variant-size.service";
 import useCart from "@/hooks/use-cart";
 import Swal from "sweetalert2";
+import clsx from "clsx";
+
+// --- TYPES ---
 
 type ProductVariant = {
   id: number;
@@ -15,6 +20,16 @@ type ProductVariant = {
   stock: number | string;
   sku?: string | null;
 };
+
+type ProductVariantSize = {
+  id: number;
+  name: string | number;
+  price: number | string;
+  stock: number | string;
+  sku?: string | null;
+};
+
+// --- HELPERS ---
 
 const isVariantArray = (v: unknown): v is ProductVariant[] =>
   Array.isArray(v) &&
@@ -28,7 +43,20 @@ const isVariantArray = (v: unknown): v is ProductVariant[] =>
       "stock" in o
   );
 
-const toNumber = (val: number | string | undefined): number => {
+const isSizeArray = (v: unknown): v is ProductVariantSize[] =>
+  Array.isArray(v) &&
+  v.every(
+    (o) =>
+      !!o &&
+      typeof o === "object" &&
+      "id" in o &&
+      "name" in o &&
+      "price" in o &&
+      "stock" in o
+  );
+
+const toNumber = (val: number | string | undefined | null): number => {
+  if (val === undefined || val === null) return 0;
   if (typeof val === "number") return val;
   if (typeof val === "string") {
     const n = parseFloat(val);
@@ -49,6 +77,8 @@ function getImageUrl(p?: Product): string {
   return IMG_FALLBACK;
 }
 
+// --- COMPONENT ---
+
 export default function VariantPickerModal({
   open,
   product,
@@ -62,27 +92,45 @@ export default function VariantPickerModal({
 }) {
   const { addItem } = useCart();
 
-  // fetch daftar varian berdasar slug produk
+  // 1. Fetch Variants
   const slug = product?.slug ?? "";
-  const { data: variantResp, isLoading } = useGetProductVariantBySlugQuery(
-    slug,
-    {
+  const { data: variantResp, isLoading: isLoadingVariants } =
+    useGetProductVariantBySlugQuery(slug, {
       skip: !open || !slug,
-    }
-  );
+    });
 
   const variants: ProductVariant[] = useMemo(() => {
     const maybe = (variantResp as unknown as { data?: unknown })?.data;
     return isVariantArray(maybe) ? maybe : [];
   }, [variantResp]);
 
-  const [selected, setSelected] = useState<ProductVariant | null>(null);
+  // State Selection
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    null
+  );
+  const [selectedSize, setSelectedSize] = useState<ProductVariantSize | null>(
+    null
+  );
   const [qty, setQty] = useState<number>(1);
 
-  // kalau produk tidak punya varian, langsung add dan tutup
+  // 2. Fetch Sizes (Triggered when variant is selected)
+  const { data: sizeResp, isFetching: isFetchingSizes } =
+    useGetProductVariantSizesQuery(
+      { variantId: selectedVariant?.id ?? 0, page: 1, paginate: 100 },
+      { skip: !selectedVariant || !open }
+    );
+
+  const sizes: ProductVariantSize[] = useMemo(() => {
+    const maybe = (sizeResp as unknown as { data?: unknown })?.data;
+    return isSizeArray(maybe) ? maybe : [];
+  }, [sizeResp]);
+
+  // --- EFFECTS ---
+
+  // Auto-add jika produk tidak memiliki varian sama sekali (Simple Product)
   useEffect(() => {
     if (!open || !product) return;
-    if (!isLoading && variants.length === 0) {
+    if (!isLoadingVariants && variants.length === 0) {
       const fallbackPrice = toNumber(product.price);
       addItem(
         { ...product, price: fallbackPrice },
@@ -91,29 +139,86 @@ export default function VariantPickerModal({
       onClose();
       onAdded?.();
     }
-  }, [open, isLoading, variants.length, product, addItem, onClose, onAdded]);
+  }, [
+    open,
+    isLoadingVariants,
+    variants.length,
+    product,
+    addItem,
+    onClose,
+    onAdded,
+  ]);
 
+  // Reset state saat modal ditutup
   useEffect(() => {
     if (!open) {
-      setSelected(null);
+      setSelectedVariant(null);
+      setSelectedSize(null);
       setQty(1);
     }
   }, [open]);
 
-  if (!open || !product) return null;
-  if (variants.length === 0) return null; // kasus auto-add di effect di atas
+  // Reset Size saat Variant berubah
+  useEffect(() => {
+    setSelectedSize(null);
+  }, [selectedVariant]);
 
-  const curPrice = toNumber(selected?.price);
-  const curStock = toNumber(selected?.stock);
-  const total = curPrice * qty;
+  // --- CALCULATION LOGIC ---
+
+  if (!open || !product) return null;
+  // Jika varian kosong, null (karena sudah di-handle auto-add)
+  if (variants.length === 0) return null;
+
+  // 1. Hitung Harga Satuan (Aditif)
+  // Harga = Harga Produk + Harga Varian + Harga Size
+  const basePrice = toNumber(product.price);
+  const variantPrice = toNumber(selectedVariant?.price);
+  const sizePrice = toNumber(selectedSize?.price);
+
+  const unitPrice = basePrice + variantPrice + sizePrice;
+  const totalPrice = unitPrice * qty;
+
+  // 2. Tentukan Stok Hierarkis (Size > Variant > Product)
+  const curStock = toNumber(
+    selectedSize?.stock ?? selectedVariant?.stock ?? product.stock
+  );
+
+  // --- HANDLERS ---
 
   const handleAdd = () => {
-    if (!selected) return;
-    const vId = selected.id;
-    const price = curPrice || toNumber(product.price);
+    if (!selectedVariant) return;
 
-    // Add item to cart
-    addItem({ ...product, price }, vId);
+    // Validasi Size jika ada sizes tersedia tapi belum dipilih
+    if (sizes.length > 0 && !selectedSize) {
+      Swal.fire({
+        icon: "warning",
+        title: "Pilih Ukuran",
+        text: "Silakan pilih ukuran terlebih dahulu.",
+        toast: true,
+        position: "top-end",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      return;
+    }
+
+    const vId = selectedVariant.id;
+    const sId = selectedSize?.id ?? null;
+
+    // Construct item dengan data lengkap untuk cart
+    const productToAdd = {
+      ...product,
+      price: unitPrice, // Harga final per unit
+      product_variant_id: vId,
+      product_variant_size_id: sId, // Tambahkan size ID
+    };
+
+    // Panggil addItem (sesuaikan dengan signature useCart Anda, biasanya menerima object product + variantId)
+    // Loop qty jika addItem hanya handle 1 per 1, atau pass qty jika didukung.
+    // Asumsi addItem menambah qty jika item ada, kita loop untuk amannya atau sesuaikan logic useCart.
+    for (let i = 0; i < qty; i++) {
+      addItem(productToAdd, vId);
+    }
 
     Swal.fire({
       icon: "success",
@@ -123,14 +228,12 @@ export default function VariantPickerModal({
       timer: 1500,
       toast: true,
       position: "top-end",
-
       background: "#ffffff",
       color: "#000000",
       iconColor: "#000000",
       customClass: {
         popup: "border border-gray-200 shadow-xl",
       },
-      // ----------------------
     });
 
     onAdded?.();
@@ -143,7 +246,7 @@ export default function VariantPickerModal({
       <div className="absolute left-1/2 top-1/2 w-[92%] max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b px-5 py-4">
           <h3 className="text-base font-bold uppercase tracking-wider text-black">
-            Pilih Varian
+            Pilih Opsi Produk
           </h3>
           <button
             onClick={onClose}
@@ -154,7 +257,8 @@ export default function VariantPickerModal({
         </div>
 
         <div className="grid gap-4 p-5 sm:grid-cols-[140px_1fr]">
-          <div className="rounded-lg border bg-gray-50 p-1">
+          {/* Product Image */}
+          <div className="rounded-lg border bg-gray-50 p-1 self-start">
             <Image
               src={getImageUrl(product)}
               alt={product.name}
@@ -175,27 +279,35 @@ export default function VariantPickerModal({
               </div>
             </div>
 
+            {/* --- VARIAN --- */}
             <div className="mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-black">
                 Varian
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {variants.map((v) => {
-                  const disabled = toNumber(v.stock) <= 0;
-                  const active = selected?.id === v.id;
+                  const isActive = selectedVariant?.id === v.id;
+                  // Jangan disable varian hanya karena stok varian 0,
+                  // karena mungkin varian 0 tapi size-nya ada (tergantung logika backend),
+                  // tapi amannya kita cek stok varian itu sendiri.
+                  // Disini kita gunakan toNumber(v.stock) <= 0
+                  // Note: Bisa jadi stok varian induk 0 tapi stok di size table ada.
+                  // Jika mengikuti logika hierarki ketat, biarkan enabled agar user bisa cek size.
+                  const disabled = false; // Biarkan user klik untuk cek size
+
                   return (
                     <button
                       key={v.id}
                       disabled={disabled}
-                      onClick={() => setSelected(v)}
-                      className={[
+                      onClick={() => setSelectedVariant(v)}
+                      className={clsx(
                         "rounded-md px-3 py-1.5 text-sm font-semibold ring-1 transition",
-                        disabled
-                          ? "cursor-not-allowed opacity-50 line-through ring-gray-200"
-                          : active
+                        disabled &&
+                          "cursor-not-allowed opacity-50 line-through ring-gray-200",
+                        isActive
                           ? "bg-black text-white ring-black"
-                          : "bg-white text-gray-700 ring-gray-300 hover:ring-black/60",
-                      ].join(" ")}
+                          : "bg-white text-gray-700 ring-gray-300 hover:ring-black/60"
+                      )}
                     >
                       {String(v.name)}
                     </button>
@@ -204,12 +316,54 @@ export default function VariantPickerModal({
               </div>
             </div>
 
+            {/* --- UKURAN (Muncul jika varian dipilih) --- */}
+            {selectedVariant &&
+              (isFetchingSizes ? (
+                <div className="mb-4 text-xs text-gray-400 animate-pulse">
+                  Memuat ukuran...
+                </div>
+              ) : (
+                sizes.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs font-bold uppercase tracking-wider text-black">
+                      Ukuran
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {sizes.map((s) => {
+                        const isActive = selectedSize?.id === s.id;
+                        const sStock = toNumber(s.stock);
+                        const disabled = sStock <= 0;
+
+                        return (
+                          <button
+                            key={s.id}
+                            disabled={disabled}
+                            onClick={() => setSelectedSize(s)}
+                            className={clsx(
+                              "rounded-md px-3 py-1.5 text-sm font-semibold ring-1 transition",
+                              disabled &&
+                                "cursor-not-allowed opacity-50 bg-gray-100 ring-gray-200 text-gray-400 decoration-slice",
+                              isActive
+                                ? "bg-black text-white ring-black"
+                                : "bg-white text-gray-700 ring-gray-300 hover:ring-black/60"
+                            )}
+                          >
+                            {String(s.name)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )
+              ))}
+
+            {/* --- QTY & TOTAL --- */}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="inline-flex items-center rounded-lg border border-gray-300">
                 <button
                   onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  disabled={!selected || curStock <= 0}
-                  className="rounded-l-lg p-2 hover:bg-gray-50"
+                  disabled={!selectedVariant || curStock <= 0 || qty <= 1}
+                  className="rounded-l-lg p-2 hover:bg-gray-50 disabled:opacity-50"
                 >
                   <Minus className="h-4 w-4" />
                 </button>
@@ -224,14 +378,16 @@ export default function VariantPickerModal({
                     const max = curStock > 0 ? curStock : 1;
                     setQty(Number.isNaN(v) ? 1 : Math.max(1, Math.min(v, max)));
                   }}
-                  disabled={!selected || curStock <= 0}
+                  disabled={!selectedVariant || curStock <= 0}
                 />
                 <button
                   onClick={() =>
                     setQty((q) => Math.min(q + 1, curStock > 0 ? curStock : 1))
                   }
-                  disabled={!selected || curStock <= 0 || qty >= curStock}
-                  className="rounded-r-lg p-2 hover:bg-gray-50"
+                  disabled={
+                    !selectedVariant || curStock <= 0 || qty >= curStock
+                  }
+                  className="rounded-r-lg p-2 hover:bg-gray-50 disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
@@ -240,18 +396,27 @@ export default function VariantPickerModal({
               <div className="text-sm">
                 <span className="text-gray-600">Total: </span>
                 <span className="font-extrabold text-black">
-                  Rp {total.toLocaleString("id-ID")}
+                  Rp {totalPrice.toLocaleString("id-ID")}
                 </span>
               </div>
             </div>
 
+            {/* --- ADD BUTTON --- */}
             <button
               onClick={handleAdd}
-              disabled={!selected || curStock <= 0}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-black px-4 py-3 text-white transition hover:bg-gray-800 disabled:bg-gray-400"
+              disabled={
+                !selectedVariant ||
+                curStock <= 0 ||
+                (sizes.length > 0 && !selectedSize)
+              }
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-black px-4 py-3 text-white transition hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               <ShoppingCart className="h-5 w-5" />
-              Tambah ke Keranjang
+              {curStock <= 0
+                ? "Stok Habis"
+                : sizes.length > 0 && !selectedSize
+                ? "Pilih Ukuran"
+                : "Tambah ke Keranjang"}
             </button>
           </div>
         </div>

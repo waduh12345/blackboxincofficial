@@ -311,7 +311,7 @@ export default function GuestConfirmationPage() {
                           alt="Bank Central Asia"
                           width={80}
                           height={80}
-                          className="w-12 h-12 rounded-full object-cover"
+                          className="w-20 h-12 object-cover"
                         />
                         <div>
                           <p className="text-sm text-gray-500">

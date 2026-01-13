@@ -40,6 +40,7 @@ type UpsertVariant =
       product_id?: number;
       rating?: number;
       total_reviews?: number;
+      image?: File | string | null;
     }
   | FormData;
 

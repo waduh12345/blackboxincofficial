@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Swal from "sweetalert2";
 import Image from "next/image";
-import { X, ChevronRight, ChevronLeft, Trash2, Edit } from "lucide-react";
+import {
+  X,
+  ChevronRight,
+  ChevronLeft,
+  Trash2,
+  Edit,
+  UploadCloud,
+} from "lucide-react";
 
 // UI Components
 import { Input } from "@/components/ui/input";
@@ -213,6 +220,13 @@ export default function FormProduct({
   });
   const [isEditingVariant, setIsEditingVariant] = useState(false);
 
+  // State untuk Gambar Variant
+  const [variantImageFile, setVariantImageFile] = useState<File | null>(null);
+  const [variantImagePreview, setVariantImagePreview] = useState<string | null>(
+    null
+  );
+  const variantFileInputRef = useRef<HTMLInputElement>(null);
+
   // Query Variants
   const { data: variantsData, refetch: refetchVariants } =
     useGetProductVariantsQuery(
@@ -225,6 +239,17 @@ export default function FormProduct({
   const [updateVariant, { isLoading: isUpdatingVar }] =
     useUpdateProductVariantMutation();
   const [deleteVariant] = useDeleteProductVariantMutation();
+
+  // Helper untuk reset form variant
+  const resetVariantForm = () => {
+    setVariantForm({ status: true });
+    setIsEditingVariant(false);
+    setVariantImageFile(null);
+    setVariantImagePreview(null);
+    if (variantFileInputRef.current) {
+      variantFileInputRef.current.value = "";
+    }
+  };
 
   const handleVariantSubmit = async () => {
     if (!currentSlug) return;
@@ -241,6 +266,11 @@ export default function FormProduct({
       payload.append("width", String(variantForm.width ?? 0));
       payload.append("height", String(variantForm.height ?? 0));
       payload.append("diameter", String(variantForm.diameter ?? 0));
+
+      // Append Gambar Variant
+      if (variantImageFile) {
+        payload.append("image", variantImageFile);
+      }
 
       if (isEditingVariant && variantForm.id) {
         // Update
@@ -269,8 +299,7 @@ export default function FormProduct({
         });
       }
 
-      setVariantForm({ status: true });
-      setIsEditingVariant(false);
+      resetVariantForm();
       refetchVariants();
     } catch (error: unknown) {
       console.error(error);
@@ -548,7 +577,7 @@ export default function FormProduct({
     </div>
   );
 
-  // VIEW: STEP 2 (VARIANT) - Tidak banyak berubah, hanya layout
+  // VIEW: STEP 2 (VARIANT) - UPDATED DENGAN GAMBAR
   const renderStep2 = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -560,64 +589,143 @@ export default function FormProduct({
         <h4 className="font-semibold mb-3">
           {isEditingVariant ? "Edit Variant" : "Tambah Variant Baru"}
         </h4>
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <Input
-            placeholder="Nama Variant (mis: Merah)"
-            value={variantForm.name || ""}
-            onChange={(e) =>
-              setVariantForm({ ...variantForm, name: e.target.value })
-            }
-          />
-          <Input
-            placeholder="SKU"
-            value={variantForm.sku || ""}
-            onChange={(e) =>
-              setVariantForm({ ...variantForm, sku: e.target.value })
-            }
-          />
-          <Input
-            type="number"
-            placeholder="Harga"
-            value={variantForm.price ?? ""}
-            onChange={(e) =>
-              setVariantForm({
-                ...variantForm,
-                price: Number(e.target.value),
-              })
-            }
-          />
-          <Input
-            type="number"
-            placeholder="Stok"
-            value={variantForm.stock ?? ""}
-            onChange={(e) =>
-              setVariantForm({
-                ...variantForm,
-                stock: Number(e.target.value),
-              })
-            }
-          />
-          <Input
-            type="number"
-            placeholder="Berat (g)"
-            value={variantForm.weight ?? ""}
-            onChange={(e) =>
-              setVariantForm({
-                ...variantForm,
-                weight: Number(e.target.value),
-              })
-            }
-          />
+
+        {/* Layout Grid Form (Gambar di Kiri, Input di Kanan) */}
+        <div className="flex flex-col md:flex-row gap-4 mb-3">
+          {/* --- Bagian Upload Gambar Variant --- */}
+          <div className="w-full md:w-32 flex-shrink-0">
+            <div
+              className="relative w-full h-32 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 overflow-hidden bg-white"
+              onClick={() => variantFileInputRef.current?.click()}
+            >
+              {variantImagePreview ? (
+                <Image
+                  src={variantImagePreview}
+                  alt="Preview"
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="text-center p-2">
+                  <UploadCloud className="w-6 h-6 mx-auto text-gray-400 mb-1" />
+                  <span className="text-xs text-gray-500">Upload Foto</span>
+                </div>
+              )}
+            </div>
+            <Input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={variantFileInputRef}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setVariantImageFile(file);
+                  setVariantImagePreview(URL.createObjectURL(file));
+                }
+              }}
+            />
+            {variantImagePreview && (
+              <div className="text-center mt-1">
+                <button
+                  type="button"
+                  className="text-xs text-red-600 hover:underline"
+                  onClick={() => {
+                    setVariantImageFile(null);
+                    setVariantImagePreview(null);
+                    if (variantFileInputRef.current)
+                      variantFileInputRef.current.value = "";
+                  }}
+                >
+                  Hapus Gambar
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* --- Bagian Input Text --- */}
+          <div className="flex-1 grid grid-cols-2 gap-3">
+            <div className="col-span-2 md:col-span-1">
+              <Label className="text-xs mb-1 block">Nama Variant</Label>
+              <Input
+                placeholder="Nama Variant (mis: Merah)"
+                value={variantForm.name || ""}
+                onChange={(e) =>
+                  setVariantForm({ ...variantForm, name: e.target.value })
+                }
+              />
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <Label className="text-xs mb-1 block">SKU</Label>
+              <Input
+                placeholder="SKU"
+                value={variantForm.sku || ""}
+                onChange={(e) =>
+                  setVariantForm({ ...variantForm, sku: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Harga (IDR)</Label>
+              <Input
+                type="number"
+                placeholder="Harga"
+                value={variantForm.price ?? ""}
+                onChange={(e) =>
+                  setVariantForm({
+                    ...variantForm,
+                    price: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Stok</Label>
+              <Input
+                type="number"
+                placeholder="Stok"
+                value={variantForm.stock ?? ""}
+                onChange={(e) =>
+                  setVariantForm({
+                    ...variantForm,
+                    stock: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Berat (gram)</Label>
+              <Input
+                type="number"
+                placeholder="Berat (g)"
+                value={variantForm.weight ?? ""}
+                onChange={(e) =>
+                  setVariantForm({
+                    ...variantForm,
+                    weight: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div className="flex items-center pt-5">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={Boolean(variantForm.status)}
+                  onChange={(e) =>
+                    setVariantForm({ ...variantForm, status: e.target.checked })
+                  }
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">Aktif</span>
+              </label>
+            </div>
+          </div>
         </div>
+
         <div className="flex justify-end gap-2">
           {isEditingVariant && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setIsEditingVariant(false);
-                setVariantForm({ status: true });
-              }}
-            >
+            <Button variant="ghost" onClick={resetVariantForm}>
               Batal Edit
             </Button>
           )}
@@ -639,6 +747,7 @@ export default function FormProduct({
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-200 text-black font-bold">
             <tr>
+              <th className="p-2 w-16">Image</th> {/* Kolom Gambar */}
               <th className="p-2">Nama</th>
               <th className="p-2">SKU</th>
               <th className="p-2">Harga</th>
@@ -648,8 +757,27 @@ export default function FormProduct({
           </thead>
           <tbody>
             {variantsData?.data?.map((v) => (
-              <tr key={v.id} className="border-t border-gray-300">
-                <td className="p-2">{v.name}</td>
+              <tr
+                key={v.id}
+                className="border-t border-gray-300 hover:bg-gray-50"
+              >
+                <td className="p-2">
+                  <div className="relative w-10 h-10 border rounded bg-gray-100 overflow-hidden">
+                    {v.image ? (
+                      <Image
+                        src={v.image}
+                        alt={v.name}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-xs text-gray-400">
+                        No Img
+                      </div>
+                    )}
+                  </div>
+                </td>
+                <td className="p-2 font-medium">{v.name}</td>
                 <td className="p-2">{v.sku}</td>
                 <td className="p-2">{formatNumber(v.price)}</td>
                 <td className="p-2">{v.stock}</td>
@@ -660,6 +788,9 @@ export default function FormProduct({
                     className="h-8 w-8"
                     onClick={() => {
                       setVariantForm(v);
+                      // Set preview gambar dari data
+                      setVariantImagePreview(v.image || null);
+                      setVariantImageFile(null);
                       setIsEditingVariant(true);
                     }}
                   >
@@ -687,7 +818,7 @@ export default function FormProduct({
             ))}
             {(!variantsData?.data || variantsData.data.length === 0) && (
               <tr>
-                <td colSpan={5} className="p-4 text-center text-gray-500">
+                <td colSpan={6} className="p-4 text-center text-gray-500">
                   Belum ada variant
                 </td>
               </tr>

@@ -10,6 +10,8 @@ export interface ProductVariant {
   price: number; // in IDR
   stock: number;
 
+  image?: string | null;
+
   // Shipping dimensions (typically in mm / gram)
   weight: number; // gram
   length: number; // mm

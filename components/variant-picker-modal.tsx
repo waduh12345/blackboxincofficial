@@ -5,22 +5,13 @@ import Image from "next/image";
 import { Minus, Plus, ShoppingCart, X } from "lucide-react";
 import { Product } from "@/types/admin/product";
 import { useGetProductVariantBySlugQuery } from "@/services/product.service";
-// Pastikan path service size ini sesuai dengan struktur project Anda
 import { useGetProductVariantSizesQuery } from "@/services/admin/product-variant-size.service";
 import useCart from "@/hooks/use-cart";
 import Swal from "sweetalert2";
 import clsx from "clsx";
+import { ProductVariant } from "@/types/admin/product-variant";
 
 // --- TYPES ---
-
-type ProductVariant = {
-  id: number;
-  name: string | number;
-  price: number | string;
-  stock: number | string;
-  sku?: string | null;
-};
-
 type ProductVariantSize = {
   id: number;
   name: string | number;
@@ -92,6 +83,9 @@ export default function VariantPickerModal({
 }) {
   const { addItem } = useCart();
 
+  // State untuk gambar aktif (agar bisa berubah saat varian dipilih)
+  const [activeImage, setActiveImage] = useState<string>(IMG_FALLBACK);
+
   // 1. Fetch Variants
   const slug = product?.slug ?? "";
   const { data: variantResp, isLoading: isLoadingVariants } =
@@ -126,6 +120,21 @@ export default function VariantPickerModal({
   }, [sizeResp]);
 
   // --- EFFECTS ---
+
+  // Effect: Set gambar awal saat modal dibuka atau produk berubah
+  useEffect(() => {
+    if (open && product) {
+      setActiveImage(getImageUrl(product));
+    }
+  }, [open, product]);
+
+  // Effect: Update gambar jika varian dipilih dan memiliki gambar
+  useEffect(() => {
+    if (selectedVariant?.image) {
+      setActiveImage(selectedVariant.image);
+    }
+    // Opsional: Jika ingin reset ke gambar produk saat deselect, tambahkan else logic di sini
+  }, [selectedVariant]);
 
   // Auto-add jika produk tidak memiliki varian sama sekali (Simple Product)
   useEffect(() => {
@@ -213,9 +222,7 @@ export default function VariantPickerModal({
       product_variant_size_id: sId, // Tambahkan size ID
     };
 
-    // Panggil addItem (sesuaikan dengan signature useCart Anda, biasanya menerima object product + variantId)
-    // Loop qty jika addItem hanya handle 1 per 1, atau pass qty jika didukung.
-    // Asumsi addItem menambah qty jika item ada, kita loop untuk amannya atau sesuaikan logic useCart.
+    // Panggil addItem
     for (let i = 0; i < qty; i++) {
       addItem(productToAdd, vId);
     }
@@ -260,7 +267,7 @@ export default function VariantPickerModal({
           {/* Product Image */}
           <div className="rounded-lg border bg-gray-50 p-1 self-start">
             <Image
-              src={getImageUrl(product)}
+              src={activeImage} // Menggunakan activeImage state
               alt={product.name}
               width={140}
               height={140}
@@ -287,21 +294,16 @@ export default function VariantPickerModal({
               <div className="mt-2 flex flex-wrap gap-2">
                 {variants.map((v) => {
                   const isActive = selectedVariant?.id === v.id;
-                  // Jangan disable varian hanya karena stok varian 0,
-                  // karena mungkin varian 0 tapi size-nya ada (tergantung logika backend),
-                  // tapi amannya kita cek stok varian itu sendiri.
-                  // Disini kita gunakan toNumber(v.stock) <= 0
-                  // Note: Bisa jadi stok varian induk 0 tapi stok di size table ada.
-                  // Jika mengikuti logika hierarki ketat, biarkan enabled agar user bisa cek size.
-                  const disabled = false; // Biarkan user klik untuk cek size
+                  const disabled = false;
 
                   return (
                     <button
                       key={v.id}
                       disabled={disabled}
                       onClick={() => setSelectedVariant(v)}
+                      // Update styling untuk mengakomodasi gambar dan flex layout
                       className={clsx(
-                        "rounded-md px-3 py-1.5 text-sm font-semibold ring-1 transition",
+                        "flex items-center gap-2 rounded-md py-1.5 pl-1.5 pr-3 text-sm font-semibold ring-1 transition",
                         disabled &&
                           "cursor-not-allowed opacity-50 line-through ring-gray-200",
                         isActive
@@ -309,7 +311,17 @@ export default function VariantPickerModal({
                           : "bg-white text-gray-700 ring-gray-300 hover:ring-black/60"
                       )}
                     >
-                      {String(v.name)}
+                      {/* Thumbnail Varian */}
+                      {v.image && (
+                        <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded bg-gray-100">
+                          <img
+                            src={v.image}
+                            alt={String(v.name)}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <span>{String(v.name)}</span>
                     </button>
                   );
                 })}

@@ -15,6 +15,7 @@ import { ShoppingCart } from "lucide-react";
 import Swal from "sweetalert2";
 import clsx from "clsx";
 import useCart from "@/hooks/use-cart";
+import { ProductVariant } from "@/types/admin/product-variant";
 
 // --- HELPERS ---
 
@@ -36,16 +37,6 @@ const CURRENCY = (n: number) =>
     currency: "IDR",
     maximumFractionDigits: 0,
   }).format(n);
-
-// --- TYPES ---
-
-export interface ProductVariant {
-  id: number;
-  name: string | number;
-  price: number | string;
-  stock: number | string;
-  sku?: string | null;
-}
 
 export interface ProductVariantSize {
   id: number;
@@ -169,9 +160,12 @@ function ProductDetailClient({ slug }: { slug: string }) {
     return isSizeArray(maybe) ? maybe : [];
   }, [sizeData]);
 
-  // Efek Reset: Jika Variant berubah, reset Size
+  // Efek Reset & Sync Image: Jika Variant berubah, reset Size & Update Image Utama
   useEffect(() => {
     setSelectedSize(null);
+    if (selectedVariant?.image) {
+      setActiveImageUrl(selectedVariant.image);
+    }
   }, [selectedVariant]);
 
   // Efek Sinkronisasi Awal: Auto select jika variant kosong (produk simple)
@@ -473,14 +467,24 @@ function ProductDetailClient({ slug }: { slug: string }) {
                         key={v.id}
                         onClick={() => setSelectedVariant(v)}
                         className={clsx(
-                          "rounded-lg px-4 py-2 text-sm font-semibold ring-1 transition",
+                          "flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-4 text-sm font-semibold ring-1 transition",
                           isSelected
                             ? "bg-black text-white ring-black"
                             : "bg-white text-gray-700 ring-gray-300 hover:ring-black/50"
                         )}
                         aria-pressed={isSelected}
                       >
-                        {String(v.name)}
+                        {/* Logic Image Varian */}
+                        {v.image && (
+                          <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
+                            <img
+                              src={v.image}
+                              alt={String(v.name)}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <span>{String(v.name)}</span>
                       </button>
                     );
                   })}

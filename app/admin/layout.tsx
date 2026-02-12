@@ -195,9 +195,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
   ];
 
   // Tentukan menu items berdasarkan role pengguna
-  if (!user || user?.roles[0].name === "superadmin") {
+  const roleName = user?.roles?.[0]?.name;
+  if (!user || roleName === "superadmin") {
     menuItems = superadminMenuItems;
-  } else if (user?.roles[0].name === "admin") {
+  } else if (roleName === "admin") {
     menuItems = adminMenuItems;
   }
 

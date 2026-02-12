@@ -1,34 +1,16 @@
 export interface User {
   id: number;
-  role_id?: number;
+  role_id: number;
   name: string;
   email: string;
   phone: string;
-  status?: number;
+  status: number;
   sales_category_id?: number;
   sales_type_id?: number;
   created_at: string;
   updated_at: string;
-  email_verified_at?: string;
-  points?: number;
-  image?: string;
-  customer_group?: unknown;
-  media?: Array<{ original_url?: string }>;
-  roles?: Array<{ id: number; name: string; guard_name?: string; created_at?: string; updated_at?: string; pivot?: unknown }>;
-  default_address?: {
-    id: number;
-    user_id: number;
-    rajaongkir_province_id: number;
-    rajaongkir_city_id: number;
-    rajaongkir_district_id: number;
-    address_line_1: string;
-    address_line_2?: string;
-    postal_code: string;
-    is_default: boolean;
-    created_at: string;
-    updated_at: string;
-  };
-  shop?: {
+  roles: { id: number; name: string }[];
+  shop: {
     id: number;
     user_id: number;
     name: string;
@@ -49,7 +31,20 @@ export interface User {
     rajaongkir_district_id: string;
     logo: string;
     banner: string;
-  } | null;
+  };
+  default_address?: {
+    id: number;
+    user_id: number;
+    rajaongkir_province_id: number;
+    rajaongkir_city_id: number;
+    rajaongkir_district_id: number;
+    address_line_1: string;
+    address_line_2?: string;
+    postal_code: string;
+    is_default: boolean;
+    created_at: string;
+    updated_at: string;
+  };
 }
 
 export interface CreateUserPayload {

@@ -11,7 +11,7 @@ declare module "next-auth" {
         id: number;
         name: string;
       }[];
-      shop: {
+      shop?: {
         id: number;
         user_id: number;
         name: string;
@@ -32,7 +32,7 @@ declare module "next-auth" {
         rajaongkir_district_id: string;
         logo: string;
         banner: string;
-      };
+      } | null;
     } & DefaultSession["user"];
   }
 
@@ -44,7 +44,7 @@ declare module "next-auth" {
       id: number;
       name: string;
     }[];
-    shop: {
+    shop?: {
       id: number;
       user_id: number;
       name: string;
@@ -65,6 +65,6 @@ declare module "next-auth" {
       rajaongkir_district_id: string;
       logo: string;
       banner: string;
-    };
+    } | null;
   }
 }

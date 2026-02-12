@@ -23,7 +23,7 @@ export const authSecondApi = apiSecondSlice.injectEndpoints({
     // 🔑 Auth Login (Murni API call saja)
     authLogin: builder.mutation<LoginResponse, LoginRequest>({
       query: (credentials) => ({
-        url: "/login",
+        url: "/auth/login",
         method: "POST",
         body: credentials,
       }),

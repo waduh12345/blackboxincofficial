@@ -64,8 +64,8 @@ export const authOptions: AuthOptions = {
           name: user.name,
           phone: user.phone,
           token: token,
-          roles: user.roles || [],
-          shop: user.shop,
+          roles: user.roles ?? [],
+          shop: user.shop ?? null,
         };
       },
     }),
@@ -87,8 +87,8 @@ export const authOptions: AuthOptions = {
       if (session.user) {
         session.user.id = token.id as number;
         session.user.token = token.token as string;
-        session.user.roles = token.roles as User["roles"];
-        session.user.shop = token.shop as User["shop"];
+        session.user.roles = (token.roles ?? []) as { id: number; name: string }[];
+        session.user.shop = (token.shop ?? null) as User["shop"];
       }
       return session;
     },

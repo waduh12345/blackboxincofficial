@@ -10,6 +10,11 @@ import {
   Trash2,
   Edit,
   UploadCloud,
+  Copy,
+  Check,
+  Loader2,
+  ImageIcon,
+  Images,
 } from "lucide-react";
 
 // UI Components
@@ -225,7 +230,36 @@ export default function FormProduct({
   const [variantImagePreview, setVariantImagePreview] = useState<string | null>(
     null
   );
+  const [variantImageUrl, setVariantImageUrl] = useState<string | null>(null); // URL dari gambar produk yang dipilih
+  const [showImagePicker, setShowImagePicker] = useState(false);
   const variantFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get available product images for picker
+  const getProductImages = () => {
+    const images: { key: string; url: string; label: string }[] = [];
+    const imageKeys = ["image", "image_2", "image_3", "image_4", "image_5", "image_6", "image_7"] as const;
+    
+    imageKeys.forEach((key, index) => {
+      const url = imagePreviews[key];
+      if (url) {
+        images.push({
+          key,
+          url,
+          label: index === 0 ? "Utama" : `Gambar ${index + 1}`,
+        });
+      }
+    });
+    
+    return images;
+  };
+
+  // Handle select image from product
+  const handleSelectProductImage = (url: string) => {
+    setVariantImagePreview(url);
+    setVariantImageUrl(url);
+    setVariantImageFile(null); // Clear any uploaded file
+    setShowImagePicker(false);
+  };
 
   // Query Variants
   const { data: variantsData, refetch: refetchVariants } =
@@ -246,6 +280,8 @@ export default function FormProduct({
     setIsEditingVariant(false);
     setVariantImageFile(null);
     setVariantImagePreview(null);
+    setVariantImageUrl(null);
+    setShowImagePicker(false);
     if (variantFileInputRef.current) {
       variantFileInputRef.current.value = "";
     }
@@ -267,9 +303,12 @@ export default function FormProduct({
       payload.append("height", String(variantForm.height ?? 0));
       payload.append("diameter", String(variantForm.diameter ?? 0));
 
-      // Append Gambar Variant
+      // Append Gambar Variant - bisa file upload atau URL dari gambar produk
       if (variantImageFile) {
         payload.append("image", variantImageFile);
+      } else if (variantImageUrl) {
+        // Jika menggunakan URL dari gambar produk yang sudah ada
+        payload.append("image_url", variantImageUrl);
       }
 
       if (isEditingVariant && variantForm.id) {
@@ -343,6 +382,276 @@ export default function FormProduct({
   const [updateSize, { isLoading: isUpdatingSize }] =
     useUpdateProductVariantSizeMutation();
   const [deleteSize] = useDeleteProductVariantSizeMutation();
+
+  // === BULK EDIT STATES ===
+  const [bulkVariantPrice, setBulkVariantPrice] = useState<number | "">("");
+  const [bulkVariantWeight, setBulkVariantWeight] = useState<number | "">("");
+  const [bulkVariantStock, setBulkVariantStock] = useState<number | "">("");
+  const [selectedVariantIds, setSelectedVariantIds] = useState<Set<number>>(new Set());
+  const [isApplyingBulkVariant, setIsApplyingBulkVariant] = useState(false);
+
+  const [bulkSizePrice, setBulkSizePrice] = useState<number | "">("");
+  const [bulkSizeWeight, setBulkSizeWeight] = useState<number | "">("");
+  const [bulkSizeStock, setBulkSizeStock] = useState<number | "">("");
+  const [selectedSizeIds, setSelectedSizeIds] = useState<Set<number>>(new Set());
+  const [isApplyingBulkSize, setIsApplyingBulkSize] = useState(false);
+
+  // Toggle select variant for bulk edit
+  const toggleSelectVariant = (id: number) => {
+    setSelectedVariantIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  // Toggle select all variants
+  const toggleSelectAllVariants = () => {
+    if (!variantsData?.data) return;
+    if (selectedVariantIds.size === variantsData.data.length) {
+      setSelectedVariantIds(new Set());
+    } else {
+      setSelectedVariantIds(new Set(variantsData.data.map((v) => v.id)));
+    }
+  };
+
+  // Apply bulk edit to selected variants
+  const applyBulkVariantEdit = async () => {
+    if (!currentSlug || selectedVariantIds.size === 0) {
+      Swal.fire("Info", "Pilih minimal 1 variant", "info");
+      return;
+    }
+
+    const hasChanges = bulkVariantPrice !== "" || bulkVariantWeight !== "" || bulkVariantStock !== "";
+    if (!hasChanges) {
+      Swal.fire("Info", "Masukkan nilai yang ingin diubah", "info");
+      return;
+    }
+
+    setIsApplyingBulkVariant(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const variantId of selectedVariantIds) {
+        const variant = variantsData?.data?.find((v) => v.id === variantId);
+        if (!variant) continue;
+
+        const payload = new FormData();
+        payload.append("name", variant.name);
+        payload.append("sku", variant.sku);
+        payload.append("price", String(bulkVariantPrice !== "" ? bulkVariantPrice : variant.price));
+        payload.append("stock", String(bulkVariantStock !== "" ? bulkVariantStock : variant.stock));
+        payload.append("weight", String(bulkVariantWeight !== "" ? bulkVariantWeight : variant.weight));
+        payload.append("status", String(variant.status ? 1 : 0));
+        payload.append("length", String(variant.length ?? 0));
+        payload.append("width", String(variant.width ?? 0));
+        payload.append("height", String(variant.height ?? 0));
+        payload.append("diameter", String(variant.diameter ?? 0));
+
+        try {
+          await updateVariant({
+            productSlug: currentSlug,
+            id: variantId,
+            body: payload,
+          }).unwrap();
+          successCount++;
+        } catch {
+          errorCount++;
+        }
+      }
+
+      await refetchVariants();
+
+      if (errorCount === 0) {
+        Swal.fire({
+          icon: "success",
+          title: `${successCount} variant berhasil diupdate`,
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } else {
+        Swal.fire("Sebagian Berhasil", `${successCount} berhasil, ${errorCount} gagal`, "warning");
+      }
+
+      // Reset bulk edit values
+      setBulkVariantPrice("");
+      setBulkVariantWeight("");
+      setBulkVariantStock("");
+      setSelectedVariantIds(new Set());
+    } catch (error) {
+      console.error(error);
+      Swal.fire("Gagal", "Terjadi kesalahan saat update massal", "error");
+    } finally {
+      setIsApplyingBulkVariant(false);
+    }
+  };
+
+  // Toggle select size for bulk edit
+  const toggleSelectSize = (id: number) => {
+    setSelectedSizeIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  // Toggle select all sizes
+  const toggleSelectAllSizes = () => {
+    if (!sizesData?.data) return;
+    if (selectedSizeIds.size === sizesData.data.length) {
+      setSelectedSizeIds(new Set());
+    } else {
+      setSelectedSizeIds(new Set(sizesData.data.map((s) => s.id)));
+    }
+  };
+
+  // Apply bulk edit to selected sizes
+  const applyBulkSizeEdit = async () => {
+    if (!selectedVariant || selectedSizeIds.size === 0) {
+      Swal.fire("Info", "Pilih minimal 1 size", "info");
+      return;
+    }
+
+    const hasChanges = bulkSizePrice !== "" || bulkSizeWeight !== "" || bulkSizeStock !== "";
+    if (!hasChanges) {
+      Swal.fire("Info", "Masukkan nilai yang ingin diubah", "info");
+      return;
+    }
+
+    setIsApplyingBulkSize(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const sizeId of selectedSizeIds) {
+        const size = sizesData?.data?.find((s) => s.id === sizeId);
+        if (!size) continue;
+
+        const payload = new FormData();
+        payload.append("name", size.name);
+        payload.append("sku", size.sku);
+        payload.append("price", String(bulkSizePrice !== "" ? bulkSizePrice : size.price));
+        payload.append("stock", String(bulkSizeStock !== "" ? bulkSizeStock : size.stock));
+        payload.append("weight", String(bulkSizeWeight !== "" ? bulkSizeWeight : size.weight));
+        payload.append("status", String(size.status ? 1 : 0));
+        payload.append("length", String(size.length ?? 0));
+        payload.append("width", String(size.width ?? 0));
+        payload.append("height", String(size.height ?? 0));
+        payload.append("diameter", String(size.diameter ?? 0));
+
+        try {
+          await updateSize({
+            variantId: selectedVariant.id,
+            id: sizeId,
+            body: payload,
+          }).unwrap();
+          successCount++;
+        } catch {
+          errorCount++;
+        }
+      }
+
+      await refetchSizes();
+
+      if (errorCount === 0) {
+        Swal.fire({
+          icon: "success",
+          title: `${successCount} size berhasil diupdate`,
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } else {
+        Swal.fire("Sebagian Berhasil", `${successCount} berhasil, ${errorCount} gagal`, "warning");
+      }
+
+      // Reset bulk edit values
+      setBulkSizePrice("");
+      setBulkSizeWeight("");
+      setBulkSizeStock("");
+      setSelectedSizeIds(new Set());
+    } catch (error) {
+      console.error(error);
+      Swal.fire("Gagal", "Terjadi kesalahan saat update massal", "error");
+    } finally {
+      setIsApplyingBulkSize(false);
+    }
+  };
+
+  // Copy price/weight from product to all variants
+  const copyProductToAllVariants = async (field: "price" | "weight" | "stock") => {
+    if (!currentSlug || !variantsData?.data?.length) {
+      Swal.fire("Info", "Tidak ada variant untuk diupdate", "info");
+      return;
+    }
+
+    const value = productForm[field];
+    if (value === undefined || value === null) {
+      Swal.fire("Info", `${field} produk belum diisi`, "info");
+      return;
+    }
+
+    const confirm = await Swal.fire({
+      title: `Copy ${field} produk ke semua variant?`,
+      text: `Nilai ${field}: ${formatNumber(Number(value))}`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Copy Semua",
+      cancelButtonText: "Batal",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setIsApplyingBulkVariant(true);
+    let successCount = 0;
+
+    try {
+      for (const variant of variantsData.data) {
+        const payload = new FormData();
+        payload.append("name", variant.name);
+        payload.append("sku", variant.sku);
+        payload.append("price", String(field === "price" ? value : variant.price));
+        payload.append("stock", String(field === "stock" ? value : variant.stock));
+        payload.append("weight", String(field === "weight" ? value : variant.weight));
+        payload.append("status", String(variant.status ? 1 : 0));
+        payload.append("length", String(variant.length ?? 0));
+        payload.append("width", String(variant.width ?? 0));
+        payload.append("height", String(variant.height ?? 0));
+        payload.append("diameter", String(variant.diameter ?? 0));
+
+        try {
+          await updateVariant({
+            productSlug: currentSlug,
+            id: variant.id,
+            body: payload,
+          }).unwrap();
+          successCount++;
+        } catch {
+          // continue
+        }
+      }
+
+      await refetchVariants();
+      Swal.fire({
+        icon: "success",
+        title: `${successCount} variant diupdate`,
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsApplyingBulkVariant(false);
+    }
+  };
 
   const handleSizeSubmit = async () => {
     if (!selectedVariant) return;
@@ -577,13 +886,106 @@ export default function FormProduct({
     </div>
   );
 
-  // VIEW: STEP 2 (VARIANT) - UPDATED DENGAN GAMBAR
+  // VIEW: STEP 2 (VARIANT) - UPDATED DENGAN BULK EDIT
   const renderStep2 = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="font-bold text-lg">Daftar Variant Produk</h3>
         <div className="text-sm text-gray-500">Produk: {productForm.name}</div>
       </div>
+
+      {/* BULK EDIT SECTION FOR VARIANTS */}
+      {variantsData?.data && variantsData.data.length > 0 && (
+        <div className="border-2 border-blue-300 bg-blue-50 p-4 rounded-lg">
+          <h4 className="font-semibold mb-3 text-blue-800 flex items-center gap-2">
+            <Copy className="w-4 h-4" />
+            Edit Massal Variant (Update Harga/Berat/Stok Sekaligus)
+          </h4>
+          
+          {/* Quick Copy from Product */}
+          <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b border-blue-200">
+            <span className="text-sm text-blue-700 mr-2">Copy dari Produk:</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-blue-400 text-blue-700 hover:bg-blue-100"
+              onClick={() => copyProductToAllVariants("price")}
+              disabled={isApplyingBulkVariant}
+            >
+              <Copy className="w-3 h-3 mr-1" /> Harga ({formatNumber(productForm.price ?? 0)})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-blue-400 text-blue-700 hover:bg-blue-100"
+              onClick={() => copyProductToAllVariants("weight")}
+              disabled={isApplyingBulkVariant}
+            >
+              <Copy className="w-3 h-3 mr-1" /> Berat ({productForm.weight ?? 0}g)
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-blue-400 text-blue-700 hover:bg-blue-100"
+              onClick={() => copyProductToAllVariants("stock")}
+              disabled={isApplyingBulkVariant}
+            >
+              <Copy className="w-3 h-3 mr-1" /> Stok ({productForm.stock ?? 0})
+            </Button>
+          </div>
+
+          {/* Manual Bulk Edit */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <div>
+              <Label className="text-xs mb-1 block text-blue-700">Harga Baru (Rp)</Label>
+              <Input
+                type="number"
+                placeholder="Kosongkan jika tidak diubah"
+                value={bulkVariantPrice}
+                onChange={(e) => setBulkVariantPrice(e.target.value ? Number(e.target.value) : "")}
+                className="bg-white"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block text-blue-700">Berat Baru (g)</Label>
+              <Input
+                type="number"
+                placeholder="Kosongkan jika tidak diubah"
+                value={bulkVariantWeight}
+                onChange={(e) => setBulkVariantWeight(e.target.value ? Number(e.target.value) : "")}
+                className="bg-white"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block text-blue-700">Stok Baru</Label>
+              <Input
+                type="number"
+                placeholder="Kosongkan jika tidak diubah"
+                value={bulkVariantStock}
+                onChange={(e) => setBulkVariantStock(e.target.value ? Number(e.target.value) : "")}
+                className="bg-white"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                onClick={applyBulkVariantEdit}
+                disabled={isApplyingBulkVariant || selectedVariantIds.size === 0}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isApplyingBulkVariant ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                ) : (
+                  <Check className="w-4 h-4 mr-1" />
+                )}
+                Terapkan ke {selectedVariantIds.size} terpilih
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-blue-600">
+            Centang variant yang ingin diupdate, lalu isi nilai baru dan klik Terapkan
+          </p>
+        </div>
+      )}
 
       <div className="border border-black p-4 rounded bg-gray-50">
         <h4 className="font-semibold mb-3">
@@ -593,7 +995,8 @@ export default function FormProduct({
         {/* Layout Grid Form (Gambar di Kiri, Input di Kanan) */}
         <div className="flex flex-col md:flex-row gap-4 mb-3">
           {/* --- Bagian Upload Gambar Variant --- */}
-          <div className="w-full md:w-32 flex-shrink-0">
+          <div className="w-full md:w-44 flex-shrink-0 space-y-2">
+            {/* Preview Gambar */}
             <div
               className="relative w-full h-32 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 overflow-hidden bg-white"
               onClick={() => variantFileInputRef.current?.click()}
@@ -612,6 +1015,32 @@ export default function FormProduct({
                 </div>
               )}
             </div>
+            
+            {/* Button Options */}
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="flex-1 text-xs h-8"
+                onClick={() => variantFileInputRef.current?.click()}
+              >
+                <UploadCloud className="w-3 h-3 mr-1" />
+                Upload
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="flex-1 text-xs h-8"
+                onClick={() => setShowImagePicker(true)}
+                disabled={getProductImages().length === 0}
+              >
+                <Images className="w-3 h-3 mr-1" />
+                Pilih
+              </Button>
+            </div>
+            
             <Input
               type="file"
               accept="image/*"
@@ -622,23 +1051,93 @@ export default function FormProduct({
                 if (file) {
                   setVariantImageFile(file);
                   setVariantImagePreview(URL.createObjectURL(file));
+                  setVariantImageUrl(null); // Clear URL jika upload file baru
                 }
               }}
             />
+            
             {variantImagePreview && (
-              <div className="text-center mt-1">
+              <div className="text-center">
                 <button
                   type="button"
                   className="text-xs text-red-600 hover:underline"
                   onClick={() => {
                     setVariantImageFile(null);
                     setVariantImagePreview(null);
+                    setVariantImageUrl(null);
                     if (variantFileInputRef.current)
                       variantFileInputRef.current.value = "";
                   }}
                 >
                   Hapus Gambar
                 </button>
+              </div>
+            )}
+            
+            {/* Image Picker Modal */}
+            {showImagePicker && (
+              <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-lg max-w-md w-full p-4 shadow-xl">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-semibold text-lg">Pilih dari Gambar Produk</h4>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => setShowImagePicker(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {getProductImages().length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>Belum ada gambar produk</p>
+                      <p className="text-xs">Upload gambar di Step 1 terlebih dahulu</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {getProductImages().map((img) => (
+                        <button
+                          key={img.key}
+                          type="button"
+                          onClick={() => handleSelectProductImage(img.url)}
+                          className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all hover:border-black ${
+                            variantImagePreview === img.url
+                              ? "border-black ring-2 ring-black"
+                              : "border-gray-200"
+                          }`}
+                        >
+                          <Image
+                            src={img.url}
+                            alt={img.label}
+                            fill
+                            className="object-cover"
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs py-1 text-center">
+                            {img.label}
+                          </div>
+                          {variantImagePreview === img.url && (
+                            <div className="absolute top-1 right-1 bg-black text-white rounded-full p-0.5">
+                              <Check className="w-3 h-3" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowImagePicker(false)}
+                    >
+                      Tutup
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -747,11 +1246,20 @@ export default function FormProduct({
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-200 text-black font-bold">
             <tr>
-              <th className="p-2 w-16">Image</th> {/* Kolom Gambar */}
+              <th className="p-2 w-10">
+                <input
+                  type="checkbox"
+                  checked={variantsData?.data?.length ? selectedVariantIds.size === variantsData.data.length : false}
+                  onChange={toggleSelectAllVariants}
+                  className="w-4 h-4"
+                />
+              </th>
+              <th className="p-2 w-16">Image</th>
               <th className="p-2">Nama</th>
               <th className="p-2">SKU</th>
               <th className="p-2">Harga</th>
               <th className="p-2">Stok</th>
+              <th className="p-2">Berat</th>
               <th className="p-2 text-center">Aksi</th>
             </tr>
           </thead>
@@ -759,8 +1267,16 @@ export default function FormProduct({
             {variantsData?.data?.map((v) => (
               <tr
                 key={v.id}
-                className="border-t border-gray-300 hover:bg-gray-50"
+                className={`border-t border-gray-300 hover:bg-gray-50 ${selectedVariantIds.has(v.id) ? "bg-blue-50" : ""}`}
               >
+                <td className="p-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedVariantIds.has(v.id)}
+                    onChange={() => toggleSelectVariant(v.id)}
+                    className="w-4 h-4"
+                  />
+                </td>
                 <td className="p-2">
                   <div className="relative w-10 h-10 border rounded bg-gray-100 overflow-hidden">
                     {v.image ? (
@@ -781,6 +1297,7 @@ export default function FormProduct({
                 <td className="p-2">{v.sku}</td>
                 <td className="p-2">{formatNumber(v.price)}</td>
                 <td className="p-2">{v.stock}</td>
+                <td className="p-2">{v.weight}g</td>
                 <td className="p-2 flex justify-center gap-1">
                   <Button
                     size="icon"
@@ -788,7 +1305,6 @@ export default function FormProduct({
                     className="h-8 w-8"
                     onClick={() => {
                       setVariantForm(v);
-                      // Set preview gambar dari data
                       setVariantImagePreview(v.image || null);
                       setVariantImageFile(null);
                       setIsEditingVariant(true);
@@ -808,6 +1324,7 @@ export default function FormProduct({
                     className="bg-black text-white ml-2 text-xs"
                     onClick={() => {
                       setSelectedVariant(v);
+                      setSelectedSizeIds(new Set());
                       setStep(3);
                     }}
                   >
@@ -818,7 +1335,7 @@ export default function FormProduct({
             ))}
             {(!variantsData?.data || variantsData.data.length === 0) && (
               <tr>
-                <td colSpan={6} className="p-4 text-center text-gray-500">
+                <td colSpan={8} className="p-4 text-center text-gray-500">
                   Belum ada variant
                 </td>
               </tr>
@@ -846,21 +1363,146 @@ export default function FormProduct({
     </div>
   );
 
-  // VIEW: STEP 3 (SIZE) - PERBAIKAN UTAMA PADA VALUE INPUT
+  // VIEW: STEP 3 (SIZE) - DENGAN BULK EDIT
   const renderStep3 = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-gray-100 p-2 rounded">
         <div>
           <h3 className="font-bold text-lg">Kelola Size</h3>
           <div className="text-xs text-gray-500">
-            Variant: <b>{selectedVariant?.name}</b> (SKU: {selectedVariant?.sku}
-            )
+            Variant: <b>{selectedVariant?.name}</b> (SKU: {selectedVariant?.sku})
           </div>
         </div>
         <Button variant="ghost" onClick={() => setStep(2)}>
           Kembali ke Variant
         </Button>
       </div>
+
+      {/* BULK EDIT SECTION FOR SIZES */}
+      {sizesData?.data && sizesData.data.length > 0 && (
+        <div className="border-2 border-green-300 bg-green-50 p-4 rounded-lg">
+          <h4 className="font-semibold mb-3 text-green-800 flex items-center gap-2">
+            <Copy className="w-4 h-4" />
+            Edit Massal Size (Update Harga/Berat/Stok Sekaligus)
+          </h4>
+          
+          {/* Copy from Variant */}
+          <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b border-green-200">
+            <span className="text-sm text-green-700 mr-2">Copy dari Variant:</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-green-400 text-green-700 hover:bg-green-100"
+              onClick={async () => {
+                if (!selectedVariant || !sizesData?.data?.length) return;
+                const confirm = await Swal.fire({
+                  title: "Copy harga variant ke semua size?",
+                  text: `Harga: ${formatNumber(selectedVariant.price)}`,
+                  icon: "question",
+                  showCancelButton: true,
+                });
+                if (!confirm.isConfirmed) return;
+                setBulkSizePrice(selectedVariant.price);
+                setSelectedSizeIds(new Set(sizesData.data.map(s => s.id)));
+              }}
+              disabled={isApplyingBulkSize}
+            >
+              <Copy className="w-3 h-3 mr-1" /> Harga ({formatNumber(selectedVariant?.price ?? 0)})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-green-400 text-green-700 hover:bg-green-100"
+              onClick={async () => {
+                if (!selectedVariant || !sizesData?.data?.length) return;
+                const confirm = await Swal.fire({
+                  title: "Copy berat variant ke semua size?",
+                  text: `Berat: ${selectedVariant.weight}g`,
+                  icon: "question",
+                  showCancelButton: true,
+                });
+                if (!confirm.isConfirmed) return;
+                setBulkSizeWeight(selectedVariant.weight);
+                setSelectedSizeIds(new Set(sizesData.data.map(s => s.id)));
+              }}
+              disabled={isApplyingBulkSize}
+            >
+              <Copy className="w-3 h-3 mr-1" /> Berat ({selectedVariant?.weight ?? 0}g)
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-green-400 text-green-700 hover:bg-green-100"
+              onClick={async () => {
+                if (!selectedVariant || !sizesData?.data?.length) return;
+                const confirm = await Swal.fire({
+                  title: "Copy stok variant ke semua size?",
+                  text: `Stok: ${selectedVariant.stock}`,
+                  icon: "question",
+                  showCancelButton: true,
+                });
+                if (!confirm.isConfirmed) return;
+                setBulkSizeStock(selectedVariant.stock);
+                setSelectedSizeIds(new Set(sizesData.data.map(s => s.id)));
+              }}
+              disabled={isApplyingBulkSize}
+            >
+              <Copy className="w-3 h-3 mr-1" /> Stok ({selectedVariant?.stock ?? 0})
+            </Button>
+          </div>
+
+          {/* Manual Bulk Edit */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <div>
+              <Label className="text-xs mb-1 block text-green-700">Harga Baru (Rp)</Label>
+              <Input
+                type="number"
+                placeholder="Kosongkan jika tidak diubah"
+                value={bulkSizePrice}
+                onChange={(e) => setBulkSizePrice(e.target.value ? Number(e.target.value) : "")}
+                className="bg-white"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block text-green-700">Berat Baru (g)</Label>
+              <Input
+                type="number"
+                placeholder="Kosongkan jika tidak diubah"
+                value={bulkSizeWeight}
+                onChange={(e) => setBulkSizeWeight(e.target.value ? Number(e.target.value) : "")}
+                className="bg-white"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block text-green-700">Stok Baru</Label>
+              <Input
+                type="number"
+                placeholder="Kosongkan jika tidak diubah"
+                value={bulkSizeStock}
+                onChange={(e) => setBulkSizeStock(e.target.value ? Number(e.target.value) : "")}
+                className="bg-white"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                onClick={applyBulkSizeEdit}
+                disabled={isApplyingBulkSize || selectedSizeIds.size === 0}
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isApplyingBulkSize ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                ) : (
+                  <Check className="w-4 h-4 mr-1" />
+                )}
+                Terapkan ke {selectedSizeIds.size} terpilih
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-green-600">
+            Centang size yang ingin diupdate, lalu isi nilai baru dan klik Terapkan
+          </p>
+        </div>
+      )}
 
       <div className="border border-black p-4 rounded bg-gray-50">
         <h4 className="font-semibold mb-3">
@@ -879,8 +1521,7 @@ export default function FormProduct({
           />
           <Input
             type="number"
-            placeholder="Harga Tambahan"
-            // PENTING: Gunakan ?? "" agar angka 0 tidak dianggap kosong
+            placeholder="Harga"
             value={sizeForm.price ?? ""}
             onChange={(e) =>
               setSizeForm({ ...sizeForm, price: Number(e.target.value) })
@@ -934,20 +1575,41 @@ export default function FormProduct({
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-200 text-black font-bold">
             <tr>
+              <th className="p-2 w-10">
+                <input
+                  type="checkbox"
+                  checked={sizesData?.data?.length ? selectedSizeIds.size === sizesData.data.length : false}
+                  onChange={toggleSelectAllSizes}
+                  className="w-4 h-4"
+                />
+              </th>
               <th className="p-2">Size</th>
               <th className="p-2">SKU</th>
               <th className="p-2">Harga</th>
               <th className="p-2">Stok</th>
+              <th className="p-2">Berat</th>
               <th className="p-2 text-center">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {sizesData?.data?.map((s) => (
-              <tr key={s.id} className="border-t border-gray-300">
-                <td className="p-2">{s.name}</td>
+              <tr 
+                key={s.id} 
+                className={`border-t border-gray-300 hover:bg-gray-50 ${selectedSizeIds.has(s.id) ? "bg-green-50" : ""}`}
+              >
+                <td className="p-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedSizeIds.has(s.id)}
+                    onChange={() => toggleSelectSize(s.id)}
+                    className="w-4 h-4"
+                  />
+                </td>
+                <td className="p-2 font-medium">{s.name}</td>
                 <td className="p-2">{s.sku}</td>
                 <td className="p-2">{formatNumber(s.price)}</td>
                 <td className="p-2">{s.stock}</td>
+                <td className="p-2">{s.weight}g</td>
                 <td className="p-2 flex justify-center gap-1">
                   <Button
                     size="icon"
@@ -972,7 +1634,7 @@ export default function FormProduct({
             ))}
             {(!sizesData?.data || sizesData.data.length === 0) && (
               <tr>
-                <td colSpan={5} className="p-4 text-center text-gray-500">
+                <td colSpan={7} className="p-4 text-center text-gray-500">
                   Belum ada size untuk variant ini
                 </td>
               </tr>

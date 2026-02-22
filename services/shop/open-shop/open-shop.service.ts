@@ -1,10 +1,10 @@
 import { apiSlice } from "@/services/base-query";
-import { Shop, Region } from "@/types/shop"; 
+import { Shop, Region } from "@/types/shop";
 
 export const shopApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // ➕ Create Shop
-    createShop: builder.mutation<Shop, FormData>({
+    // User-facing: create or update own shop (uses auth()->user()->shop)
+    createOrUpdateShop: builder.mutation<Shop, FormData>({
       query: (payload) => ({
         url: `/shop`,
         method: "POST",
@@ -66,7 +66,7 @@ export const shopApi = apiSlice.injectEndpoints({
 });
 
 export const {
-  useCreateShopMutation,
+  useCreateOrUpdateShopMutation,
   useGetProvincesQuery,
   useGetCitiesQuery,
   useGetDistrictsQuery,

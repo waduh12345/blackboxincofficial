@@ -8,7 +8,7 @@ import {
   useGetProvincesQuery,
   useGetCitiesQuery,
   useGetDistrictsQuery,
-  useCreateShopMutation,
+  useCreateOrUpdateShopMutation,
 } from "@/services/shop/open-shop/open-shop.service";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,7 +50,7 @@ export default function CreateShopForm({
       skip: !form.rajaongkir_city_id,
     });
 
-  const [createShop, { isLoading }] = useCreateShopMutation();
+  const [createShop, { isLoading }] = useCreateOrUpdateShopMutation();
 
   const handleSubmit = async () => {
     const fd = new FormData();

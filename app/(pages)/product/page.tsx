@@ -17,6 +17,7 @@ import {
   Filter,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { Product } from "@/types/admin/product";
 import {
   useGetProductListQuery,
@@ -793,14 +794,16 @@ export default function ProductsPage() {
                     >
                       {/* IMAGE - maintain proportion with aspect ratio */}
                       <div className="relative w-full aspect-[3/4] overflow-hidden">
-                        <Image
-                          src={img}
-                          alt={product.name}
-                          fill
-                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 33vw"
-                          className="object-cover transition-transform duration-500 group-hover:scale-105 grayscale-[10%]"
-                          unoptimized
-                        />
+                        <Link href={`/products/${product.slug}`}>
+                          <Image
+                            src={img}
+                            alt={product.name}
+                            fill
+                            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 33vw"
+                            className="object-cover transition-transform duration-500 group-hover:scale-105 grayscale-[10%]"
+                            unoptimized
+                          />
+                        </Link>
 
                         <div
                           className={clsx(
@@ -839,9 +842,11 @@ export default function ProductsPage() {
                       {/* CONTENT */}
                       <div className="p-4 flex-1 flex flex-col justify-between min-h-[120px]">
                         <div>
-                          <h3 className="font-semibold text-black uppercase tracking-wide line-clamp-2">
-                            {product.name}
-                          </h3>
+                          <Link href={`/products/${product.slug}`}>
+                            <h3 className="font-semibold text-black uppercase tracking-wide line-clamp-2 hover:underline">
+                              {product.name}
+                            </h3>
+                          </Link>
 
                           <div className="mt-2 flex flex-wrap gap-y-2 items-end justify-between">
                             {/* --- BAGIAN HARGA (STYLE UNIQLO) --- */}

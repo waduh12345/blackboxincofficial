@@ -14,6 +14,7 @@ import {
   useGetCitiesQuery,
   useGetDistrictsQuery,
   useGetProvincesQuery,
+  useCreateOrUpdateShopMutation,
 } from "@/services/shop/open-shop/open-shop.service";
 import {
   Select,
@@ -97,7 +98,7 @@ export default function ShopProfilePage() {
   const shopFromSession = sessionData?.user?.shop ?? null;
 
   // ===== Tabs =====
-  const [tab, setTab] = useState<"info" | "settings" | "bank">("info");
+  const [tab, setTab] = useState<"info" | "bank">("info");
 
   // ===== Form States (initialized from session) =====
   const [infoForm, setInfoForm] = useState<
@@ -125,6 +126,10 @@ export default function ShopProfilePage() {
 
   const [logoPreview, setLogoPreview] = useState<string>("");
   const [bannerPreview, setBannerPreview] = useState<string>("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+
+  const [createOrUpdateShop, { isLoading: isUpdating }] = useCreateOrUpdateShopMutation();
 
   const [settingsForm, setSettingsForm] = useState<
     Pick<
@@ -184,6 +189,13 @@ export default function ShopProfilePage() {
       rajaongkir_district_id: shopFromSession.rajaongkir_district_id ?? null,
     });
 
+    setShippingInfo((prev) => ({
+      ...prev,
+      rajaongkir_province_id: shopFromSession.rajaongkir_province_id ?? 0,
+      rajaongkir_city_id: shopFromSession.rajaongkir_city_id ?? 0,
+      rajaongkir_district_id: Number(shopFromSession.rajaongkir_district_id) || 0,
+    }));
+
     // Jika kamu sudah punya endpoint bank akun, bisa fetch di sini.
     // Untuk sekarang kosong dulu.
     setBanks((prev) => (prev.length ? prev : []));
@@ -212,8 +224,7 @@ export default function ShopProfilePage() {
     if (!file) return;
     const url = URL.createObjectURL(file);
     setLogoPreview(url);
-    // kamu bisa simpan File ini di state lain untuk upload ke server saat submit
-    // mis: setInfoFiles((s)=>({...s, logo: file}))
+    setLogoFile(file);
   };
 
   const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,57 +232,49 @@ export default function ShopProfilePage() {
     if (!file) return;
     const url = URL.createObjectURL(file);
     setBannerPreview(url);
+    setBannerFile(file);
   };
 
-  const saveInfo = async () => {
-    // TODO: panggil API update info toko, kirim Bearer token: sessionData?.user.token
-    // contoh payload: {...infoForm, logo: fileLogo, banner: fileBanner}
-    alert(
-      "Info Toko disimpan (mock). Implementasikan panggilan API sesuai backend kamu."
-    );
-  };
+  const saveShop = async () => {
+    const formData = new FormData();
+    // Info fields
+    formData.append("name", infoForm.name);
+    if (infoForm.phone) formData.append("phone", infoForm.phone);
+    if (infoForm.email) formData.append("email", infoForm.email);
+    if (infoForm.address) formData.append("address", infoForm.address);
+    if (infoForm.description) formData.append("description", infoForm.description);
+    if (logoFile) formData.append("logo", logoFile);
+    if (bannerFile) formData.append("banner", bannerFile);
 
-  // ===== Handlers - Settings =====
-  const handleSettingsChange =
-    (field: keyof typeof settingsForm) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value =
-        e.target.type === "checkbox"
-          ? (e.target as HTMLInputElement).checked
-          : e.target.value;
-      setSettingsForm((s) => {
-        // cast angka bila perlu
-        if (
-          field === "rajaongkir_province_id" ||
-          field === "rajaongkir_city_id"
-        ) {
-          const v = value === "" ? null : Number(value);
-          return { ...s, [field]: Number.isNaN(v) ? null : v };
-        }
-        if (field === "latitude" || field === "longitude") {
-          const v = value === "" ? null : Number(value);
-          return { ...s, [field]: Number.isNaN(v) ? null : v };
-        }
-        if (field === "rajaongkir_district_id") {
-          if (typeof value !== "string") {
-            return { ...s, rajaongkir_district_id: null };
-          }
-          const v =
-            value === "" ? null : /^\d+$/.test(value) ? Number(value) : value;
-          return { ...s, rajaongkir_district_id: v };
-        }
-        if (field === "status") {
-          return { ...s, status: Boolean(value) };
-        }
-        return { ...s, [field]: value as unknown as (typeof s)[typeof field] };
-      });
-    };
-
-  const saveSettings = async () => {
-    // TODO: panggil API update settings toko
-    alert(
-      "Pengaturan Toko disimpan (mock). Implementasikan panggilan API sesuai backend kamu."
+    // Settings fields
+    formData.append("status", settingsForm.status ? "1" : "0");
+    formData.append(
+      "rajaongkir_province_id",
+      String(shippingInfo.rajaongkir_province_id || "")
     );
+    formData.append(
+      "rajaongkir_city_id",
+      String(shippingInfo.rajaongkir_city_id || "")
+    );
+    formData.append(
+      "rajaongkir_district_id",
+      String(shippingInfo.rajaongkir_district_id || "")
+    );
+    if (settingsForm.latitude !== null)
+      formData.append("latitude", String(settingsForm.latitude));
+    if (settingsForm.longitude !== null)
+      formData.append("longitude", String(settingsForm.longitude));
+
+    try {
+      await createOrUpdateShop(formData).unwrap();
+      alert("Data Toko berhasil disimpan.");
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "data" in err
+          ? (err as { data?: { message?: string } }).data?.message
+          : undefined;
+      alert(message ?? "Gagal menyimpan data toko.");
+    }
   };
 
   // ===== Handlers - Banks =====
@@ -371,13 +374,7 @@ export default function ShopProfilePage() {
       {/* Tabs */}
       <div className="flex gap-2 border-b border-gray-200 dark:border-gray-800">
         <TabButton active={tab === "info"} onClick={() => setTab("info")}>
-          Data Informasi Toko
-        </TabButton>
-        <TabButton
-          active={tab === "settings"}
-          onClick={() => setTab("settings")}
-        >
-          Pengaturan Toko
+          Profil Toko
         </TabButton>
         <TabButton active={tab === "bank"} onClick={() => setTab("bank")}>
           Bank Rekening
@@ -389,10 +386,11 @@ export default function ShopProfilePage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-semibold">
-              Data Informasi Toko
+              Profil Toko
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
+            {/* === Data Informasi === */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TextField
                 id="name"
@@ -400,12 +398,6 @@ export default function ShopProfilePage() {
                 value={infoForm.name}
                 onChange={handleInfoChange("name")}
               />
-              {/* <TextField
-                id="slug"
-                label="Slug"
-                value={infoForm.slug}
-                onChange={handleInfoChange("slug")}
-              /> */}
               <TextField
                 id="phone"
                 label="No. HP"
@@ -467,8 +459,6 @@ export default function ShopProfilePage() {
                 <div className="mt-2 flex items-center gap-4">
                   <div className="w-[240px] h-[80px] relative overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-gray-50 dark:bg-gray-900">
                     {bannerPreview ? (
-                      // Pakai img biasa agar URL.createObjectURL aman tanpa domain config
-                      // (Next/Image butuh domain config jika remote)
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={bannerPreview}
@@ -491,21 +481,10 @@ export default function ShopProfilePage() {
               </div>
             </div>
 
-            <div className="pt-2">
-              <Button onClick={saveInfo}>Simpan Informasi</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {tab === "settings" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">
-              Pengaturan Toko
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            {/* === Pengaturan === */}
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 border-t pt-4">
+              Pengaturan
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-2 w-full">
                 <Label htmlFor="status">Status</Label>
@@ -524,23 +503,6 @@ export default function ShopProfilePage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* <TextField
-                id="latitude"
-                label="Latitude"
-                type="number"
-                step="any"
-                value={settingsForm.latitude ?? ""}
-                onChange={handleSettingsChange("latitude")}
-              />
-              <TextField
-                id="longitude"
-                label="Longitude"
-                type="number"
-                step="any"
-                value={settingsForm.longitude ?? ""}
-                onChange={handleSettingsChange("longitude")}
-              /> */}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -600,10 +562,41 @@ export default function ShopProfilePage() {
                   disabled={!shippingInfo.rajaongkir_city_id}
                 />
               </div>
+
+              <TextField
+                id="latitude"
+                label="Latitude"
+                type="number"
+                step="any"
+                value={settingsForm.latitude ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value === "" ? null : Number(e.target.value);
+                  setSettingsForm((s) => ({
+                    ...s,
+                    latitude: v !== null && Number.isNaN(v) ? null : v,
+                  }));
+                }}
+              />
+              <TextField
+                id="longitude"
+                label="Longitude"
+                type="number"
+                step="any"
+                value={settingsForm.longitude ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value === "" ? null : Number(e.target.value);
+                  setSettingsForm((s) => ({
+                    ...s,
+                    longitude: v !== null && Number.isNaN(v) ? null : v,
+                  }));
+                }}
+              />
             </div>
 
             <div className="pt-2">
-              <Button onClick={saveSettings}>Simpan Pengaturan</Button>
+              <Button onClick={saveShop} disabled={isUpdating}>
+                {isUpdating ? "Menyimpan..." : "Simpan"}
+              </Button>
             </div>
           </CardContent>
         </Card>

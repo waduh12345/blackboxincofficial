@@ -64,7 +64,7 @@ export default function NewArrival() {
       <div className="flex items-end justify-between border-b border-gray-200 pb-4">
         <div>
           <h2 className="text-xl md:text-3xl font-extrabold tracking-tight text-black md:text-4xl uppercase">
-            Best Sellers
+            Best Sellers Test
           </h2>
           <p className="text-sm text-gray-600 mt-1">
             Exclusive picks—our most-loved items.

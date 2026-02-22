@@ -26,7 +26,7 @@ export default function Hero() {
             <span className="text-[#E53935]">{t["hero-title-2"]}</span> <br />
             {t["hero-title-3"]}
           </h1>
-          <p className="text-gray-600 text-lg">{t["hero-subtitle"]}</p>
+          <p className="text-gray-600 text-lg">{t["hero-subtitle"]} </p>
 
           {/* CTA Buttons */}
           <div className="flex gap-4">

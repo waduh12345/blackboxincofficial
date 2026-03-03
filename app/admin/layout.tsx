@@ -72,7 +72,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
       id: "product",
       label: "Manajemen Produk",
       icon: <Package className="h-5 w-5" />,
-      href: "/admin/product-list", 
+      href: "/admin/product-list",
+    },
+    {
+      id: "stock",
+      label: "Manajemen Stok",
+      icon: <PackagePlus className="h-5 w-5" />,
+      href: "/admin/stock",
     },
     {
       id: "gallery",
@@ -178,7 +184,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
       id: "product",
       label: "Produk",
       icon: <Package className="h-5 w-5" />,
-      href: "/admin/product-list", 
+      href: "/admin/product-list",
+    },
+    {
+      id: "stock",
+      label: "Manajemen Stok",
+      icon: <PackagePlus className="h-5 w-5" />,
+      href: "/admin/stock",
     },
     {
       id: "transaction",

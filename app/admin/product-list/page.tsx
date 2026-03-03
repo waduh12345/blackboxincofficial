@@ -30,6 +30,7 @@ import {
   Loader2,
 } from "lucide-react";
 import Image from "next/image";
+import SunEditorWrapper from "@/components/ui/sun-editor";
 
 // Type for bulk edit data
 interface BulkEditRow {
@@ -551,15 +552,16 @@ export default function ProductPage() {
                             }
                             className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
                           />
-                          <textarea
-                            value={row.description}
-                            onChange={(e) =>
-                              updateBulkEditRow(row.slug, "description", e.target.value)
-                            }
-                            placeholder="Deskripsi..."
-                            className="w-full mt-1 px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-black focus:border-transparent resize-none"
-                            rows={2}
-                          />
+                          <div className="mt-1">
+                            <SunEditorWrapper
+                              value={row.description}
+                              onChange={(content) =>
+                                updateBulkEditRow(row.slug, "description", content)
+                              }
+                              height="150"
+                              placeholder="Deskripsi..."
+                            />
+                          </div>
                         </td>
 
                         {/* Price */}

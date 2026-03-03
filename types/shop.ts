@@ -1,12 +1,16 @@
 export interface Shop {
   id: number;
+  user_id: number;
   name: string;
+  slug: string;
   phone: number | string;
   email: string;
   address: string;
   description: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
+  rating: string | number | null;
+  total_reviews: number | null;
   status: boolean;
   logo: File | string | null;
   banner: File | string | null;

@@ -71,7 +71,7 @@ export const authOptions: AuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
@@ -81,6 +81,37 @@ export const authOptions: AuthOptions = {
         token.roles = user.roles;
         token.shop = user.shop;
       }
+
+      // Re-fetch user data when session.update() is called
+      if (trigger === "update" && token.token) {
+        try {
+          const meRes = await fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/me?isForce=1`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token.token}`,
+                Accept: "application/json",
+              },
+            }
+          );
+
+          if (meRes.ok) {
+            const meData = await meRes.json();
+            const freshUser = meData?.data;
+            if (freshUser) {
+              token.email = freshUser.email;
+              token.name = freshUser.name;
+              token.phone = freshUser.phone;
+              token.roles = freshUser.roles ?? [];
+              token.shop = freshUser.shop ?? null;
+            }
+          }
+        } catch {
+          // Silently fail — keep existing token data
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

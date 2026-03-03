@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
 // Status enum mapping
-type TransactionStatusKey = 0 | 1 | 2 | -1 | -2 | -3;
+type TransactionStatusKey = 0 | 1 | 2 | -1 | -2 | -3 | -4;
 type TransactionStatusInfo = { label: string; variant: "secondary" | "default" | "success" | "destructive" };
 
 const TRANSACTION_STATUS: Record<TransactionStatusKey, TransactionStatusInfo> = {
@@ -40,6 +40,7 @@ const TRANSACTION_STATUS: Record<TransactionStatusKey, TransactionStatusInfo> = 
   [-1]: { label: "DENY", variant: "destructive" },
   [-2]: { label: "EXPIRED", variant: "destructive" },
   [-3]: { label: "CANCEL", variant: "destructive" },
+  [-4]: { label: "RETUR", variant: "destructive" },
 };
 
 export default function TransactionPage() {
@@ -245,6 +246,64 @@ export default function TransactionPage() {
     }
   };
 
+  const handleCancelTransaction = async (item: Transaction) => {
+    const confirm = await Swal.fire({
+      title: "Batalkan Transaksi?",
+      text: `Transaksi ${item.reference} akan dibatalkan. Stok akan dikembalikan.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Batalkan",
+      cancelButtonText: "Tidak",
+      confirmButtonColor: "#d33",
+    });
+
+    if (confirm.isConfirmed) {
+      try {
+        await updateTransactionStatus({
+          id: item.id.toString(),
+          status: -3,
+        }).unwrap();
+        await refetch();
+        Swal.fire("Berhasil", "Transaksi berhasil dibatalkan", "success");
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "data" in error
+            ? (error as { data?: { message?: string } }).data?.message
+            : undefined;
+        Swal.fire("Gagal", message ?? "Gagal membatalkan transaksi", "error");
+      }
+    }
+  };
+
+  const handleReturTransaction = async (item: Transaction) => {
+    const confirm = await Swal.fire({
+      title: "Retur Transaksi?",
+      text: `Transaksi ${item.reference} akan diretur. Stok dikembalikan dan sales berkurang.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Retur",
+      cancelButtonText: "Tidak",
+      confirmButtonColor: "#d33",
+    });
+
+    if (confirm.isConfirmed) {
+      try {
+        await updateTransactionStatus({
+          id: item.id.toString(),
+          status: -4,
+        }).unwrap();
+        await refetch();
+        Swal.fire("Berhasil", "Transaksi berhasil diretur", "success");
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "data" in error
+            ? (error as { data?: { message?: string } }).data?.message
+            : undefined;
+        Swal.fire("Gagal", message ?? "Gagal meretur transaksi", "error");
+      }
+    }
+  };
+
   const getStatusInfo = (status: number) => {
     return TRANSACTION_STATUS[status as TransactionStatusKey] || { label: "UNKNOWN", variant: "secondary" };
   };
@@ -312,7 +371,7 @@ export default function TransactionPage() {
                   return (
                     <tr key={item.id} className="border-t">
                       <td className="px-4 py-2">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <Button
                             size="sm"
                             variant="destructive"
@@ -327,6 +386,26 @@ export default function TransactionPage() {
                           >
                             Detail
                           </Button>
+                          {item.status === 0 && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-300 text-red-600 hover:bg-red-50"
+                              onClick={() => handleCancelTransaction(item)}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                          {(item.status === 1 || item.status === 2) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                              onClick={() => handleReturTransaction(item)}
+                            >
+                              Retur
+                            </Button>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">{item.reference}</td>
@@ -504,6 +583,7 @@ export default function TransactionPage() {
                   <SelectItem value="-1">DENY</SelectItem>
                   <SelectItem value="-2">EXPIRED</SelectItem>
                   <SelectItem value="-3">CANCEL</SelectItem>
+                  <SelectItem value="-4">RETUR</SelectItem>
                 </SelectContent>
               </Select>
             </div>

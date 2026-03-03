@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combo-box";
 import {
+  useGetLatestShopQuery,
   useGetCitiesQuery,
   useGetDistrictsQuery,
   useGetProvincesQuery,
@@ -23,27 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-type Shop = {
-  id: number;
-  user_id: number;
-  name: string;
-  slug: string;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  description: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  rating: string | number | null;
-  total_reviews: number | null;
-  status: boolean;
-  rajaongkir_province_id: number | null;
-  rajaongkir_city_id: number | null;
-  rajaongkir_district_id: string | number | null;
-  logo: string | null;
-  banner: string | null;
-};
+import { Shop } from "@/types/shop";
 
 type BankAccount = {
   id?: number;
@@ -53,24 +34,11 @@ type BankAccount = {
   is_primary?: boolean;
 };
 
-type UserSession = {
-  user: {
-    name: string;
-    email: string;
-    id: number;
-    token: string;
-    roles: Array<{ id: number; name: string }>;
-    shop: Shop | null;
-  };
-  expires: string;
-};
-
 const DEFAULT_LOGO = "/favicon.ico";
 
 export default function ShopProfilePage() {
-  const { data: sessionData } = useSession() as unknown as {
-    data: UserSession | null;
-  };
+  const { update: updateSession } = useSession();
+  const { data: shopData, isLoading: isLoadingShop } = useGetLatestShopQuery();
   const [shippingInfo, setShippingInfo] = useState({
     fullName: "",
     phone: "",
@@ -94,8 +62,6 @@ export default function ShopProfilePage() {
     useGetDistrictsQuery(shippingInfo.rajaongkir_city_id, {
       skip: !shippingInfo.rajaongkir_city_id,
     });
-
-  const shopFromSession = sessionData?.user?.shop ?? null;
 
   // ===== Tabs =====
   const [tab, setTab] = useState<"info" | "bank">("info");
@@ -145,72 +111,64 @@ export default function ShopProfilePage() {
     status: true,
     latitude: null,
     longitude: null,
-    rajaongkir_province_id: null,
-    rajaongkir_city_id: null,
-    rajaongkir_district_id: null,
+    rajaongkir_province_id: 0,
+    rajaongkir_city_id: 0,
+    rajaongkir_district_id: 0,
   });
 
   const [banks, setBanks] = useState<BankAccount[]>([]);
 
-  // ===== Hydrate from session =====
+  // ===== Hydrate from shop service =====
   useEffect(() => {
-    if (!shopFromSession) return;
+    if (!shopData) return;
 
     setInfoForm({
-      name: shopFromSession.name ?? "",
-      slug: shopFromSession.slug ?? "",
-      phone: shopFromSession.phone ?? "",
-      email: shopFromSession.email ?? "",
-      address: shopFromSession.address ?? "",
-      description: shopFromSession.description ?? "",
-      logo: shopFromSession.logo ?? "",
-      banner: shopFromSession.banner ?? "",
+      name: shopData.name ?? "",
+      slug: shopData.slug ?? "",
+      phone: shopData.phone ?? "",
+      email: shopData.email ?? "",
+      address: shopData.address ?? "",
+      description: shopData.description ?? "",
+      logo: shopData.logo ?? "",
+      banner: shopData.banner ?? "",
     });
 
-    setLogoPreview(
-      shopFromSession.logo && shopFromSession.logo.trim() !== ""
-        ? shopFromSession.logo
-        : DEFAULT_LOGO
+    const logoUrl = typeof shopData.logo === "string" ? shopData.logo : "";
+    setLogoPreview(logoUrl.trim() !== "" ? logoUrl : DEFAULT_LOGO);
+    setBannerPreview(
+      typeof shopData.banner === "string" ? shopData.banner : ""
     );
-    setBannerPreview(shopFromSession.banner ?? "");
 
     setSettingsForm({
-      status: !!shopFromSession.status,
+      status: !!shopData.status,
       latitude:
-        shopFromSession.latitude === null
-          ? null
-          : Number(shopFromSession.latitude),
+        shopData.latitude === null ? null : Number(shopData.latitude),
       longitude:
-        shopFromSession.longitude === null
-          ? null
-          : Number(shopFromSession.longitude),
-      rajaongkir_province_id: shopFromSession.rajaongkir_province_id ?? null,
-      rajaongkir_city_id: shopFromSession.rajaongkir_city_id ?? null,
-      rajaongkir_district_id: shopFromSession.rajaongkir_district_id ?? null,
+        shopData.longitude === null ? null : Number(shopData.longitude),
+      rajaongkir_province_id: shopData.rajaongkir_province_id ?? 0,
+      rajaongkir_city_id: shopData.rajaongkir_city_id ?? 0,
+      rajaongkir_district_id: shopData.rajaongkir_district_id ?? 0,
     });
 
     setShippingInfo((prev) => ({
       ...prev,
-      rajaongkir_province_id: shopFromSession.rajaongkir_province_id ?? 0,
-      rajaongkir_city_id: shopFromSession.rajaongkir_city_id ?? 0,
-      rajaongkir_district_id: Number(shopFromSession.rajaongkir_district_id) || 0,
+      rajaongkir_province_id: shopData.rajaongkir_province_id ?? 0,
+      rajaongkir_city_id: shopData.rajaongkir_city_id ?? 0,
+      rajaongkir_district_id: Number(shopData.rajaongkir_district_id) || 0,
     }));
 
-    // Jika kamu sudah punya endpoint bank akun, bisa fetch di sini.
-    // Untuk sekarang kosong dulu.
     setBanks((prev) => (prev.length ? prev : []));
-  }, [shopFromSession]);
+  }, [shopData]);
 
   // ===== Helpers =====
   const shopUrl = useMemo(() => {
-    const slug = shopFromSession?.slug ?? "";
+    const slug = shopData?.slug ?? "";
     return slug ? `/shop/${slug}` : "#";
-  }, [shopFromSession]);
+  }, [shopData]);
 
   const displayShopName = useMemo(() => {
-    // Sesuai instruksi: tampilkan judul berasal dari shop.name
-    return shopFromSession?.name ?? "Superadmin";
-  }, [shopFromSession]);
+    return shopData?.name ?? "Superadmin";
+  }, [shopData]);
 
   // ===== Handlers - Info =====
   const handleInfoChange =
@@ -239,7 +197,7 @@ export default function ShopProfilePage() {
     const formData = new FormData();
     // Info fields
     formData.append("name", infoForm.name);
-    if (infoForm.phone) formData.append("phone", infoForm.phone);
+    if (infoForm.phone) formData.append("phone", String(infoForm.phone));
     if (infoForm.email) formData.append("email", infoForm.email);
     if (infoForm.address) formData.append("address", infoForm.address);
     if (infoForm.description) formData.append("description", infoForm.description);
@@ -267,6 +225,7 @@ export default function ShopProfilePage() {
 
     try {
       await createOrUpdateShop(formData).unwrap();
+      await updateSession();
       alert("Data Toko berhasil disimpan.");
     } catch (err: unknown) {
       const message =
@@ -328,6 +287,14 @@ export default function ShopProfilePage() {
   };
 
   // ====== UI ======
+  if (isLoadingShop) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <p className="text-sm text-gray-500">Memuat data toko...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -347,25 +314,25 @@ export default function ShopProfilePage() {
 
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            HerbalCare
+            {displayShopName}
           </h1>
           <p className="text-sm text-gray-500">
             <span className="mr-2">Manajemen Toko</span>
             <span className="mx-3">•</span>
             <span className="mr-2">Rating:</span>
             <span className="font-medium">
-              {shopFromSession?.rating ?? "0.0"} (
-              {shopFromSession?.total_reviews ?? 0})
+              {shopData?.rating ?? "0.0"} (
+              {shopData?.total_reviews ?? 0})
             </span>
             <span className="mx-3">•</span>
             <span
               className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                shopFromSession?.status
+                shopData?.status
                   ? "bg-green-100 text-green-700"
                   : "bg-gray-200 text-gray-700"
               }`}
             >
-              {shopFromSession?.status ? "Aktif" : "Nonaktif"}
+              {shopData?.status ? "Aktif" : "Nonaktif"}
             </span>
           </p>
         </div>

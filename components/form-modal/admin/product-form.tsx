@@ -20,7 +20,7 @@ import {
 // UI Components
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import SunEditorWrapper from "@/components/ui/sun-editor";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combo-box";
 import { formatNumber } from "@/lib/format";
@@ -794,11 +794,13 @@ export default function FormProduct({
         </div>
         <div className="col-span-2">
           <Label>Deskripsi</Label>
-          <Textarea
+          <SunEditorWrapper
             value={productForm.description || ""}
-            onChange={(e) =>
-              setProductForm({ ...productForm, description: e.target.value })
+            onChange={(content) =>
+              setProductForm({ ...productForm, description: content })
             }
+            height="200"
+            placeholder="Tulis deskripsi produk..."
           />
         </div>
         <div>

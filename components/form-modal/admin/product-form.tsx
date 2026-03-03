@@ -49,7 +49,6 @@ import {
   useDeleteProductVariantSizeMutation,
 } from "@/services/admin/product-variant-size.service";
 import { useGetProductCategoryListQuery } from "@/services/master/product-category.service";
-import { useGetProductMerkListQuery } from "@/services/master/product-merk.service";
 import { ApiErrorResponse } from "@/lib/error-handle";
 
 interface FormProductProps {
@@ -119,10 +118,6 @@ export default function FormProduct({
     page: 1,
     paginate: 100,
   });
-  const { data: merks } = useGetProductMerkListQuery({
-    page: 1,
-    paginate: 100,
-  });
 
   // Mutations
   const [createProduct, { isLoading: isCreatingProduct }] =
@@ -137,7 +132,6 @@ export default function FormProduct({
       if (!productForm.name) throw new Error("Nama produk wajib diisi");
       if (!productForm.product_category_id)
         throw new Error("Kategori wajib dipilih");
-      if (!productForm.product_merk_id) throw new Error("Merk wajib dipilih");
 
       // Append fields
       payload.append("shop_id", "1");
@@ -148,7 +142,6 @@ export default function FormProduct({
         "product_category_id",
         String(productForm.product_category_id)
       );
-      payload.append("product_merk_id", String(productForm.product_merk_id));
       payload.append("status", productForm.status ? "1" : "0");
       payload.append("price", String(productForm.price ?? 0));
       payload.append("weight", String(productForm.weight ?? 0));
@@ -758,7 +751,7 @@ export default function FormProduct({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         {/* ... (Input lainnya tetap sama) ... */}
-        <div className="col-span-2">
+        <div className="col-span-2 space-y-1.5">
           <Label>Nama Produk</Label>
           <Input
             value={productForm.name || ""}
@@ -768,7 +761,7 @@ export default function FormProduct({
             placeholder="Nama Produk"
           />
         </div>
-        <div>
+        <div className="col-span-2 space-y-1.5">
           <Label>Kategori</Label>
           <Combobox
             data={categories?.data || []}
@@ -780,30 +773,18 @@ export default function FormProduct({
             placeholder="Pilih Kategori"
           />
         </div>
-        <div>
-          <Label>Merk</Label>
-          <Combobox
-            data={merks?.data || []}
-            value={productForm.product_merk_id || null}
-            onChange={(val) =>
-              setProductForm({ ...productForm, product_merk_id: val })
-            }
-            getOptionLabel={(i) => i.name}
-            placeholder="Pilih Merk"
-          />
-        </div>
-        <div className="col-span-2">
+        <div className="col-span-2 space-y-1.5">
           <Label>Deskripsi</Label>
           <SunEditorWrapper
             value={productForm.description || ""}
             onChange={(content) =>
-              setProductForm({ ...productForm, description: content })
+              setProductForm((prev) => ({ ...prev, description: content }))
             }
             height="200"
             placeholder="Tulis deskripsi produk..."
           />
         </div>
-        <div>
+        <div className="space-y-1.5">
           <Label>Harga</Label>
           <Input
             type="number"
@@ -813,7 +794,7 @@ export default function FormProduct({
             }
           />
         </div>
-        <div>
+        <div className="space-y-1.5">
           <Label>Stok</Label>
           <Input
             type="number"
@@ -823,7 +804,7 @@ export default function FormProduct({
             }
           />
         </div>
-        <div>
+        <div className="space-y-1.5">
           <Label>Berat (Gram)</Label>
           <Input
             type="number"

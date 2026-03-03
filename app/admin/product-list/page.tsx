@@ -821,7 +821,6 @@ export default function ProductPage() {
                   </th>
                   <th className="px-4 py-3">Aksi</th>
                   <th className="px-4 py-3">Kategori</th>
-                  <th className="px-4 py-3">Merk</th>
                   <th className="px-4 py-3">Nama Produk</th>
                   <th className="px-4 py-3">Harga</th>
                   <th className="px-4 py-3">Stok</th>
@@ -877,9 +876,6 @@ export default function ProductPage() {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {item.category_name}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {item.merk_name}
                       </td>
                       <td className="px-4 py-3 font-medium">{item.name}</td>
                       <td className="px-4 py-3 whitespace-nowrap">

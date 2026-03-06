@@ -502,11 +502,11 @@ export default function PublicTransaction() {
   // --- MAIN CONTENT ---
   return (
     <div
-      className={`min-h-screen bg-gradient-to-br from-white to-[#DFF19D]/10 pt-24 ${sniglet.className}`}
+      className={`min-h-screen bg-gradient-to-br from-white to-[#DFF19D]/10 pt-24 mt-[-100px] md:mt-0 ${sniglet.className}`}
     >
       <div className="container mx-auto px-6 lg:px-12 pb-12">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-2">
           <div className="flex items-center gap-3 mb-6">
             <a
               href="/product"

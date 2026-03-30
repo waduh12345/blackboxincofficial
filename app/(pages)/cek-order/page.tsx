@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Swal from "sweetalert2";
 import {
   Search,
@@ -82,11 +82,12 @@ interface TransactionDetail {
 
 export default function TrackOrderPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // --- STATE ---
   const [searchCode, setSearchCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false); // New state untuk mendeteksi apakah sudah pernah mencari
+  const [hasSearched, setHasSearched] = useState(false);
   const [result, setResult] = useState<TrackResult | null>(null);
   const [encryptedPaymentId, setEncryptedPaymentId] = useState<string | null>(
     null
@@ -95,68 +96,31 @@ export default function TrackOrderPage() {
   // Service hook
   const {
     data: transactionData,
-    isLoading: isFetching,
+    isFetching,
     isError,
   } = useGetPublicTransactionByReferenceQuery(searchCode, {
     skip: !searchCode,
   });
 
-  // Efek samping untuk generate encrypted ID setiap kali result berubah
-  useEffect(() => {
-    const generateEncryptedId = async () => {
-      if (result && result.id) {
-        const res = await getEncryptedTransactionId(result.id);
-        if (res.success && res.data) {
-          setEncryptedPaymentId(res.data);
-        }
-      }
-    };
-
-    generateEncryptedId();
-  }, [result]);
-
   const toOrderStatus = (statusNum: number) =>
     statusNum === 0 ? "PENDING" : statusNum === 1 ? "PAID" : "SHIPPED";
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!searchCode.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Oops...",
-        text: "Masukkan kode transaksi terlebih dahulu!",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    setHasSearched(true); // Tandai bahwa user sudah menekan tombol cari
-    setResult(null);
-
-    // Simulasi delay sedikit agar UX loading terasa (opsional)
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    if (transactionData) {
-      const apiTx = transactionData as ApiTransaction;
-
-      // Ambil shop pertama (sesuaikan bila multi-shop)
+  // Extract & set result from RTK Query data
+  const processTransactionData = useCallback(
+    (data: ApiTransaction) => {
       const shop =
-        apiTx.shops && apiTx.shops.length > 0 ? apiTx.shops[0] : undefined;
+        data.shops && data.shops.length > 0 ? data.shops[0] : undefined;
 
-      // Parse shipment detail (string JSON) jika ada
       let shipmentObj: RawShipmentDetail | null = null;
       try {
         if (shop?.shipment_detail) {
           shipmentObj = JSON.parse(shop.shipment_detail);
         }
-      } catch (e) {
+      } catch {
         shipmentObj = null;
-        console.warn("Failed to parse shipment_detail", e);
       }
 
       const items = (shop?.details ?? []).map((detail: ApiDetail) => {
-        // prefer API embedded product object; fallback ke parsing product_detail
         let productName = "Produk";
         let productImage = "";
 
@@ -171,7 +135,7 @@ export default function TrackOrderPage() {
             const pd = JSON.parse(detail.product_detail);
             productName = pd.name ?? productName;
             productImage = pd.image ?? productImage;
-          } catch (e) {
+          } catch {
             // ignore
           }
         }
@@ -186,36 +150,78 @@ export default function TrackOrderPage() {
         };
       });
 
-      const mockData: TrackResult = {
-        id: apiTx.id,
-        reference: apiTx.reference,
-        encypted_id: apiTx.encypted_id ?? "",
-        status: toOrderStatus(apiTx.status),
-        created_at: apiTx.created_at,
-        grand_total: apiTx.grand_total,
-        resi_number: apiTx.resi_number ?? undefined,
+      setResult({
+        id: data.id,
+        reference: data.reference,
+        encypted_id: data.encypted_id ?? "",
+        status: toOrderStatus(data.status),
+        created_at: data.created_at,
+        grand_total: data.grand_total,
+        resi_number: data.resi_number ?? undefined,
         courier: shipmentObj?.code ?? shop?.courier ?? "",
         service: shipmentObj?.service ?? shop?.shipment_detail ?? "",
-        buyer_name: apiTx.guest_name ?? "Guest",
-        buyer_address: apiTx.address_line_1 ?? "",
+        buyer_name: data.guest_name ?? "Guest",
+        buyer_address: data.address_line_1 ?? "",
         items,
         history: [
           {
             status: "PENDING",
             description: "Pesanan dibuat, menunggu pembayaran",
-            date: apiTx.created_at,
+            date: data.created_at,
           },
-          // ... kamu bisa inject history nyata kalau API sediakan
         ],
-      };
+      });
+    },
+    [] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
-      setResult(mockData);
+  // Auto-search from URL ?ref= param on mount
+  useEffect(() => {
+    const refFromUrl = searchParams.get("ref");
+    if (refFromUrl) {
+      setSearchCode(refFromUrl);
+      setHasSearched(true);
+      setIsLoading(true);
+      setResult(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Process RTK Query result reactively (covers both manual and auto-search)
+  useEffect(() => {
+    if (!hasSearched || isFetching) return;
+
+    if (transactionData) {
+      processTransactionData(transactionData as ApiTransaction);
     } else {
-      // Jika data tidak ditemukan di API (atau API error)
-      // Tidak perlu Swal, cukup biarkan UI 'Not Found' di bawah yang muncul
+      setResult(null);
+    }
+    setIsLoading(false);
+  }, [transactionData, isFetching, hasSearched, isError, processTransactionData]);
+
+  // Generate encrypted ID when result changes
+  useEffect(() => {
+    if (!result?.id) return;
+    getEncryptedTransactionId(result.id).then((res) => {
+      if (res.success && res.data) setEncryptedPaymentId(res.data);
+    });
+  }, [result]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!searchCode.trim()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Oops...",
+        text: "Masukkan kode transaksi terlebih dahulu!",
+      });
+      return;
     }
 
-    setIsLoading(false);
+    setIsLoading(true);
+    setHasSearched(true);
+    setResult(null);
   };
 
   // --- HELPER UTILS ---

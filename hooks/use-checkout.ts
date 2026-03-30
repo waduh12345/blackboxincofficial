@@ -335,14 +335,40 @@ export function useCheckout() {
       const referenceCode = txData?.reference ?? "";
 
       if (paymentType === "automatic" && txData?.payment?.account_number) {
-        await Swal.fire({
+        const paymentUrl = txData.payment.account_number;
+
+        const swalResult = await Swal.fire({
           icon: "success",
           title: "Pesanan Berhasil Dibuat",
-          html: `Kode pesanan Anda: <strong>${referenceCode}</strong><br/>Silakan lanjutkan pembayaran sekarang.`,
+          html: `
+            Kode pesanan Anda: <strong>${referenceCode}</strong><br/>
+            Silakan lanjutkan pembayaran sekarang.<br/><br/>
+            <small id="swal-countdown" style="color:#888;">
+              Redirect otomatis dalam <b>10</b> detik...
+            </small>
+          `,
           confirmButtonColor: "#000000",
           confirmButtonText: "Bayar Sekarang",
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showCancelButton: false,
+          timer: 10000,
+          timerProgressBar: true,
+          didOpen: () => {
+            let secs = 10;
+            const el = document.getElementById("swal-countdown");
+            const interval = setInterval(() => {
+              secs--;
+              if (el)
+                el.innerHTML = `Redirect otomatis dalam <b>${secs}</b> detik...`;
+              if (secs <= 0) clearInterval(interval);
+            }, 1000);
+          },
         });
-        window.open(txData.payment.account_number, "_blank");
+
+        if (swalResult.isConfirmed) {
+          window.open(paymentUrl, "_blank");
+        }
       } else {
         await Swal.fire({
           icon: "success",
@@ -350,11 +376,13 @@ export function useCheckout() {
           html: `Kode pesanan Anda: <strong>${referenceCode}</strong><br/>Simpan kode ini untuk melacak pesanan Anda.`,
           confirmButtonColor: "#000000",
           confirmButtonText: "Lacak Pesanan",
+          allowOutsideClick: false,
+          allowEscapeKey: false,
         });
       }
 
       clearCart();
-      router.push("/cek-order");
+      router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
     },
     [createPrivateTx, createPublicTx, router]
   );

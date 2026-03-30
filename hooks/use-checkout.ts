@@ -372,14 +372,16 @@ export function useCheckout() {
       });
 
       // Handle Response
+      let referenceCode = "";
       if (res && typeof res === "object" && "data" in res) {
         const dataRes = res.data as TransactionResponseData;
+        referenceCode = dataRes.reference ?? "";
 
         if (paymentType === "automatic" && dataRes.payment?.account_number) {
           await Swal.fire({
             icon: "success",
             title: "Pesanan Berhasil Dibuat",
-            text: `Silakan cek email ${shippingInfo.email} atau lanjutkan pembayaran sekarang.`,
+            html: `Kode pesanan Anda: <strong>${referenceCode}</strong><br/>Silakan lanjutkan pembayaran sekarang.`,
             confirmButtonColor: "#000000",
             confirmButtonText: "Bayar Sekarang",
           });
@@ -388,14 +390,15 @@ export function useCheckout() {
           await Swal.fire({
             icon: "success",
             title: "Pesanan Berhasil Dibuat",
-            text: `Silakan cek email ${shippingInfo.email} untuk instruksi selanjutnya.`,
+            html: `Kode pesanan Anda: <strong>${referenceCode}</strong><br/>Simpan kode ini untuk melacak pesanan Anda.`,
             confirmButtonColor: "#000000",
+            confirmButtonText: "Lacak Pesanan",
           });
         }
       }
 
       clearCart();
-      router.push("/me");
+      router.push("/cek-order");
     },
     [createPrivateTx, createPublicTx, router]
   );

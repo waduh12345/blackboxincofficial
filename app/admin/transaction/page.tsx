@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import Image from "next/image";
 import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,28 @@ const TRANSACTION_STATUS: Record<TransactionStatusKey, TransactionStatusInfo> = 
   [-4]: { label: "RETUR", variant: "destructive" },
 };
 
+// Helper: parse product_detail JSON safely
+function parseProductDetail(detailString: string): {
+  name: string;
+  variant_name?: string;
+  size_name?: string;
+  color?: string;
+  image?: string;
+} {
+  try {
+    const d = JSON.parse(detailString);
+    return {
+      name: d.name || "Produk",
+      variant_name: d.variant_name || d.variant || undefined,
+      size_name: d.size_name || d.size || undefined,
+      color: d.color || d.color_name || undefined,
+      image: d.image || undefined,
+    };
+  } catch {
+    return { name: "Data Produk Rusak" };
+  }
+}
+
 export default function TransactionPage() {
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
@@ -58,11 +80,16 @@ export default function TransactionPage() {
   const [shipmentStatus, setShipmentStatus] = useState<string>("0");
   const [isUpdatingReceipt, setIsUpdatingReceipt] = useState(false);
 
+  // Shipping receipt/resi modal state
+  const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
+  const [shippingTransactionId, setShippingTransactionId] = useState<number | null>(null);
+  const resiPrintRef = useRef<HTMLDivElement>(null);
+
   // Helper function to format currency in Rupiah
   const formatRupiah = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(numAmount)) return 'Rp 0';
-    
+
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
@@ -76,7 +103,7 @@ export default function TransactionPage() {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return dateString;
-      
+
       return new Intl.DateTimeFormat('id-ID', {
         year: 'numeric',
         month: '2-digit',
@@ -110,7 +137,15 @@ export default function TransactionPage() {
     selectedTransactionId !== null ? selectedTransactionId.toString() : "",
     { skip: !selectedTransactionId }
   );
-  // transactionDetail may be undefined, so add type assertion or optional chaining
+
+  // Shipping modal: fetch detail for the selected transaction
+  const {
+    data: shippingDetail,
+    isLoading: isShippingDetailLoading,
+  } = useGetTransactionByIdQuery(
+    shippingTransactionId !== null ? shippingTransactionId.toString() : "",
+    { skip: !shippingTransactionId }
+  );
 
   const categoryList = useMemo(() => data?.data || [], [data]);
   const lastPage = useMemo(() => data?.last_page || 1, [data]);
@@ -158,6 +193,83 @@ export default function TransactionPage() {
     setIsReceiptModalOpen(true);
   };
 
+  // Open shipping/resi modal
+  const handleShippingClick = (transactionId: number) => {
+    setShippingTransactionId(transactionId);
+    setIsShippingModalOpen(true);
+  };
+
+  // Print the resi content
+  const handlePrintResi = () => {
+    if (!resiPrintRef.current) return;
+    const printContent = resiPrintRef.current.innerHTML;
+    const printWindow = window.open("", "_blank", "width=400,height=600");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Cetak Resi Pengiriman</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Arial', sans-serif; padding: 16px; font-size: 12px; color: #000; }
+            .resi-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 12px; margin-bottom: 12px; }
+            .resi-header h2 { font-size: 16px; margin-bottom: 4px; }
+            .resi-header p { font-size: 11px; color: #555; }
+            .resi-section { margin-bottom: 12px; }
+            .resi-section h3 { font-size: 13px; font-weight: bold; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+            .resi-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+            .resi-row .label { color: #555; }
+            .resi-row .value { font-weight: bold; text-align: right; }
+            .resi-items { width: 100%; border-collapse: collapse; margin-top: 6px; }
+            .resi-items th, .resi-items td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; font-size: 11px; }
+            .resi-items th { background: #f0f0f0; font-weight: bold; }
+            .resi-footer { text-align: center; border-top: 2px dashed #000; padding-top: 12px; margin-top: 12px; font-size: 11px; color: #555; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>${printContent}</body>
+        <script>window.onload = function() { window.print(); window.close(); }<\/script>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  // Process shipping: save receipt code + update status to SHIPPED, then print
+  const handleProcessShipping = async () => {
+    if (!shippingDetail) return;
+    const store = shippingDetail.stores?.[0];
+    if (!store) return;
+
+    if (!receiptCode.trim()) {
+      Swal.fire("Error", "Masukkan nomor resi terlebih dahulu", "error");
+      return;
+    }
+
+    setIsUpdatingReceipt(true);
+    try {
+      // Update receipt code & set shipment status to SHIPPED (1)
+      await updateReceiptCode({
+        id: store.id,
+        receipt_code: receiptCode.trim(),
+        shipment_status: 1,
+      }).unwrap();
+
+      await refetch();
+
+      // Print resi after saving
+      setTimeout(() => {
+        handlePrintResi();
+      }, 300);
+
+      Swal.fire("Berhasil", "Resi berhasil disimpan & dicetak", "success");
+    } catch (error) {
+      console.error("Error processing shipping:", error);
+      Swal.fire("Gagal", "Gagal menyimpan nomor resi", "error");
+    } finally {
+      setIsUpdatingReceipt(false);
+    }
+  };
+
   const handleReceiptCodeUpdate = async () => {
     if (!selectedStoreId || !receiptCode.trim()) {
       Swal.fire("Error", "Nomor resi tidak boleh kosong", "error");
@@ -176,33 +288,28 @@ export default function TransactionPage() {
       shipment_status: parsedShipmentStatus,
     };
 
-
     setIsUpdatingReceipt(true);
     try {
       await updateReceiptCode(payload).unwrap();
 
-      // Close the receipt modal first
       setIsReceiptModalOpen(false);
       setSelectedStoreId(null);
       setReceiptCode("");
       setShipmentStatus("0");
-      
-      // Wait a bit for modal to close, then show success message
+
       setTimeout(() => {
         Swal.fire("Berhasil", "Nomor resi dan status pengiriman berhasil diperbarui", "success");
       }, 100);
-      
+
       await refetch();
     } catch (error) {
       console.error("Error updating receipt code:", error);
-      
-      // Close the receipt modal first
+
       setIsReceiptModalOpen(false);
       setSelectedStoreId(null);
       setReceiptCode("");
       setShipmentStatus("0");
-      
-      // Wait a bit for modal to close, then show error message
+
       setTimeout(() => {
         Swal.fire("Gagal", "Gagal memperbarui nomor resi", "error");
       }, 100);
@@ -221,22 +328,18 @@ export default function TransactionPage() {
         status: parseInt(newStatus),
       }).unwrap();
 
-      // Close the status modal first
       setIsStatusModalOpen(false);
       setSelectedTransaction(null);
-      
-      // Wait a bit for modal to close, then show success message
+
       setTimeout(() => {
         Swal.fire("Berhasil", "Status transaction berhasil diubah", "success");
       }, 100);
-      
+
       await refetch();
     } catch (error) {
-      // Close the status modal first
       setIsStatusModalOpen(false);
       setSelectedTransaction(null);
-      
-      // Wait a bit for modal to close, then show error message
+
       setTimeout(() => {
         Swal.fire("Gagal", "Gagal mengubah status transaction", "error");
       }, 100);
@@ -319,13 +422,9 @@ export default function TransactionPage() {
     return statusMap[status] || { label: "UNKNOWN", variant: "secondary" };
   };
 
-  const formatProductDetail = (detailString: string) => {
-    try {
-      const detail = JSON.parse(detailString);
-      return detail.name || "Nama Produk Tidak Diketahui";
-    } catch {
-      return "Data Produk Rusak";
-    }
+  // Check if a transaction has been processed (has receipt code on any store)
+  const isTransactionProcessed = (item: Transaction): boolean => {
+    return item.stores?.some(store => store.receipt_code && store.shipment_status >= 1) ?? false;
   };
 
   return (
@@ -347,7 +446,7 @@ export default function TransactionPage() {
                 <th className="px-4 py-2 whitespace-nowrap">Biaya Pengiriman</th>
                 <th className="px-4 py-2 whitespace-nowrap">Total harga</th>
                 <th className="px-4 py-2 whitespace-nowrap">Payment Link</th>
-                {/* <th className="px-4 py-2 whitespace-nowrap">Nomor Resi</th> */}
+                <th className="px-4 py-2 whitespace-nowrap">Pengiriman</th>
                 <th className="px-4 py-2 whitespace-nowrap">Tanggal</th>
                 <th className="px-4 py-2 whitespace-nowrap">Status</th>
               </tr>
@@ -368,6 +467,7 @@ export default function TransactionPage() {
               ) : (
                 categoryList.map((item) => {
                   const statusInfo = getStatusInfo(item.status);
+                  const processed = isTransactionProcessed(item);
                   return (
                     <tr key={item.id} className="border-t">
                       <td className="px-4 py-2">
@@ -438,41 +538,48 @@ export default function TransactionPage() {
                           </span>
                         )}
                       </td>
-                      {/* <td className="px-4 py-2">
-                        {item.stores && item.stores.length > 0 ? (
-                          item.stores.map((store, index) => (
-                            <div key={index} className="mb-1">
-                              {store.receipt_code ? (
-                                <span 
-                                  className="text-sm font-medium text-green-600 cursor-pointer hover:underline"
-                                  onClick={() => handleReceiptCodeClick(store.id, store.receipt_code, store.shipment_status)}
-                                  title="Klik untuk mengedit nomor resi"
-                                >
-                                  {store.receipt_code}
-                                </span>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs px-2 py-1 h-auto"
-                                  onClick={() => handleReceiptCodeClick(store.id, store.receipt_code, store.shipment_status)}
-                                >
-                                  Input Resi
-                                </Button>
-                              )}
+                      {/* Kolom Pengiriman: Atur Pengiriman / Sudah Diproses */}
+                      <td className="px-4 py-2">
+                        {(item.status === 1 || item.status === 2) ? (
+                          processed ? (
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="success" className="text-xs whitespace-nowrap">
+                                Sudah Diproses
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-xs px-1 py-0 h-auto text-blue-600 hover:text-blue-800"
+                                onClick={() => {
+                                  setReceiptCode("");
+                                  handleShippingClick(item.id);
+                                }}
+                              >
+                                Lihat / Cetak Ulang
+                              </Button>
                             </div>
-                          ))
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-blue-300 text-blue-600 hover:bg-blue-50 text-xs whitespace-nowrap"
+                              onClick={() => {
+                                setReceiptCode("");
+                                handleShippingClick(item.id);
+                              }}
+                            >
+                              Atur Pengiriman
+                            </Button>
+                          )
                         ) : (
-                          <span className="text-muted-foreground text-xs">
-                            Tidak ada data
-                          </span>
+                          <span className="text-muted-foreground text-xs">-</span>
                         )}
-                      </td> */}
+                      </td>
                       <td className="px-4 py-2 text-sm whitespace-nowrap">
                         {formatDateTime(item.created_at)}
                       </td>
                       <td className="px-4 py-2">
-                        <Badge 
+                        <Badge
                           variant={statusInfo.variant}
                           className="cursor-pointer hover:opacity-80"
                           onClick={() => handleStatusClick(item)}
@@ -544,7 +651,7 @@ export default function TransactionPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">Resi:</span>
                         {store.receipt_code ? (
-                          <span 
+                          <span
                             className="text-sm font-medium text-green-600 cursor-pointer hover:underline"
                             onClick={() => handleReceiptCodeClick(store.id, store.receipt_code, store.shipment_status)}
                             title="Klik untuk mengedit nomor resi"
@@ -567,7 +674,7 @@ export default function TransactionPage() {
                 </div>
               )}
             </div>
-            
+
             <div>
               <label className="text-sm font-medium mb-2 block">
                 Pilih Status Baru:
@@ -606,7 +713,7 @@ export default function TransactionPage() {
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Detail Modal */}
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="max-w-5xl">
@@ -639,47 +746,54 @@ export default function TransactionPage() {
                     <p><strong>Kedaluwarsa:</strong> {formatDateTime(transactionDetail.expires_at)}</p>
                   )}
                 </div>
-                
+
                 {/* Payment Proof */}
                 {transactionDetail.payment_proof && (
                   <div className="mt-4">
                     <h4 className="text-base font-semibold">Bukti Pembayaran</h4>
                     <a href={transactionDetail.payment_proof} target="_blank" rel="noopener noreferrer">
-                      <Image 
-                        src={transactionDetail.payment_proof} 
-                        alt="Bukti Pembayaran" 
+                      <Image
+                        src={transactionDetail.payment_proof}
+                        alt="Bukti Pembayaran"
                         width={400}
                         height={300}
-                        className="w-full h-auto mt-2 rounded-lg object-contain border" 
+                        className="w-full h-auto mt-2 rounded-lg object-contain border"
                       />
                     </a>
                   </div>
                 )}
               </div>
-              
+
               {/* Right Column: Items and Shipping */}
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Produk</h3>
                   <div className="space-y-2">
-                    {transactionDetail.stores.flatMap(store => store.details).map((item, index) => (
-                      <div key={index} className="flex justify-between items-center text-sm border-b pb-2">
-                        <div>
-                          <p className="font-medium">{formatProductDetail(item.product_detail)}</p>
-                          <p className="text-muted-foreground">Jumlah: {item.quantity}</p>
+                    {transactionDetail.stores.flatMap(store => store.details).map((item, index) => {
+                      const pd = parseProductDetail(item.product_detail);
+                      return (
+                        <div key={index} className="flex justify-between items-center text-sm border-b pb-2">
+                          <div>
+                            <p className="font-medium">{pd.name}</p>
+                            <div className="flex gap-2 text-xs text-muted-foreground">
+                              {pd.variant_name && <span>Warna: {pd.variant_name}</span>}
+                              {pd.size_name && <span>Size: {pd.size_name}</span>}
+                            </div>
+                            <p className="text-muted-foreground">Jumlah: {item.quantity}</p>
+                          </div>
+                          <p className="font-semibold">{formatRupiah(item.total)}</p>
                         </div>
-                        <p className="font-semibold">{formatRupiah(item.total)}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
-                
+
                 {/* Shipping Details */}
                 {transactionDetail.stores.length > 0 && transactionDetail.stores[0] && (
                   <div>
                     <div className="space-y-2 text-sm">
                       <p><strong>Alamat:</strong> {transactionDetail.address_line_1} {transactionDetail.postal_code}</p>
-                      <p><strong>Kurir:</strong> {JSON.parse(transactionDetail.stores[0].shipment_detail).name} ({JSON.parse(transactionDetail.stores[0].shipment_detail).service})</p>
+                      <p><strong>Kurir:</strong> {(() => { try { const s = JSON.parse(transactionDetail.stores[0].shipment_detail); return `${s.name} (${s.service})`; } catch { return transactionDetail.stores[0].courier; } })()}</p>
                       <p><strong>Biaya:</strong> {formatRupiah(transactionDetail.shipment_cost)}</p>
                       <div className="flex items-center gap-2">
                         <p><strong>Status Pengiriman:</strong></p>
@@ -690,7 +804,7 @@ export default function TransactionPage() {
                       <div className="flex items-center gap-2">
                         <p><strong>Nomor Resi:</strong></p>
                         {transactionDetail.stores[0].receipt_code ? (
-                        <span 
+                        <span
                           className="text-sm font-medium text-green-600 cursor-pointer hover:underline"
                           onClick={() => handleReceiptCodeClick(transactionDetail.stores[0].id, transactionDetail.stores[0].receipt_code, transactionDetail.stores[0].shipment_status)}
                           title="Klik untuk mengedit nomor resi"
@@ -711,7 +825,7 @@ export default function TransactionPage() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Totals */}
                 <div className="border-t pt-4">
                   <div className="flex justify-between text-base font-medium">
@@ -733,7 +847,7 @@ export default function TransactionPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Receipt Code Modal */}
+      {/* Receipt Code Modal (legacy - for direct resi input) */}
       <Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -786,6 +900,163 @@ export default function TransactionPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shipping / Resi Modal - New */}
+      <Dialog open={isShippingModalOpen} onOpenChange={(open) => {
+        setIsShippingModalOpen(open);
+        if (!open) {
+          setShippingTransactionId(null);
+          setReceiptCode("");
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Atur Pengiriman & Cetak Resi</DialogTitle>
+          </DialogHeader>
+
+          {isShippingDetailLoading ? (
+            <div className="text-center p-8">Memuat data pesanan...</div>
+          ) : !shippingDetail ? (
+            <div className="text-center p-8 text-red-500">Gagal memuat data.</div>
+          ) : (() => {
+            const store = shippingDetail.stores?.[0];
+            const alreadyProcessed = store?.receipt_code && store.shipment_status >= 1;
+            let courierInfo = { name: "", service: "" };
+            try {
+              if (store?.shipment_detail) courierInfo = JSON.parse(store.shipment_detail);
+            } catch { /* ignore */ }
+
+            const allItems = shippingDetail.stores.flatMap(s => s.details);
+
+            return (
+              <div className="space-y-4">
+                {/* Status indicator */}
+                {alreadyProcessed && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                    <Badge variant="success">Sudah Diproses</Badge>
+                    <span className="text-sm text-green-700">Resi: <strong>{store?.receipt_code}</strong></span>
+                  </div>
+                )}
+
+                {/* Printable Resi Content */}
+                <div ref={resiPrintRef}>
+                  <div className="resi-header" style={{ textAlign: "center", borderBottom: "2px dashed #ccc", paddingBottom: 12, marginBottom: 12 }}>
+                    <h2 style={{ fontSize: 16, fontWeight: "bold" }}>RESI PENGIRIMAN</h2>
+                    <p style={{ fontSize: 12, color: "#666" }}>{shippingDetail.reference} | {formatDateTime(shippingDetail.created_at)}</p>
+                  </div>
+
+                  <div className="resi-section" style={{ marginBottom: 12 }}>
+                    <h3 style={{ fontSize: 13, fontWeight: "bold", borderBottom: "1px solid #eee", paddingBottom: 4, marginBottom: 6 }}>Informasi Pembeli</h3>
+                    <div style={{ fontSize: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                        <span style={{ color: "#666" }}>Nama:</span>
+                        <span style={{ fontWeight: "bold" }}>{shippingDetail.user_name || shippingDetail.guest_name || "-"}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                        <span style={{ color: "#666" }}>No. HP:</span>
+                        <span style={{ fontWeight: "bold" }}>{shippingDetail.guest_phone || "-"}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                        <span style={{ color: "#666" }}>Email:</span>
+                        <span style={{ fontWeight: "bold" }}>{shippingDetail.user_email || shippingDetail.guest_email || "-"}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                        <span style={{ color: "#666" }}>Alamat:</span>
+                        <span style={{ fontWeight: "bold", textAlign: "right", maxWidth: "60%" }}>{shippingDetail.address_line_1} {shippingDetail.postal_code}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="resi-section" style={{ marginBottom: 12 }}>
+                    <h3 style={{ fontSize: 13, fontWeight: "bold", borderBottom: "1px solid #eee", paddingBottom: 4, marginBottom: 6 }}>Pengiriman</h3>
+                    <div style={{ fontSize: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                        <span style={{ color: "#666" }}>Kurir:</span>
+                        <span style={{ fontWeight: "bold" }}>{(courierInfo.name || store?.courier || "").toUpperCase()} - {courierInfo.service || ""}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                        <span style={{ color: "#666" }}>No. Resi:</span>
+                        <span style={{ fontWeight: "bold" }}>{store?.receipt_code || receiptCode || "(belum diisi)"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="resi-section" style={{ marginBottom: 12 }}>
+                    <h3 style={{ fontSize: 13, fontWeight: "bold", borderBottom: "1px solid #eee", paddingBottom: 4, marginBottom: 6 }}>Detail Pesanan</h3>
+                    <table className="resi-items" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                      <thead>
+                        <tr style={{ background: "#f5f5f5" }}>
+                          <th style={{ border: "1px solid #ddd", padding: "4px 6px", textAlign: "left" }}>Produk</th>
+                          <th style={{ border: "1px solid #ddd", padding: "4px 6px", textAlign: "center" }}>Qty</th>
+                          <th style={{ border: "1px solid #ddd", padding: "4px 6px", textAlign: "center" }}>Varian/Warna</th>
+                          <th style={{ border: "1px solid #ddd", padding: "4px 6px", textAlign: "center" }}>Size</th>
+                          <th style={{ border: "1px solid #ddd", padding: "4px 6px", textAlign: "right" }}>Harga</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allItems.map((detail, idx) => {
+                          const pd = parseProductDetail(detail.product_detail);
+                          return (
+                            <tr key={idx}>
+                              <td style={{ border: "1px solid #ddd", padding: "4px 6px" }}>{pd.name}</td>
+                              <td style={{ border: "1px solid #ddd", padding: "4px 6px", textAlign: "center" }}>{detail.quantity}</td>
+                              <td style={{ border: "1px solid #ddd", padding: "4px 6px", textAlign: "center" }}>{pd.variant_name || pd.color || "-"}</td>
+                              <td style={{ border: "1px solid #ddd", padding: "4px 6px", textAlign: "center" }}>{pd.size_name || "-"}</td>
+                              <td style={{ border: "1px solid #ddd", padding: "4px 6px", textAlign: "right" }}>{formatRupiah(detail.total)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="resi-footer" style={{ textAlign: "center", borderTop: "2px dashed #ccc", paddingTop: 12, marginTop: 12, fontSize: 11, color: "#666" }}>
+                    <p>Total: <strong>{formatRupiah(shippingDetail.grand_total)}</strong></p>
+                    <p style={{ marginTop: 4 }}>Terima kasih telah berbelanja!</p>
+                  </div>
+                </div>
+
+                {/* Input Resi (only if not yet processed) */}
+                {!alreadyProcessed && (
+                  <div className="border-t pt-4 space-y-3">
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Nomor Resi:</label>
+                      <Input
+                        value={receiptCode}
+                        onChange={(e) => setReceiptCode(e.target.value)}
+                        placeholder="Masukkan nomor resi pengiriman"
+                        disabled={isUpdatingReceipt}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div className="flex gap-2 justify-end border-t pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsShippingModalOpen(false)}
+                  >
+                    Tutup
+                  </Button>
+                  {alreadyProcessed ? (
+                    <Button onClick={handlePrintResi}>
+                      Cetak Ulang Resi
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleProcessShipping}
+                      disabled={isUpdatingReceipt || !receiptCode.trim()}
+                    >
+                      {isUpdatingReceipt ? "Memproses..." : "Simpan & Cetak Resi"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

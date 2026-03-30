@@ -10,8 +10,6 @@ import {
   Award,
   ShoppingBag,
   ArrowRight,
-  Play,
-  Sparkles,
   TreePine,
   Shield,
   CheckCircle,

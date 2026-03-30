@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
 import {
   ShoppingCart,
   CreditCard,
@@ -83,7 +81,6 @@ export default function HowToOrderPage() {
 // CONTENT COMPONENT
 // =========================================
 function HowToOrderContent() {
-  const router = useRouter();
   const isEditMode = useEditMode();
   const [activeStep, setActiveStep] = useState(1);
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);

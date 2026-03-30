@@ -7,15 +7,12 @@ import {
   Plus,
   Minus,
   Trash2,
-  Heart,
   ArrowLeft,
   CreditCard,
   CheckCircle,
   Sparkles,
-  Package,
   Shield,
   Truck,
-  Star,
   Upload,
   Banknote,
   ExternalLink,
@@ -44,7 +41,6 @@ import {
   useGetCurrentUserQuery,
   useCheckShippingCostQuery,
 } from "@/services/auth.service";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useGetUserAddressListQuery } from "@/services/address.service";
 import type { Address } from "@/types/address";
@@ -176,7 +172,6 @@ function getGuestInfo(): GuestInfo | null {
 }
 
 export default function CartPage() {
-  const router = useRouter();
   const { data: session } = useSession();
   const isLoggedIn = !!session?.user?.email;
 
@@ -211,6 +206,7 @@ export default function CartPage() {
   const [variantModalOpen, setVariantModalOpen] = useState(false);
   const [variantProduct, setVariantProduct] = useState<Product | null>(null);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const openVariantModal = (p: Product) => {
     setVariantProduct(p);
     setVariantModalOpen(true);
@@ -246,6 +242,7 @@ export default function CartPage() {
 
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const [isEmailValid, setIsEmailValid] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [hasDefaultAddress, setHasDefaultAddress] = useState(false);
 
   const { handleCheckout } = useCheckout();
@@ -288,6 +285,7 @@ export default function CartPage() {
   const validateEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const { data: currentUserResp } = useGetCurrentUserQuery();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const currentUser = useMemo(() => currentUserResp || null, [currentUserResp]);
 
   useEffect(() => {
@@ -312,6 +310,7 @@ export default function CartPage() {
     page: 1,
     paginate: 100,
   });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const defaultAddress: Address | undefined = userAddressList?.data?.find(
     (a) => a.is_default
   );
@@ -404,6 +403,7 @@ export default function CartPage() {
     }
   }, [shippingOptions]);
 
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   const {
     data: relatedResp,
     isLoading: isRelLoading,
@@ -413,7 +413,9 @@ export default function CartPage() {
     paginate: 6,
     product_merk_id: undefined,
   });
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const relatedProducts: RelatedProductView[] = useMemo(() => {
     const arr = relatedResp?.data ?? [];
     return arr.map((p) => ({

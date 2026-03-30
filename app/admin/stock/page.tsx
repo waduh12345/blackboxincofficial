@@ -131,7 +131,7 @@ function VariantSizesSection({
 // ── Variant Row Sub-component ──
 function VariantRow({
   variant,
-  productSlug,
+  productSlug: _productSlug,
   onAddStockToVariant,
   onAddStockToSize,
   onViewHistory,

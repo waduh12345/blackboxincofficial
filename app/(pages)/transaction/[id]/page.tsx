@@ -33,9 +33,7 @@ import {
 import type {
   Product,
   ProductMedia,
-  ProductVariant,
 } from "@/services/public-transactions.service";
-import { ProductVariantSize } from "@/services/admin/product-variant-size.service";
 
 // --- GRAYSCALE ACCENT CONSTANTS ---
 const ACCENT_TEXT_COLOR = "text-gray-900";
@@ -125,7 +123,7 @@ export default function GuestConfirmationPage() {
       }).then((result) => {
         if (result.isConfirmed) router.push("/");
       });
-    } catch (err) {
+    } catch {
       Swal.fire({
         icon: "error",
         title: "Gagal",
@@ -530,7 +528,7 @@ export default function GuestConfirmationPage() {
                   ?.flatMap((shop) =>
                     shop.details.map((d) => ({ shop, detail: d }))
                   )
-                  .map(({ shop, detail }) => {
+                  .map(({ detail }) => {
                     const product = detail.product;
                     const img = getProductImage(product);
 

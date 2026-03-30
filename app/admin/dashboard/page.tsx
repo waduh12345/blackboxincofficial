@@ -21,7 +21,6 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { useGetDashboardQuery } from "@/services/admin/dashboard.service";
-import type { DashboardData } from "@/types/admin/dashboard";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 

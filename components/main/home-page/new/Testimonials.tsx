@@ -1,13 +1,11 @@
 // components/sections/Testimonials.tsx
 "use client";
 
-import { useTranslation } from "@/hooks/use-translation";
 import en from "@/translations/home/en";
 import id from "@/translations/home/id";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { Star } from "lucide-react";
-import clsx from "clsx";
 
 type LocaleKey = "testimony-title";
 type LocaleDict = Record<LocaleKey, string>;

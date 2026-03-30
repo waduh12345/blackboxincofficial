@@ -24,7 +24,7 @@ export type VariantPickerProps = {
 };
 
 export default function VariantPickerModal({
-  itemId,
+  itemId: _itemId,
   productSlug,
   selectedVariantId,
   onPick,

@@ -205,7 +205,7 @@ export default function ProductVariantPage() {
       await deleteVariant({ productSlug, id: item.id }).unwrap();
       Swal.fire("Berhasil", "Varian dihapus", "success");
       await refetch();
-    } catch (e) {
+    } catch {
       Swal.fire("Gagal", "Tidak bisa menghapus varian", "error");
     }
   };

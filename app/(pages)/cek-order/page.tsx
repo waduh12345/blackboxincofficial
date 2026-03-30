@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Swal from "sweetalert2";
 import {
   Search,
@@ -16,7 +16,6 @@ import {
   CreditCard,
   AlertCircle,
   Calendar,
-  HelpCircle,
   FileQuestion,
   SearchX,
   Info,
@@ -26,7 +25,6 @@ import { fredoka, sniglet } from "@/lib/fonts";
 import DotdLoader from "@/components/loader/3dot";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { getEncryptedTransactionId } from "@/app/actions/security";
 
 // Importing the service hook to fetch data from the API
 import { useGetPublicTransactionByReferenceQuery } from "@/services/public-transactions.service";
@@ -73,15 +71,7 @@ interface Product {
   image: string;
 }
 
-interface TransactionDetail {
-  id: number;
-  product: Product;
-  quantity: number;
-  price: number;
-}
-
-export default function TrackOrderPage() {
-  const router = useRouter();
+function TrackOrderContent() {
   const searchParams = useSearchParams();
 
   // --- STATE ---
@@ -89,9 +79,6 @@ export default function TrackOrderPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [result, setResult] = useState<TrackResult | null>(null);
-  const [encryptedPaymentId, setEncryptedPaymentId] = useState<string | null>(
-    null
-  );
 
   // Service hook
   const {
@@ -199,14 +186,6 @@ export default function TrackOrderPage() {
     setIsLoading(false);
   }, [transactionData, isFetching, hasSearched, isError, processTransactionData]);
 
-  // Generate encrypted ID when result changes
-  useEffect(() => {
-    if (!result?.id) return;
-    getEncryptedTransactionId(result.id).then((res) => {
-      if (res.success && res.data) setEncryptedPaymentId(res.data);
-    });
-  }, [result]);
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -262,7 +241,6 @@ export default function TrackOrderPage() {
   };
 
   // Ganti warna aksen utama: #[A3B18A] -> #333 (Hitam/Abu-abu gelap)
-  const ACCENT_COLOR_HEX = "#333333";
   const ACCENT_COLOR_TAILWIND = "text-gray-900";
   const ACCENT_BG_TAILWIND = "bg-gray-900";
   const ACCENT_HOVER_TAILWIND = "hover:bg-gray-700";
@@ -677,5 +655,13 @@ export default function TrackOrderPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TrackOrderPage() {
+  return (
+    <Suspense>
+      <TrackOrderContent />
+    </Suspense>
   );
 }

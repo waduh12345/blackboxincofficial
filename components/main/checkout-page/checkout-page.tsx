@@ -7,8 +7,6 @@ import {
   CreditCard,
   User,
   MapPin,
-  Phone,
-  Mail,
   Shield,
   Truck,
   Gift,
@@ -17,12 +15,8 @@ import {
   ArrowRight,
   Lock,
   Sparkles,
-  Clock,
-  Star,
   Package,
   Heart,
-  Tag,
-  AlertCircle,
   Edit3,
 } from "lucide-react";
 

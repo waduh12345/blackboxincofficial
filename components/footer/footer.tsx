@@ -1,35 +1,23 @@
 // components/sections/Footer.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
-  ChevronDown,
-  ChevronUp,
   MapPin,
   Phone,
   Mail,
   Heart,
-  Shield,
-  Award,
-  ArrowRight,
   Diamond,
-  ShieldCheck, // Ikon premium baru
+  ShieldCheck,
 } from "lucide-react";
 import { FaInstagram, FaFacebookF, FaWhatsapp } from "react-icons/fa";
-import Image from "next/image";
-import clsx from "clsx";
 import Link from "next/link";
 
 export default function Footer() {
-  const router = useRouter();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const goTofaqPage = () => {
-    router.push("/faq");
-  };
-
-  // Konten FAQ disesuaikan untuk Fashion
+  // Konten FAQ disesuaikan untuk Fashion (currently unused — section is commented out)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const faqs = [
     {
       question: "Apa kebijakan pengembalian produk BLACKBOX.INC?",
@@ -58,6 +46,7 @@ export default function Footer() {
     { name: "Terms & Conditions", href: "/terms" },
   ];
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const toggleAccordion = (index: number) => {
     setActiveIndex(activeIndex === index ? null : index);
   };

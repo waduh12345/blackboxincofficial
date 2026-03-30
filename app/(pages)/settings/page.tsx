@@ -13,9 +13,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   LogOut,
-  Minus,
-  Plus,
-} from "lucide-react"; // Tambahkan icon Minus & Plus
+} from "lucide-react";
 import useCart from "@/hooks/use-cart";
 import { useGetTransactionListQuery } from "@/services/admin/transaction.service";
 

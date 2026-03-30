@@ -3,13 +3,11 @@
 import { useMemo, useEffect, useState } from "react";
 import Image from "next/image";
 import Swal from "sweetalert2";
-import { useRouter } from "next/navigation";
 import {
   ShoppingCart,
   Plus,
   Minus,
   Trash2,
-  Heart,
   ArrowLeft,
   CreditCard,
   Sparkles,
@@ -130,8 +128,6 @@ function getImageUrlFromProduct(p: Product): string {
 
 /** ====== Component ====== */
 export default function PublicTransaction() {
-  const router = useRouter();
-
   // --- Init Checkout Hook ---
   const { handleCheckout } = useCheckout();
   const [isProcessing, setIsProcessing] = useState(false);

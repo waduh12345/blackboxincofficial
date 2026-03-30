@@ -6,7 +6,6 @@ import {
   Search,
   Edit,
   Trash2,
-  MoreHorizontal,
   LayoutGrid,
   Globe,
   MapPin,
@@ -78,7 +77,7 @@ export default function ClientPage() {
           confirmButtonColor: "#E84A8A",
           timer: 1500,
         });
-      } catch (err) {
+      } catch {
         Swal.fire("Gagal!", "Gagal menghapus data.", "error");
       }
     }

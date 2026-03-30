@@ -2,14 +2,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   X,
   Star,
   Heart,
   Truck,
   ShieldCheck,
-  ArrowRight,
   Share2,
   Plus,
   Minus,
@@ -446,7 +444,7 @@ export default function ProductDetailModal({
                         confirmButtonText: "Oke",
                         confirmButtonColor: "#000000",
                       });
-                    } catch (err) {
+                    } catch {
                        // Fallback error copy
                        await navigator.clipboard.writeText(`${shareText} ${url}`);
                        await Swal.fire({

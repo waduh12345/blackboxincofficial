@@ -7,7 +7,7 @@ import { Mail, Lock, Eye, EyeOff, LogIn, Sparkles } from "lucide-react";
 import Swal from "sweetalert2";
 
 import { useAuthLoginMutation } from "@/services/customize/auth.service";
-import { fredoka, sniglet } from "@/lib/fonts";
+import { sniglet } from "@/lib/fonts";
 
 interface ApiError {
   data?: {

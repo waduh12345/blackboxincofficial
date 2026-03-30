@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, Suspense, useRef } from "react";
+import { useMemo, useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import {
   Clock,

@@ -21,7 +21,7 @@ export default function ProductDetailModal({
   product,
 }: // addCart,
 ProductDetailProps) {
-  const { addItem, open: openCart } = useCart();
+  const { addItem } = useCart();
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [showDetails, setShowDetails] = useState(false);

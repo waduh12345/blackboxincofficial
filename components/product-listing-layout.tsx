@@ -2,15 +2,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   Search as SearchIcon,
   Filter,
   X,
   Star,
   Heart,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button"; // Asumsi Button sudah B&W
 import FilterBlocks from "@/components/ui/block-filter"; // Asumsi ini sudah B&W
@@ -124,8 +121,11 @@ export default function ProductListingLayout({
 
   // modal
   const [active, setActive] = useState<ListingProduct | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [activeImg, setActiveImg] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [color, setColor] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [size, setSize] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -263,6 +263,7 @@ export default function ProductListingLayout({
     };
   }, [active]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const total = useMemo(() => (active ? active.price * qty : 0), [active, qty]);
 
   /* ===== UI (B&W Styling) ===== */

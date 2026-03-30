@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -91,6 +91,7 @@ const Stat = ({ label, value }: { label: string; value: string }) => (
   </motion.div>
 );
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const TeamCard = ({
   name,
   role,
@@ -115,6 +116,7 @@ const TeamCard = ({
   </motion.div>
 );
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const TimelineItem = ({
   year,
   title,

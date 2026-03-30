@@ -4,7 +4,6 @@ import Link from "next/link";
 import { X, ChevronDown, ChevronUp, LogOut } from "lucide-react";
 import { SidebarProps } from "@/types";
 import { usePathname } from "next/navigation";
-import Image from "next/image";
 import { signOut } from "next-auth/react";
 import { Button } from "../ui/button";
 

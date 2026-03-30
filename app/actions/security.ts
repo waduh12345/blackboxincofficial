@@ -7,7 +7,7 @@ export async function getEncryptedTransactionId(id: number | string) {
   try {
     const encryptedId = encrypt(id.toString());
     return { success: true, data: encryptedId };
-  } catch (error) {
+  } catch {
     return { success: false, error: "Failed to encrypt" };
   }
 }

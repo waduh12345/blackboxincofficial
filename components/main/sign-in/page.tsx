@@ -31,7 +31,7 @@ type TriggerReturn<T> = Promise<T> & { unwrap: () => Promise<T> };
 
 const useRegisterMutation = () => {
   const trigger = (
-    payload: RegisterPayload
+    _payload: RegisterPayload
   ): TriggerReturn<RegisterSuccess> => {
     const p = new Promise<RegisterSuccess>((resolve) => {
       setTimeout(() => resolve({ message: "ok" }), 1000);
@@ -231,7 +231,7 @@ export default function LoginPage() {
           "Gagal mengirim tautan reset password. Silakan coba lagi.";
         setErrors([message]);
       }
-    } catch (err) {
+    } catch {
       setErrors(["Terjadi kesalahan saat mengirim permintaan."]);
     } finally {
       setIsSendingResetLink(false);
@@ -276,7 +276,7 @@ export default function LoginPage() {
           (data as { message?: string }).message || "Gagal mengubah password. Pastikan kode OTP benar.";
         setErrors([message]);
       }
-    } catch (err) {
+    } catch {
       setErrors(["Terjadi kesalahan saat memvalidasi OTP."]);
     } finally {
       setIsVerifyingOtp(false);
@@ -284,11 +284,7 @@ export default function LoginPage() {
   };
 
   // ===== UI (B&W Styling) =====
-  const primaryColor = "text-black";
   const accentBg = "bg-black";
-  const accentText = "text-white";
-  const errorColor = "text-red-600";
-  const successColor = "text-emerald-600";
 
   // --- Forgot Password Form ---
   if (showForgotPassword) {

@@ -27,7 +27,6 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
-  AlertCircle,
   CheckCircle,
   ScanLine,
 } from "lucide-react";
@@ -92,6 +91,7 @@ interface Promo {
 
 type PaymentMethod = "cash" | "transfer" | "qris" | "va";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface PaymentInfo {
   method: PaymentMethod;
   amount: number;
@@ -327,6 +327,7 @@ export default function POSPage() {
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [paymentReference, setPaymentReference] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [transactionComplete, setTransactionComplete] = useState(false);
   const [transactionId, setTransactionId] = useState("");
 

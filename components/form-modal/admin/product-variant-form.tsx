@@ -37,6 +37,7 @@ export default function ProductVariantForm({
   readonly?: boolean;
   isLoading?: boolean;
 }) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 

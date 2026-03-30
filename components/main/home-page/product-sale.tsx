@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Star } from "lucide-react";
 import { useGetProductListQuery } from "@/services/product.service";
 import { Product } from "@/types/admin/product";
 

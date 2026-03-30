@@ -145,6 +145,7 @@ const etaRange = () => {
   return `${formatDate(a)} – ${formatDate(b)}`;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const FilterBlocks = ({ children }: { children: React.ReactNode }) => (
   <>{children}</>
 );
@@ -231,6 +232,7 @@ export default function ProductsPage() {
   /* ---------- Local states ---------- */
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState(urlSearchTerm);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedVariant, setSelectedVariant] =
     useState<SelectedVariant | null>(null);
@@ -280,6 +282,7 @@ export default function ProductsPage() {
     paginate: 100,
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const categoryOptions = useMemo(() => {
     if (categoryResp?.data && Array.isArray(categoryResp.data)) {
       return categoryResp.data.map((cat: { name: string }) => cat.name);
@@ -347,7 +350,7 @@ export default function ProductsPage() {
       const target = query ? `/product?${query}` : `/product`;
       // gunakan router.replace supaya tidak menumpuk history; push juga boleh
       router.replace(target);
-    } catch (err) {
+    } catch {
       // fallback simple
       router.replace(
         slug === "all"
@@ -358,6 +361,7 @@ export default function ProductsPage() {
   };
 
   const [activeImg, setActiveImg] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const totalPages = useMemo(() => listResp?.last_page ?? 1, [listResp]);
   const products = useMemo<Product[]>(() => listResp?.data ?? [], [listResp]);
   const [qty, setQty] = useState(1);
@@ -383,6 +387,7 @@ export default function ProductsPage() {
     selectedVariant?.stock ?? detailProduct?.stock ?? 0
   );
   const currentSku = selectedVariant?.sku ?? detailProduct?.sku ?? "N/A";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const currentDiscount = 0;
 
   const toggleWishlist = (productId: number) => {

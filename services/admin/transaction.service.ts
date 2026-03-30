@@ -6,6 +6,9 @@ import {
   CreateTransactionResponse,
   CreateTransactionFrontendRequest,
   CreateTransactionFrontendResponse,
+  CreatePublicTransactionRequest,
+  CreatePublicTransactionResponse,
+  PublicTransactionResponseData,
 } from "@/types/admin/transaction";
 
 type Shipment = Record<string, unknown>;
@@ -189,10 +192,10 @@ export const transactionApi = apiSlice.injectEndpoints({
       }),
     }),
 
-    // ✅ NEW: Create (public)
+    // ✅ Create (public / guest)
     createPublicTransaction: builder.mutation<
-      CreateTransactionFrontendResponse,
-      CreateTransactionFrontendRequest
+      CreatePublicTransactionResponse,
+      CreatePublicTransactionRequest
     >({
       query: (payload) => ({
         url: `/public/transaction`,
@@ -203,8 +206,8 @@ export const transactionApi = apiSlice.injectEndpoints({
       transformResponse: (response: {
         code: number;
         message: string;
-        data: CreateTransactionPayload | CreateTransactionPayload[];
-      }): CreateTransactionFrontendResponse => ({
+        data: PublicTransactionResponseData;
+      }): CreatePublicTransactionResponse => ({
         success: response.code === 200 || response.code === 201,
         message: response.message,
         data: response.data,

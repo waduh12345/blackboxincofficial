@@ -254,6 +254,64 @@ export interface CreateTransactionFrontendResponse {
   data: CreateTransactionPayload | CreateTransactionPayload[]; // Could be single or multiple transactions
 }
 
+// ── Public transaction (guest) ──────────────────────────────────────────────
+export interface CreatePublicTransactionRequest {
+  guest_name: string;
+  guest_email: string;
+  guest_phone: string;
+  address_line_1: string;
+  address_line_2?: string | null;
+  postal_code: string;
+  payment_type: "automatic" | "manual";
+  voucher?: number[];
+  data: Array<{
+    shop_id: number;
+    shipment: {
+      courier: string;
+      cost: number;
+      parameter: string;       // JSON string
+      shipment_detail: string; // JSON string
+    };
+    details: Array<{
+      product_id: number;
+      product_variant_id: number;
+      product_variant_size_id?: number;
+      quantity: number;
+    }>;
+  }>;
+}
+
+export interface PublicTransactionPaymentData {
+  order_id: string;
+  account_number: string; // URL ke halaman pembayaran DOKU
+  amount: number;
+  expired_at: string;
+}
+
+export interface PublicTransactionResponseData {
+  id: string; // encrypted transaction ID — gunakan untuk GET /transaction/{id}
+  reference: string;
+  total: number;
+  discount_total: number;
+  shipment_cost: number;
+  grand_total: number;
+  status: string | null;
+  payment_type: string;
+  guest_name: string;
+  guest_email: string;
+  guest_phone: string;
+  address_line_1: string;
+  address_line_2: string;
+  postal_code: string;
+  payment: PublicTransactionPaymentData | null;
+}
+
+export interface CreatePublicTransactionResponse {
+  success: boolean;
+  message: string;
+  data: PublicTransactionResponseData;
+}
+
 // Create transaction response
 export interface CreateTransactionResponse {
   success: boolean;

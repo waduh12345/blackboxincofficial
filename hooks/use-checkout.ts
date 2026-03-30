@@ -16,7 +16,10 @@ import type {
   PrivateDetailItem,
   PublicDetailItem,
 } from "@/types/checkout";
-import type { CreateTransactionRequest } from "@/types/admin/transaction";
+import type {
+  CreateTransactionRequest,
+  CreatePublicTransactionRequest,
+} from "@/types/admin/transaction";
 
 const STORAGE_KEY = "cart-storage";
 const GUEST_INFO_KEY = "__guest_checkout_info__";
@@ -37,13 +40,6 @@ type GuestInfo = {
   rajaongkir_district_id: number;
 };
 
-// Interface khusus untuk menangani respon data transaksi
-interface TransactionResponseData {
-  reference?: string;
-  payment?: {
-    account_number?: string | null;
-  } | null;
-}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
@@ -285,78 +281,41 @@ export function useCheckout() {
         return;
       }
 
-      // Definition lokal untuk Public Detail Item dengan Size
-      type PublicDetailItemFixed = {
-        product_id: number;
-        quantity: number;
-        product_variant_id?: number;
-        product_variant_size_id?: number; // FIELD PENTING
-      };
+      const publicDetails = stored.map((item) => {
+        const variantId = getVariantId(item) ?? item.id;
+        const sizeId = getSizeId(item);
 
-      const publicDetails: PublicDetailItemFixed[] = stored.map((item) => {
-        const variantId = getVariantId(item);
-        const sizeId = getSizeId(item); // Ambil Size ID
-
-        const base: PublicDetailItemFixed = {
+        return {
           product_id: item.id,
+          product_variant_id: variantId,
           quantity: item.quantity ?? 1,
+          ...(sizeId && sizeId > 0 ? { product_variant_size_id: sizeId } : {}),
         };
-
-        if (variantId && variantId > 0) base.product_variant_id = variantId;
-        if (sizeId && sizeId > 0) base.product_variant_size_id = sizeId; // Masukkan ke payload
-
-        return base;
       });
 
-      type PublicTransactionRequest = {
-        address_line_1: string;
-        address_line_2?: string | null;
-        postal_code: string;
-        guest_name: string;
-        guest_email: string;
-        guest_phone: string;
-        payment_type: "automatic" | "manual";
-        wallet_id?: number;
-        data: Array<{
-          shop_id: number;
-          details: PublicDetailItemFixed[]; // Gunakan tipe yang sudah diperbaiki
-          shipment: {
-            parameter: string;
-            shipment_detail: string;
-            courier: string;
-            cost: number;
-          };
-        }>;
-        voucher?: number[];
-      };
-
-      const publicPayload: PublicTransactionRequest = {
-        address_line_1: shippingInfo.address_line_1,
-        address_line_2: shippingInfo.address_line_2 ?? null,
-        postal_code: shippingInfo.postal_code,
+      const publicPayload: CreatePublicTransactionRequest = {
         guest_name: shippingInfo.fullName,
         guest_email: shippingInfo.email!,
         guest_phone: shippingInfo.phone,
+        address_line_1: shippingInfo.address_line_1,
+        address_line_2: shippingInfo.address_line_2 ?? null,
+        postal_code: shippingInfo.postal_code,
         payment_type: paymentType as "automatic" | "manual",
+        voucher: voucher,
         data: [
           {
             shop_id: 1,
-            details: publicDetails,
             shipment: buildShipmentPayload(
               shippingCourier,
               shippingMethod,
               shippingInfo.rajaongkir_district_id
             ),
+            details: publicDetails,
           },
         ],
-        voucher: voucher,
       };
 
-      // Kirim ke endpoint public
-      // Casting diperlukan jika tipe di service belum diupdate untuk menerima size_id
-      const res = await createPublicTx(
-        publicPayload as unknown as Parameters<typeof createPublicTx>[0]
-      ).unwrap();
+      const res = await createPublicTx(publicPayload).unwrap();
 
       // Prefill next time
       saveGuestInfo({
@@ -372,29 +331,26 @@ export function useCheckout() {
       });
 
       // Handle Response
-      let referenceCode = "";
-      if (res && typeof res === "object" && "data" in res) {
-        const dataRes = res.data as TransactionResponseData;
-        referenceCode = dataRes.reference ?? "";
+      const txData = res.data;
+      const referenceCode = txData?.reference ?? "";
 
-        if (paymentType === "automatic" && dataRes.payment?.account_number) {
-          await Swal.fire({
-            icon: "success",
-            title: "Pesanan Berhasil Dibuat",
-            html: `Kode pesanan Anda: <strong>${referenceCode}</strong><br/>Silakan lanjutkan pembayaran sekarang.`,
-            confirmButtonColor: "#000000",
-            confirmButtonText: "Bayar Sekarang",
-          });
-          window.open(dataRes.payment.account_number, "_blank");
-        } else {
-          await Swal.fire({
-            icon: "success",
-            title: "Pesanan Berhasil Dibuat",
-            html: `Kode pesanan Anda: <strong>${referenceCode}</strong><br/>Simpan kode ini untuk melacak pesanan Anda.`,
-            confirmButtonColor: "#000000",
-            confirmButtonText: "Lacak Pesanan",
-          });
-        }
+      if (paymentType === "automatic" && txData?.payment?.account_number) {
+        await Swal.fire({
+          icon: "success",
+          title: "Pesanan Berhasil Dibuat",
+          html: `Kode pesanan Anda: <strong>${referenceCode}</strong><br/>Silakan lanjutkan pembayaran sekarang.`,
+          confirmButtonColor: "#000000",
+          confirmButtonText: "Bayar Sekarang",
+        });
+        window.open(txData.payment.account_number, "_blank");
+      } else {
+        await Swal.fire({
+          icon: "success",
+          title: "Pesanan Berhasil Dibuat",
+          html: `Kode pesanan Anda: <strong>${referenceCode}</strong><br/>Simpan kode ini untuk melacak pesanan Anda.`,
+          confirmButtonColor: "#000000",
+          confirmButtonText: "Lacak Pesanan",
+        });
       }
 
       clearCart();

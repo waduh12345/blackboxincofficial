@@ -75,15 +75,24 @@ function parseStorage(): StoredCartItem[] {
   }
 }
 
+function calcTotalWeight(items: StoredCartItem[]): number {
+  const total = items.reduce((sum, item) => {
+    const w = typeof item.weight === "number" ? item.weight : 0;
+    return sum + w * (item.quantity ?? 1);
+  }, 0);
+  return total > 0 ? total : 1; // minimal 1 gram
+}
+
 function buildShipmentPayload(
   courier: string | null,
   method: ShippingCostOption | null,
-  destinationDistrictId: number
+  destinationDistrictId: number,
+  totalWeight: number
 ) {
   return {
     parameter: JSON.stringify({
       destination: String(destinationDistrictId),
-      weight: 1000,
+      weight: totalWeight,
       height: 0,
       length: 0,
       width: 0,
@@ -158,6 +167,7 @@ export function useCheckout() {
       }
 
       const stored = parseStorage();
+      const totalWeight = calcTotalWeight(stored);
 
       /* =========================
           LOGIN → /transaction
@@ -201,7 +211,8 @@ export function useCheckout() {
               shipment: buildShipmentPayload(
                 shippingCourier,
                 shippingMethod,
-                shippingInfo.rajaongkir_district_id
+                shippingInfo.rajaongkir_district_id,
+                totalWeight
               ),
               customer_info: {
                 name: shippingInfo.fullName,
@@ -308,7 +319,8 @@ export function useCheckout() {
             shipment: buildShipmentPayload(
               shippingCourier,
               shippingMethod,
-              shippingInfo.rajaongkir_district_id
+              shippingInfo.rajaongkir_district_id,
+              totalWeight
             ),
             details: publicDetails,
           },

@@ -282,6 +282,15 @@ export default function PublicTransaction() {
   const [shippingMethod, setShippingMethod] =
     useState<ShippingCostOption | null>(null);
 
+  // Hitung total berat dari semua item di keranjang (berat × qty)
+  const totalWeight = useMemo(() => {
+    const w = cartItems.reduce((sum, it) => {
+      const weight = typeof it.weight === "number" ? it.weight : 0;
+      return sum + weight * it.quantity;
+    }, 0);
+    return w > 0 ? w : 1; // minimal 1 gram
+  }, [cartItems]);
+
   // Logic from CartPage to determine options
   const getShippingOptions = (): ShippingCostOption[] => {
     if (shippingCourier === "cod") {
@@ -302,7 +311,7 @@ export default function PublicTransaction() {
       destination: guest.rajaongkir_district_id
         ? String(guest.rajaongkir_district_id)
         : guest.postal_code,
-      weight: 1000,
+      weight: totalWeight,
       height: 10,
       length: 10,
       width: 10,

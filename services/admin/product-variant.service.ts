@@ -81,6 +81,11 @@ export const productVariantApi = apiSlice.injectEndpoints({
                 type: "ProductVariant" as const,
                 id: `${productSlug}-${v.id}`,
               })),
+              // Alias tags agar invalidasi dari stock.service.ts (VARIANT-${id}) bisa match
+              ...result.data.map((v) => ({
+                type: "ProductVariant" as const,
+                id: `VARIANT-${v.id}`,
+              })),
               { type: "ProductVariant" as const, id: `${productSlug}-LIST` },
             ]
           : [{ type: "ProductVariant" as const, id: `${productSlug}-LIST` }],

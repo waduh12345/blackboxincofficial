@@ -17,6 +17,7 @@ import {
   Upload,
   Shield,
   Package,
+  Scale,
   Layers, // Icon untuk Variant
   Maximize2, // Icon untuk Size
 } from "lucide-react";
@@ -124,6 +125,18 @@ function getImageUrlFromProduct(p: Product): string {
   if (Array.isArray(media) && media[0]?.original_url)
     return media[0].original_url;
   return "/api/placeholder/300/300";
+}
+
+function formatWeight(grams: number): string {
+  if (grams <= 0) return "";
+  if (grams >= 1000) {
+    const kg = grams / 1000;
+    const formatted = Number.isInteger(kg)
+      ? `${kg}`
+      : kg.toFixed(2).replace(".", ",");
+    return `${formatted} kg`;
+  }
+  return `${grams} gr`;
 }
 
 /** ====== Component ====== */
@@ -649,6 +662,21 @@ export default function PublicTransaction() {
                                 <div className="text-base font-bold text-[#000000]">
                                   Rp {(item.price * 1).toLocaleString("id-ID")}
                                 </div>
+                                {item.weight > 0 && (
+                                  <div className="inline-flex items-center gap-1 mt-1 text-xs text-gray-400">
+                                    <Scale className="w-3 h-3" />
+                                    {item.quantity > 1 ? (
+                                      <span>
+                                        {formatWeight(item.weight)} × {item.quantity} ={" "}
+                                        <span className="font-medium text-gray-500">
+                                          {formatWeight(item.weight * item.quantity)}
+                                        </span>
+                                      </span>
+                                    ) : (
+                                      <span>{formatWeight(item.weight)}</span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
 
                               {/* Controls */}
@@ -1206,6 +1234,15 @@ export default function PublicTransaction() {
                     <span>- Rp {discount.toLocaleString("id-ID")}</span>
                   </div>
                 )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 flex items-center gap-1">
+                    <Scale className="w-3.5 h-3.5" />
+                    Total Berat
+                  </span>
+                  <span className="font-medium text-gray-600">
+                    {formatWeight(totalWeight)}
+                  </span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-black">Ongkos Kirim</span>
                   <span className="font-semibold">

@@ -609,7 +609,7 @@ function ProductDetailClient({ slug }: { slug: string }) {
               </div>
               <div className="flex justify-between text-sm text-gray-600">
                 <dt className="font-medium text-gray-900">Berat</dt>
-                <dd>{product.weight} kg</dd>
+                <dd>{product.weight} gram</dd>
               </div>
               <div className="flex justify-between text-sm text-gray-600">
                 <dt className="font-medium text-gray-900">Penjualan</dt>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Swal from "sweetalert2";
 import {
@@ -225,6 +225,20 @@ export default function PublicTransaction() {
   // Validation State
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const [isEmailValid, setIsEmailValid] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // Refs untuk auto-focus ke field yang error
+  const nameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLTextAreaElement>(null);
+  const postalRef = useRef<HTMLInputElement>(null);
+
+  function focusField(el: HTMLElement | null) {
+    if (!el) return;
+    el.scrollIntoView({ block: "center" });
+    setTimeout(() => el.focus(), 0);
+  }
 
   const validatePhone = (phone: string) =>
     /^(?:\+62|62|0)8\d{8,11}$/.test(phone);
@@ -344,7 +358,7 @@ export default function PublicTransaction() {
 
   /** ——— Checkout Action (REFACTORED USING useCheckout) ——— */
   const onCheckout = async () => {
-    // 1. Validasi Stock (Perbaiki akses property stock yang mungkin undefined di tipe Product)
+    // 1. Validasi Stock
     if (
       cartItems.some((it) => {
         const stock = typeof it.stock === "number" ? it.stock : 0;
@@ -359,60 +373,91 @@ export default function PublicTransaction() {
       return;
     }
 
-    // 2. Validasi Form Guest
-    if (
-      !guest.address_line_1 ||
-      !guest.postal_code ||
-      !guest.guest_name ||
-      !guest.guest_email ||
-      !guest.guest_phone ||
-      !shippingCourier ||
-      !shippingMethod ||
-      !isPhoneValid ||
-      !isEmailValid
-    ) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Data Belum Lengkap",
-        text: "Mohon lengkapi semua data formulir dengan benar.",
-      });
+    // 2. Validasi Form - field per field agar user tahu mana yang salah
+    const errors: Record<string, string> = {};
+
+    if (!guest.guest_name.trim()) {
+      errors.guest_name = "Nama lengkap harus diisi";
+    }
+
+    if (!guest.guest_phone.trim()) {
+      errors.guest_phone = "Nomor telepon harus diisi";
+    } else if (!isPhoneValid) {
+      errors.guest_phone =
+        "Format tidak valid. Gunakan: 08xxxxxxxxxx atau +628xxxxxxxxxx";
+    }
+
+    if (!guest.guest_email.trim()) {
+      errors.guest_email = "Email harus diisi";
+    } else if (!isEmailValid) {
+      errors.guest_email = "Format email tidak valid. Contoh: nama@email.com";
+    }
+
+    if (!guest.address_line_1.trim()) {
+      errors.address_line_1 = "Alamat lengkap harus diisi";
+    }
+
+    if (!guest.postal_code.trim()) {
+      errors.postal_code = "Kode pos harus diisi";
+    }
+
+    if (!shippingCourier) {
+      errors.shipping = "Pilih kurir pengiriman terlebih dahulu";
+    } else if (!shippingMethod) {
+      errors.shipping = "Pilih layanan pengiriman";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      // Fokus otomatis ke field pertama yang error
+      if (errors.guest_name) focusField(nameRef.current);
+      else if (errors.guest_phone) focusField(phoneRef.current);
+      else if (errors.guest_email) focusField(emailRef.current);
+      else if (errors.address_line_1) focusField(addressRef.current);
+      else if (errors.postal_code) focusField(postalRef.current);
       return;
     }
 
+    setFieldErrors({});
     setIsProcessing(true);
 
     try {
-      // 3. Mapping State Guest UI ke checkout Deps
       const deps: CheckoutDeps = {
-        sessionEmail: null, // Public transaction = null
+        sessionEmail: null,
         shippingCourier,
         shippingMethod,
         shippingInfo: {
-          // Field Wajib useCheckout yang dimapping dari Guest UI
           fullName: guest.guest_name,
           email: guest.guest_email,
           phone: guest.guest_phone,
           address_line_1: guest.address_line_1,
           postal_code: guest.postal_code,
-          // Opsional / Regional
           address_line_2: guest.address_line_2,
           rajaongkir_province_id: guest.rajaongkir_province_id,
           rajaongkir_city_id: guest.rajaongkir_city_id,
           rajaongkir_district_id: guest.rajaongkir_district_id,
         },
-        paymentType, // "automatic" | "manual" | "cod"
+        paymentType,
         paymentMethod: undefined,
         paymentChannel: undefined,
         clearCart,
         voucher: selectedVoucher ? [selectedVoucher.id] : [],
       };
 
-      // 4. Panggil handleCheckout
       await handleCheckout(deps);
     } catch (e) {
       console.error(e);
-      // Error handling sudah ada sebagian di dalam useCheckout,
-      // tapi backup di sini jika throw error
+      // Tampilkan pesan error yang jelas ke user (termasuk error API)
+      let errMsg = "Terjadi kesalahan. Silakan coba lagi.";
+      if (e && typeof e === "object") {
+        const err = e as { data?: { message?: string }; message?: string };
+        errMsg = err.data?.message || err.message || errMsg;
+      }
+      await Swal.fire({
+        icon: "error",
+        title: "Checkout Gagal",
+        text: errMsg,
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -671,14 +716,26 @@ export default function PublicTransaction() {
                     Nama Lengkap *
                   </label>
                   <input
+                    ref={nameRef}
                     type="text"
                     value={guest.guest_name}
-                    onChange={(e) =>
-                      setGuest((s) => ({ ...s, guest_name: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setGuest((s) => ({ ...s, guest_name: e.target.value }));
+                      if (fieldErrors.guest_name)
+                        setFieldErrors((p) => ({ ...p, guest_name: "" }));
+                    }}
                     placeholder="Masukkan nama lengkap"
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
+                    className={`w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent ${
+                      fieldErrors.guest_name
+                        ? "border-red-400 bg-red-50"
+                        : "border-gray-200"
+                    }`}
                   />
+                  {fieldErrors.guest_name && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {fieldErrors.guest_name}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -686,17 +743,28 @@ export default function PublicTransaction() {
                     Nomor Telepon *
                   </label>
                   <input
+                    ref={phoneRef}
                     type="tel"
+                    inputMode="tel"
                     value={guest.guest_phone}
-                    onChange={(e) =>
-                      setGuest((s) => ({ ...s, guest_phone: e.target.value }))
-                    }
-                    placeholder="08xxxxxxxxxx"
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
+                    onChange={(e) => {
+                      setGuest((s) => ({ ...s, guest_phone: e.target.value }));
+                      if (fieldErrors.guest_phone)
+                        setFieldErrors((p) => ({ ...p, guest_phone: "" }));
+                    }}
+                    placeholder="08xxxxxxxxxx atau +628xxxxxxxxxx"
+                    className={`w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent ${
+                      fieldErrors.guest_phone ||
+                      (!isPhoneValid && guest.guest_phone)
+                        ? "border-red-400 bg-red-50"
+                        : "border-gray-200"
+                    }`}
                   />
-                  {!isPhoneValid && guest.guest_phone && (
+                  {(fieldErrors.guest_phone ||
+                    (!isPhoneValid && guest.guest_phone)) && (
                     <p className="text-sm text-red-500 mt-1">
-                      Nomor telepon tidak valid
+                      {fieldErrors.guest_phone ||
+                        "Format tidak valid. Gunakan: 08xxxxxxxxxx atau +628xxxxxxxxxx"}
                     </p>
                   )}
                 </div>
@@ -706,17 +774,29 @@ export default function PublicTransaction() {
                     Email *
                   </label>
                   <input
+                    ref={emailRef}
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
                     value={guest.guest_email}
-                    onChange={(e) =>
-                      setGuest((s) => ({ ...s, guest_email: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setGuest((s) => ({ ...s, guest_email: e.target.value }));
+                      if (fieldErrors.guest_email)
+                        setFieldErrors((p) => ({ ...p, guest_email: "" }));
+                    }}
                     placeholder="nama@email.com"
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
+                    className={`w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent ${
+                      fieldErrors.guest_email ||
+                      (!isEmailValid && guest.guest_email)
+                        ? "border-red-400 bg-red-50"
+                        : "border-gray-200"
+                    }`}
                   />
-                  {!isEmailValid && guest.guest_email && (
+                  {(fieldErrors.guest_email ||
+                    (!isEmailValid && guest.guest_email)) && (
                     <p className="text-sm text-red-500 mt-1">
-                      Format email tidak valid
+                      {fieldErrors.guest_email ||
+                        "Format email tidak valid. Contoh: nama@email.com"}
                     </p>
                   )}
                 </div>
@@ -726,17 +806,29 @@ export default function PublicTransaction() {
                     Alamat Lengkap *
                   </label>
                   <textarea
+                    ref={addressRef}
                     value={guest.address_line_1}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setGuest((s) => ({
                         ...s,
                         address_line_1: e.target.value,
-                      }))
-                    }
+                      }));
+                      if (fieldErrors.address_line_1)
+                        setFieldErrors((p) => ({ ...p, address_line_1: "" }));
+                    }}
                     rows={3}
                     placeholder="Nama jalan, RT/RW, Kelurahan"
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
+                    className={`w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent ${
+                      fieldErrors.address_line_1
+                        ? "border-red-400 bg-red-50"
+                        : "border-gray-200"
+                    }`}
                   />
+                  {fieldErrors.address_line_1 && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {fieldErrors.address_line_1}
+                    </p>
+                  )}
                 </div>
 
                 <div className="col-span-1 sm:col-span-2">
@@ -837,14 +929,27 @@ export default function PublicTransaction() {
                     Kode Pos *
                   </label>
                   <input
+                    ref={postalRef}
                     type="text"
+                    inputMode="numeric"
                     value={guest.postal_code}
-                    onChange={(e) =>
-                      setGuest((s) => ({ ...s, postal_code: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setGuest((s) => ({ ...s, postal_code: e.target.value }));
+                      if (fieldErrors.postal_code)
+                        setFieldErrors((p) => ({ ...p, postal_code: "" }));
+                    }}
                     placeholder="12345"
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent`}
+                    className={`w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#000000] focus:border-transparent ${
+                      fieldErrors.postal_code
+                        ? "border-red-400 bg-red-50"
+                        : "border-gray-200"
+                    }`}
                   />
+                  {fieldErrors.postal_code && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {fieldErrors.postal_code}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1127,18 +1232,14 @@ export default function PublicTransaction() {
                 </div>
               </div>
 
+              {fieldErrors.shipping && (
+                <p className="text-sm text-red-500 text-center mb-3">
+                  {fieldErrors.shipping}
+                </p>
+              )}
               <button
                 onClick={onCheckout}
-                disabled={
-                  isProcessing ||
-                  cartItems.some((it) => !it.stock) ||
-                  !shippingMethod ||
-                  !guest.guest_name ||
-                  !guest.address_line_1 ||
-                  !guest.postal_code ||
-                  !isPhoneValid ||
-                  !isEmailValid
-                }
+                disabled={isProcessing || cartItems.some((it) => !it.stock)}
                 className="w-full bg-[#000000] text-white py-4 rounded-2xl font-semibold hover:bg-[#000000]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isProcessing ? (
@@ -1159,12 +1260,9 @@ export default function PublicTransaction() {
                 )}
               </button>
 
-              {(!shippingMethod ||
-                !shippingCourier ||
-                !guest.guest_name ||
-                !guest.address_line_1) && (
+              {Object.values(fieldErrors).some(Boolean) && (
                 <p className="text-red-500 text-sm text-center mt-3">
-                  * Harap lengkapi semua informasi yang diperlukan
+                  * Harap perbaiki kolom yang ditandai merah di atas
                 </p>
               )}
             </div>

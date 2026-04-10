@@ -439,21 +439,22 @@ export default function CartPage() {
     0
   );
 
+  const shippingCost = shippingMethod?.cost ?? 0;
+
   const discount = useMemo(() => {
     if (!selectedVoucher) return 0;
+    const grandBeforeDiscount = subtotal + shippingCost;
     if (selectedVoucher.type === "fixed") {
-      return Math.min(selectedVoucher.fixed_amount, subtotal);
+      return Math.min(selectedVoucher.fixed_amount, grandBeforeDiscount);
     }
     if (selectedVoucher.type === "percentage") {
       const amount = (subtotal * selectedVoucher.percentage_amount) / 100;
-      return Math.round(amount);
+      return Math.min(Math.round(amount), grandBeforeDiscount);
     }
     return 0;
-  }, [selectedVoucher, subtotal]);
+  }, [selectedVoucher, subtotal, shippingCost]);
 
-  const shippingCost = shippingMethod?.cost ?? 0;
-
-  const total = Math.max(0, subtotal - discount + shippingCost);
+  const total = Math.max(0, subtotal + shippingCost - discount);
 
   if (cartItems.length === 0) {
     return (

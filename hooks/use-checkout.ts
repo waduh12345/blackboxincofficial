@@ -126,7 +126,7 @@ function getVariantId(item: StoredCartItem): number | null {
 /** Helper: Ambil Size ID dengan aman (BARU) */
 function getSizeId(item: StoredCartItem): number | null {
   const s = (item as unknown as CartItemIds).product_variant_size_id;
-  return typeof s === "number" && Number.isFinite(s) ? s : null;
+  return typeof s === "number" && Number.isFinite(s) && s > 0 ? s : null;
 }
 
 /* =========================

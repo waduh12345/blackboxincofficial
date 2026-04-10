@@ -12,8 +12,6 @@ import {
   CreditCard,
   Sparkles,
   Truck,
-  Banknote,
-  ExternalLink,
   Upload,
   Shield,
   Package,
@@ -52,6 +50,8 @@ import useCart, { CartItem } from "@/hooks/use-cart"; // Pastikan import CartIte
 // IMPORT USE CHECKOUT & TYPES
 import { useCheckout } from "@/hooks/use-checkout";
 import type { CheckoutDeps } from "@/types/checkout";
+import PaymentMethodSelector from "@/components/payment-method";
+import type { PaymentMethod, PaymentChannel } from "@/types/admin/transaction";
 
 /** ====== Helpers & Types ====== */
 
@@ -116,7 +116,7 @@ const INTERNATIONAL_SHIPPING_OPTIONS: ShippingCostOption[] = [
   },
 ];
 
-type PaymentType = "automatic" | "manual" | "cod";
+type PaymentType = "automatic" | "manual";
 
 function getImageUrlFromProduct(p: Product): string {
   if (typeof p.image === "string" && p.image) return p.image;
@@ -354,29 +354,28 @@ export default function PublicTransaction() {
   /** ——— Payment & Voucher ——— */
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [paymentType, setPaymentType] = useState<PaymentType>("manual");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
+  const [paymentChannel, setPaymentChannel] = useState<PaymentChannel | undefined>(undefined);
 
   const subtotal = cartItems.reduce(
     (sum, it) => sum + it.price * it.quantity,
     0
   );
 
+  const shippingCost = shippingMethod?.cost ?? 0;
+
   const discount = useMemo(() => {
     if (!selectedVoucher) return 0;
+    const grandBeforeDiscount = subtotal + shippingCost;
     if (selectedVoucher.type === "fixed") {
       const cut = Math.max(0, selectedVoucher.fixed_amount);
-      return Math.min(cut, subtotal);
+      return Math.min(cut, grandBeforeDiscount);
     }
     const pct = Math.max(0, selectedVoucher.percentage_amount);
-    return Math.round((subtotal * pct) / 100);
-  }, [selectedVoucher, subtotal]);
+    return Math.min(Math.round((subtotal * pct) / 100), grandBeforeDiscount);
+  }, [selectedVoucher, subtotal, shippingCost]);
 
-  const shippingCost = shippingMethod?.cost ?? 0;
-  const codFee =
-    paymentType === "cod"
-      ? Math.round((subtotal - discount + shippingCost) * 0.02)
-      : 0;
-
-  const total = subtotal - discount + shippingCost + codFee;
+  const total = Math.max(0, subtotal + shippingCost - discount);
 
   /** ——— Checkout Action (REFACTORED USING useCheckout) ——— */
   const onCheckout = async () => {
@@ -460,8 +459,8 @@ export default function PublicTransaction() {
           rajaongkir_district_id: guest.rajaongkir_district_id,
         },
         paymentType,
-        paymentMethod: undefined,
-        paymentChannel: undefined,
+        paymentMethod,
+        paymentChannel,
         clearCart,
         voucher: selectedVoucher ? [selectedVoucher.id] : [],
       };
@@ -1004,9 +1003,7 @@ export default function PublicTransaction() {
                   onValueChange={(val) => {
                     setShippingCourier(val);
                     setShippingMethod(null);
-                    if (val === "international" && paymentType === "cod") {
-                      setPaymentType("automatic");
-                    }
+                    // COD removed — no longer needed
                   }}
                   disabled={!guest.rajaongkir_district_id && !guest.postal_code}
                 >
@@ -1108,102 +1105,20 @@ export default function PublicTransaction() {
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <h3 className="font-bold text-black mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-[#000000]" />
-                Metode Pembayaran
-              </h3>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-black mb-2">
-                    Tipe Pembayaran
-                  </label>
-                  <div className="space-y-2">
-                    <div
-                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        paymentType === "automatic"
-                          ? "border-black bg-neutral-50"
-                          : "border-neutral-200 hover:bg-neutral-50"
-                      }`}
-                      onClick={() => setPaymentType("automatic")}
-                    >
-                      <div
-                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                          paymentType === "automatic"
-                            ? "border-black"
-                            : "border-neutral-400"
-                        }`}
-                      >
-                        {paymentType === "automatic" && (
-                          <div className="h-2 w-2 rounded-full bg-black" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">Otomatis</p>
-                        <p className="text-sm text-gray-500">
-                          Pembayaran online (Gateway)
-                        </p>
-                      </div>
-                    </div>
-
-                    <div
-                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        paymentType === "manual"
-                          ? "border-black bg-neutral-50"
-                          : "border-neutral-200 hover:bg-neutral-50"
-                      }`}
-                      onClick={() => setPaymentType("manual")}
-                    >
-                      <div
-                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                          paymentType === "manual"
-                            ? "border-black"
-                            : "border-neutral-400"
-                        }`}
-                      >
-                        {paymentType === "manual" && (
-                          <div className="h-2 w-2 rounded-full bg-black" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">Manual</p>
-                        <p className="text-sm text-gray-500">
-                          Transfer Manual (Konfirmasi Admin)
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {paymentType === "automatic" && (
-                  <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
-                    <div className="mt-0.5">
-                      <ExternalLink className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div className="text-sm text-blue-800">
-                      <p className="font-semibold mb-1">Pembayaran via Doku</p>
-                      <p>
-                        Anda akan diarahkan ke halaman pembayaran aman setelah
-                        menekan tombol Checkout. Tersedia berbagai metode (QRIS,
-                        VA, E-Wallet).
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {paymentType === "manual" && (
-                  <div className="p-3 bg-neutral-100 rounded-lg border border-neutral-200">
-                    <div className="flex items-center gap-2 text-sm text-neutral-700">
-                      <Banknote className="w-4 h-4" />
-                      <span>
-                        Silakan selesaikan pesanan, admin akan menghubungi Anda.
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <PaymentMethodSelector
+              paymentType={paymentType}
+              onPaymentTypeChange={(t) => {
+                setPaymentType(t);
+                if (t === "manual") {
+                  setPaymentMethod(undefined);
+                  setPaymentChannel(undefined);
+                }
+              }}
+              paymentMethod={paymentMethod}
+              onPaymentMethodChange={setPaymentMethod}
+              paymentChannel={paymentChannel}
+              onPaymentChannelChange={setPaymentChannel}
+            />
 
             <div className="bg-white rounded-3xl p-6 shadow-lg">
               <VoucherPicker
@@ -1223,17 +1138,7 @@ export default function PublicTransaction() {
                     Rp {subtotal.toLocaleString("id-ID")}
                   </span>
                 </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>
-                      Diskon{" "}
-                      {selectedVoucher?.code
-                        ? `(${selectedVoucher.code})`
-                        : "Voucher"}
-                    </span>
-                    <span>- Rp {discount.toLocaleString("id-ID")}</span>
-                  </div>
-                )}
+                
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 flex items-center gap-1">
                     <Scale className="w-3.5 h-3.5" />
@@ -1249,14 +1154,18 @@ export default function PublicTransaction() {
                     Rp {shippingCost.toLocaleString("id-ID")}
                   </span>
                 </div>
-                {paymentType === "cod" && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Fee COD (2%)</span>
-                    <span className="font-semibold">
-                      Rp {codFee.toLocaleString("id-ID")}
+                {discount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>
+                      Diskon{" "}
+                      {selectedVoucher?.code
+                        ? `(${selectedVoucher.code})`
+                        : "Voucher"}
                     </span>
+                    <span>- Rp {discount.toLocaleString("id-ID")}</span>
                   </div>
                 )}
+                {/* COD removed — only VA, QRIS, E-Wallet */}
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
@@ -1285,7 +1194,11 @@ export default function PublicTransaction() {
               )}
               <button
                 onClick={onCheckout}
-                disabled={isProcessing || cartItems.some((it) => !it.stock)}
+                disabled={
+                  isProcessing ||
+                  cartItems.some((it) => !it.stock) ||
+                  (paymentType === "automatic" && (!paymentMethod || !paymentChannel))
+                }
                 className="w-full bg-[#000000] text-white py-4 rounded-2xl font-semibold hover:bg-[#000000]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isProcessing ? (

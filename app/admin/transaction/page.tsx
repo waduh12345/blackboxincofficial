@@ -5,6 +5,7 @@ import Image from "next/image";
 import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Eye, Trash2, XCircle, RotateCcw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -424,7 +425,7 @@ export default function TransactionPage() {
 
   // Check if a transaction has been processed (has receipt code on any store)
   const isTransactionProcessed = (item: Transaction): boolean => {
-    return item.stores?.some(store => store.receipt_code && store.shipment_status >= 1) ?? false;
+    return (item.stores ?? []).some(store => store?.receipt_code && store?.shipment_status >= 1);
   };
 
   return (
@@ -471,45 +472,61 @@ export default function TransactionPage() {
                   return (
                     <tr key={item.id} className="border-t">
                       <td className="px-4 py-2">
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-1 items-center">
                           <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDelete(item)}
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                            onClick={() => handleDetailClick(item.id)}
+                            title="Detail"
                           >
-                            Hapus
+                            <Eye className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleDetailClick(item.id)}
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-red-600 hover:bg-red-50"
+                            onClick={() => handleDelete(item)}
+                            title="Hapus"
                           >
-                            Detail
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                           {item.status === 0 && (
                             <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-red-300 text-red-600 hover:bg-red-50"
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-orange-600 hover:bg-orange-50"
                               onClick={() => handleCancelTransaction(item)}
+                              title="Cancel"
                             >
-                              Cancel
+                              <XCircle className="h-4 w-4" />
                             </Button>
                           )}
                           {(item.status === 1 || item.status === 2) && (
                             <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-orange-600 hover:bg-orange-50"
                               onClick={() => handleReturTransaction(item)}
+                              title="Retur"
                             >
-                              Retur
+                              <RotateCcw className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">{item.reference}</td>
-                      <td className="px-4 py-2">{item.user_name}</td>
+                      <td className="px-4 py-2">
+                        <div>
+                          <span className="font-medium">{item.user_name || item.guest_name || "-"}</span>
+                          {(!item.user_name && item.guest_email) && (
+                            <span className="block text-xs text-muted-foreground">{item.guest_email}</span>
+                          )}
+                          {(item.user_email && item.user_name) && (
+                            <span className="block text-xs text-muted-foreground">{item.user_email}</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-2 font-medium text-green-600">
                         {formatRupiah(item.total)}
                       </td>
@@ -631,14 +648,14 @@ export default function TransactionPage() {
                 Transaksi: {selectedTransaction?.reference}
               </p>
               <p className="text-sm text-muted-foreground mb-2">
-                Customer: {selectedTransaction?.user_name}
+                Customer: {selectedTransaction?.user_name || selectedTransaction?.guest_name || "-"}
               </p>
-              {selectedTransaction?.stores && selectedTransaction.stores.length > 0 && (
+              {(selectedTransaction?.stores ?? []).length > 0 && (
                 <div className="mb-4">
                   <p className="text-sm text-muted-foreground mb-2">
                     <strong>Nomor Resi:</strong>
                   </p>
-                  {selectedTransaction.stores.filter(store => store).map((store, index) => (
+                  {(selectedTransaction?.stores ?? []).filter(store => store).map((store, index) => (
                     <div key={index} className="mb-2 p-2 border rounded">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs text-muted-foreground">
@@ -733,7 +750,13 @@ export default function TransactionPage() {
                 <h3 className="text-lg font-semibold">Ringkasan Transaksi</h3>
                 <div className="space-y-2 text-sm">
                   <p><strong>ID Transaksi:</strong> {transactionDetail.reference}</p>
-                  <p><strong>Nama Pelanggan:</strong> {transactionDetail.user_name}</p>
+                  <p><strong>Nama Pelanggan:</strong> {transactionDetail.user_name || transactionDetail.guest_name || "-"}</p>
+                  {(!transactionDetail.user_name && transactionDetail.guest_email) && (
+                    <p><strong>Email:</strong> {transactionDetail.guest_email}</p>
+                  )}
+                  {(!transactionDetail.user_name && transactionDetail.guest_phone) && (
+                    <p><strong>Telepon:</strong> {transactionDetail.guest_phone}</p>
+                  )}
                   <p><strong>Tanggal:</strong> {formatDateTime(transactionDetail.created_at)}</p>
                   <p>
                     <strong>Status:</strong>{" "}
@@ -769,7 +792,7 @@ export default function TransactionPage() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Produk</h3>
                   <div className="space-y-2">
-                    {transactionDetail.stores.flatMap(store => store.details).map((item, index) => {
+                    {(transactionDetail.stores ?? []).flatMap(store => store?.details ?? []).map((item, index) => {
                       const pd = parseProductDetail(item.product_detail);
                       return (
                         <div key={index} className="flex justify-between items-center text-sm border-b pb-2">
@@ -789,34 +812,34 @@ export default function TransactionPage() {
                 </div>
 
                 {/* Shipping Details */}
-                {transactionDetail.stores.length > 0 && transactionDetail.stores[0] && (
+                {(transactionDetail.stores ?? []).length > 0 && transactionDetail.stores?.[0] && (
                   <div>
                     <div className="space-y-2 text-sm">
                       <p><strong>Alamat:</strong> {transactionDetail.address_line_1} {transactionDetail.postal_code}</p>
-                      <p><strong>Kurir:</strong> {(() => { try { const s = JSON.parse(transactionDetail.stores[0].shipment_detail); return `${s.name} (${s.service})`; } catch { return transactionDetail.stores[0].courier; } })()}</p>
+                      <p><strong>Kurir:</strong> {(() => { try { const s = JSON.parse(transactionDetail.stores![0].shipment_detail); return `${s.name} (${s.service})`; } catch { return transactionDetail.stores![0].courier; } })()}</p>
                       <p><strong>Biaya:</strong> {formatRupiah(transactionDetail.shipment_cost)}</p>
                       <div className="flex items-center gap-2">
                         <p><strong>Status Pengiriman:</strong></p>
-                        <Badge variant={getShipmentStatusInfo(transactionDetail.stores[0].shipment_status).variant}>
-                          {getShipmentStatusInfo(transactionDetail.stores[0].shipment_status).label}
+                        <Badge variant={getShipmentStatusInfo(transactionDetail.stores![0].shipment_status).variant}>
+                          {getShipmentStatusInfo(transactionDetail.stores![0].shipment_status).label}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2">
                         <p><strong>Nomor Resi:</strong></p>
-                        {transactionDetail.stores[0].receipt_code ? (
+                        {transactionDetail.stores![0].receipt_code ? (
                         <span
                           className="text-sm font-medium text-green-600 cursor-pointer hover:underline"
-                          onClick={() => handleReceiptCodeClick(transactionDetail.stores[0].id, transactionDetail.stores[0].receipt_code, transactionDetail.stores[0].shipment_status)}
+                          onClick={() => handleReceiptCodeClick(transactionDetail.stores![0].id, transactionDetail.stores![0].receipt_code, transactionDetail.stores![0].shipment_status)}
                           title="Klik untuk mengedit nomor resi"
                         >
-                            {transactionDetail.stores[0].receipt_code}
+                            {transactionDetail.stores![0].receipt_code}
                           </span>
                         ) : (
                           <Button
                             size="sm"
                             variant="outline"
                             className="text-xs px-2 py-1 h-auto"
-                            onClick={() => handleReceiptCodeClick(transactionDetail.stores[0].id, transactionDetail.stores[0].receipt_code, transactionDetail.stores[0].shipment_status)}
+                            onClick={() => handleReceiptCodeClick(transactionDetail.stores![0].id, transactionDetail.stores![0].receipt_code, transactionDetail.stores![0].shipment_status)}
                           >
                             Input Resi
                           </Button>
@@ -928,7 +951,7 @@ export default function TransactionPage() {
               if (store?.shipment_detail) courierInfo = JSON.parse(store.shipment_detail);
             } catch { /* ignore */ }
 
-            const allItems = shippingDetail.stores.flatMap(s => s.details);
+            const allItems = (shippingDetail.stores ?? []).flatMap(s => s?.details ?? []);
 
             return (
               <div className="space-y-4">

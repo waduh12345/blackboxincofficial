@@ -218,39 +218,73 @@ export default function TransactionPage() {
     setIsShippingModalOpen(true);
   };
 
+  // Helper: print HTML content forced to A6 size via hidden iframe
+  const printA6Html = (title: string, bodyHtml: string, extraStyles: string = "") => {
+    const existingFrame = document.getElementById("__print_a6_frame__");
+    if (existingFrame) existingFrame.remove();
+
+    const iframe = document.createElement("iframe");
+    iframe.id = "__print_a6_frame__";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(`
+      <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          @page { size: 105mm 148mm !important; margin: 0 !important; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body { width: 105mm; height: 148mm; max-width: 105mm; max-height: 148mm; overflow: hidden; }
+          body { font-family: 'Arial', 'Helvetica', sans-serif; padding: 8mm; font-size: 10px; color: #000; }
+          @media print {
+            @page { size: 105mm 148mm !important; margin: 0 !important; }
+            html, body { width: 105mm; height: 148mm; }
+          }
+          ${extraStyles}
+        </style>
+      </head>
+      <body>${bodyHtml}</body>
+      </html>
+    `);
+    doc.close();
+
+    iframe.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => iframe.remove(), 1000);
+      }, 300);
+    };
+  };
+
   // Print the resi content
   const handlePrintResi = () => {
     if (!resiPrintRef.current) return;
     const printContent = resiPrintRef.current.innerHTML;
-    const printWindow = window.open("", "_blank", "width=400,height=600");
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Cetak Resi Pengiriman</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Arial', sans-serif; padding: 16px; font-size: 12px; color: #000; }
-            .resi-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 12px; margin-bottom: 12px; }
-            .resi-header h2 { font-size: 16px; margin-bottom: 4px; }
-            .resi-header p { font-size: 11px; color: #555; }
-            .resi-section { margin-bottom: 12px; }
-            .resi-section h3 { font-size: 13px; font-weight: bold; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
-            .resi-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
-            .resi-row .label { color: #555; }
-            .resi-row .value { font-weight: bold; text-align: right; }
-            .resi-items { width: 100%; border-collapse: collapse; margin-top: 6px; }
-            .resi-items th, .resi-items td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; font-size: 11px; }
-            .resi-items th { background: #f0f0f0; font-weight: bold; }
-            .resi-footer { text-align: center; border-top: 2px dashed #000; padding-top: 12px; margin-top: 12px; font-size: 11px; color: #555; }
-            @media print { body { padding: 0; } }
-          </style>
-        </head>
-        <body>${printContent}</body>
-        <script>window.onload = function() { window.print(); window.close(); }<\/script>
-      </html>
-    `);
-    printWindow.document.close();
+    const extraStyles = `
+      .resi-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 12px; margin-bottom: 12px; }
+      .resi-header h2 { font-size: 16px; margin-bottom: 4px; }
+      .resi-header p { font-size: 11px; color: #555; }
+      .resi-section { margin-bottom: 12px; }
+      .resi-section h3 { font-size: 13px; font-weight: bold; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+      .resi-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+      .resi-row .label { color: #555; }
+      .resi-row .value { font-weight: bold; text-align: right; }
+      .resi-items { width: 100%; border-collapse: collapse; margin-top: 6px; }
+      .resi-items th, .resi-items td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; font-size: 11px; }
+      .resi-items th { background: #f0f0f0; font-weight: bold; }
+      .resi-footer { text-align: center; border-top: 2px dashed #000; padding-top: 12px; margin-top: 12px; font-size: 11px; color: #555; }
+    `;
+    printA6Html("Cetak Resi Pengiriman", printContent, extraStyles);
   };
 
   // Print label A6 untuk kurir
@@ -265,7 +299,6 @@ export default function TransactionPage() {
     const allItems = (shippingDetail.stores ?? []).flatMap(s => s?.details ?? []);
     const customerName = shippingDetail.user_name || shippingDetail.guest_name || "-";
     const customerPhone = shippingDetail.guest_phone || "-";
-    const customerEmail = shippingDetail.user_email || shippingDetail.guest_email || "-";
     const address = [shippingDetail.address_line_1, shippingDetail.address_line_2].filter(Boolean).join(", ");
     const postalCode = shippingDetail.postal_code || "";
     const courier = (courierInfo.name || store?.courier || "").toUpperCase();
@@ -284,95 +317,73 @@ export default function TransactionPage() {
         </tr>`;
     }).join("");
 
-    const printWindow = window.open("", "_blank", "width=420,height=600");
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <html>
-      <head>
-        <title>Label Pengiriman - ${shippingDetail.reference}</title>
-        <style>
-          @page { size: 105mm 148mm; margin: 0; }
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body {
-            font-family: 'Arial', 'Helvetica', sans-serif;
-            width: 105mm; min-height: 148mm;
-            padding: 8mm;
-            font-size: 10px; color: #000;
-          }
-          .label-box { border: 2px solid #000; padding: 6mm; height: 100%; display: flex; flex-direction: column; }
-          .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
-          .header h1 { font-size: 14px; letter-spacing: 2px; margin-bottom: 2px; }
-          .header .ref { font-size: 11px; font-weight: bold; }
-          .header .date { font-size: 9px; color: #555; }
-          .courier-badge {
-            display: inline-block; background: #000; color: #fff;
-            padding: 3px 10px; font-size: 11px; font-weight: bold;
-            letter-spacing: 1px; margin-top: 4px;
-          }
-          .section { margin-bottom: 8px; }
-          .section-title { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
-          .row { display: flex; margin-bottom: 2px; font-size: 10px; }
-          .row .lbl { width: 55px; color: #666; flex-shrink: 0; }
-          .row .val { font-weight: bold; flex: 1; }
-          .address { font-weight: bold; font-size: 11px; line-height: 1.4; margin-top: 2px; }
-          table.items { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 4px; }
-          table.items th { text-align: left; font-size: 8px; text-transform: uppercase; color: #666; padding: 3px 0; border-bottom: 1px solid #000; }
-          table.items th:nth-child(2) { text-align: center; }
-          table.items th:nth-child(3) { text-align: right; }
-          .totals { border-top: 2px solid #000; padding-top: 6px; margin-top: 6px; }
-          .total-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px; }
-          .total-row.grand { font-size: 13px; font-weight: bold; margin-top: 4px; padding-top: 4px; border-top: 1px solid #000; }
-          .footer { text-align: center; margin-top: auto; padding-top: 8px; border-top: 1px dashed #999; font-size: 8px; color: #888; }
-          .resi-box { text-align: center; border: 2px dashed #999; padding: 6px; margin-top: 6px; }
-          .resi-box .lbl { font-size: 8px; color: #666; text-transform: uppercase; }
-          .resi-box .val { font-size: 14px; font-weight: bold; letter-spacing: 1px; margin-top: 2px; }
-          @media print { body { padding: 0; } .label-box { border: none; padding: 8mm; } }
-        </style>
-      </head>
-      <body>
-        <div class="label-box">
-          <div class="header">
-            <h1>BLACKBOX.INC</h1>
-            <div class="ref">${shippingDetail.reference}</div>
-            <div class="date">${formatDateTime(shippingDetail.created_at)}</div>
-            <div class="courier-badge">${courier} ${service ? "- " + service : ""}</div>
-          </div>
+    const labelExtraStyles = `
+      .label-box { border: 2px solid #000; padding: 6mm; height: 100%; display: flex; flex-direction: column; }
+      .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
+      .header h1 { font-size: 14px; letter-spacing: 2px; margin-bottom: 2px; }
+      .header .ref { font-size: 11px; font-weight: bold; }
+      .header .date { font-size: 9px; color: #555; }
+      .courier-badge {
+        display: inline-block; background: #000; color: #fff;
+        padding: 3px 10px; font-size: 11px; font-weight: bold;
+        letter-spacing: 1px; margin-top: 4px;
+      }
+      .section { margin-bottom: 8px; }
+      .section-title { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
+      .row { display: flex; margin-bottom: 2px; font-size: 10px; }
+      .row .lbl { width: 55px; color: #666; flex-shrink: 0; }
+      .row .val { font-weight: bold; flex: 1; }
+      .address { font-weight: bold; font-size: 11px; line-height: 1.4; margin-top: 2px; }
+      table.items { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 4px; }
+      table.items th { text-align: left; font-size: 8px; text-transform: uppercase; color: #666; padding: 3px 0; border-bottom: 1px solid #000; }
+      table.items th:nth-child(2) { text-align: center; }
+      table.items th:nth-child(3) { text-align: right; }
+      .totals { border-top: 2px solid #000; padding-top: 6px; margin-top: 6px; }
+      .total-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px; }
+      .total-row.grand { font-size: 13px; font-weight: bold; margin-top: 4px; padding-top: 4px; border-top: 1px solid #000; }
+      .footer { text-align: center; margin-top: auto; padding-top: 8px; border-top: 1px dashed #999; font-size: 8px; color: #888; }
+      .resi-box { text-align: center; border: 2px dashed #999; padding: 6px; margin-top: 6px; }
+      .resi-box .lbl { font-size: 8px; color: #666; text-transform: uppercase; }
+      .resi-box .val { font-size: 14px; font-weight: bold; letter-spacing: 1px; margin-top: 2px; }
+      @media print { body { padding: 0; } .label-box { border: none; padding: 8mm; } }
+    `;
 
-          <div class="section">
-            <div class="section-title">Penerima</div>
-            <div class="row"><span class="lbl">Nama</span><span class="val">${customerName}</span></div>
-            <div class="row"><span class="lbl">Telp</span><span class="val">${customerPhone}</span></div>
-            <div class="row"><span class="lbl">Email</span><span class="val">${customerEmail}</span></div>
-            <div class="address">${address} ${postalCode}</div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">Detail Pesanan</div>
-            <table class="items">
-              <thead><tr><th>Produk</th><th>Qty</th><th>Harga</th></tr></thead>
-              <tbody>${itemsHtml}</tbody>
-            </table>
-          </div>
-
-          <div class="totals">
-            <div class="total-row"><span>Subtotal</span><span>${formatRupiah(shippingDetail.total)}</span></div>
-            ${shippingDetail.discount_total > 0 ? `<div class="total-row"><span>Diskon</span><span>-${formatRupiah(shippingDetail.discount_total)}</span></div>` : ""}
-            <div class="total-row"><span>Ongkir (${courier})</span><span>${formatRupiah(shippingDetail.shipment_cost)}</span></div>
-            <div class="total-row grand"><span>Total</span><span>${formatRupiah(shippingDetail.grand_total)}</span></div>
-          </div>
-
-          <div class="resi-box">
-            <div class="lbl">Nomor Resi</div>
-            <div class="val">${store?.receipt_code || receiptCode || "________________"}</div>
-          </div>
-
-          <div class="footer">Terima kasih telah berbelanja di BLACKBOX.INC</div>
+    const labelBodyHtml = `
+      <div class="label-box">
+        <div class="header">
+          <h1>BLACKBOX.INC</h1>
+          <div class="ref">${shippingDetail.reference}</div>
+          <div class="date">${formatDateTime(shippingDetail.created_at)}</div>
+          <div class="courier-badge">${courier} ${service ? "- " + service : ""}</div>
         </div>
-      </body>
-      <script>window.onload = function() { window.print(); window.close(); }<\/script>
-      </html>
-    `);
-    printWindow.document.close();
+        <div class="section">
+          <div class="section-title">Penerima</div>
+          <div class="row"><span class="lbl">Nama</span><span class="val">${customerName}</span></div>
+          <div class="row"><span class="lbl">Telp</span><span class="val">${customerPhone}</span></div>
+          <div class="address">${address} ${postalCode}</div>
+        </div>
+        <div class="section">
+          <div class="section-title">Detail Pesanan</div>
+          <table class="items">
+            <thead><tr><th>Produk</th><th>Qty</th><th>Harga</th></tr></thead>
+            <tbody>${itemsHtml}</tbody>
+          </table>
+        </div>
+        <div class="totals">
+          <div class="total-row"><span>Subtotal</span><span>${formatRupiah(shippingDetail.total)}</span></div>
+          ${shippingDetail.discount_total > 0 ? `<div class="total-row"><span>Diskon</span><span>-${formatRupiah(shippingDetail.discount_total)}</span></div>` : ""}
+          <div class="total-row"><span>Ongkir (${courier})</span><span>${formatRupiah(shippingDetail.shipment_cost)}</span></div>
+          <div class="total-row grand"><span>Total</span><span>${formatRupiah(shippingDetail.grand_total)}</span></div>
+        </div>
+        <div class="resi-box">
+          <div class="lbl">Nomor Resi</div>
+          <div class="val">${store?.receipt_code || receiptCode || "________________"}</div>
+        </div>
+        <div class="footer">Terima kasih telah berbelanja di BLACKBOX.INC</div>
+      </div>
+    `;
+
+    printA6Html(`Label Pengiriman - ${shippingDetail.reference}`, labelBodyHtml, labelExtraStyles);
 
     // Track label sudah dicetak
     markLabelPrinted(shippingDetail.id);
@@ -1147,10 +1158,6 @@ export default function TransactionPage() {
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
                         <span style={{ color: "#666" }}>No. HP:</span>
                         <span style={{ fontWeight: "bold" }}>{shippingDetail.guest_phone || "-"}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                        <span style={{ color: "#666" }}>Email:</span>
-                        <span style={{ fontWeight: "bold" }}>{shippingDetail.user_email || shippingDetail.guest_email || "-"}</span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
                         <span style={{ color: "#666" }}>Alamat:</span>

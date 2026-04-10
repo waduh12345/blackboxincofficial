@@ -108,13 +108,19 @@ export const transactionApi = apiSlice.injectEndpoints({
         message: string;
         data: {
           current_page: number;
-          data: Transaction[];
+          data: Array<Transaction & { shops?: Transaction["stores"] }>;
           last_page: number;
           total: number;
           per_page: number;
         };
       }) => ({
-        data: response.data.data,
+        data: response.data.data.map((d) => {
+          if (!d.stores && d.shops) {
+            d.stores = d.shops;
+            delete d.shops;
+          }
+          return d;
+        }),
         last_page: response.data.last_page,
         current_page: response.data.current_page,
         total: response.data.total,
@@ -144,8 +150,16 @@ export const transactionApi = apiSlice.injectEndpoints({
       transformResponse: (response: {
         code: number;
         message: string;
-        data: Transaction;
-      }) => response.data,
+        data: Transaction & { shops?: Transaction["stores"] };
+      }) => {
+        const d = response.data;
+        // API returns "shops" but frontend uses "stores"
+        if (!d.stores && d.shops) {
+          d.stores = d.shops;
+          delete d.shops;
+        }
+        return d;
+      },
     }),
 
     // ➕ Create (private)

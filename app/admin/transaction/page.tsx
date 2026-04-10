@@ -5,7 +5,7 @@ import Image from "next/image";
 import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, Trash2, XCircle, RotateCcw } from "lucide-react";
+import { Eye, Trash2, XCircle, RotateCcw, Printer } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -80,6 +80,24 @@ export default function TransactionPage() {
   const [receiptCode, setReceiptCode] = useState<string>("");
   const [shipmentStatus, setShipmentStatus] = useState<string>("0");
   const [isUpdatingReceipt, setIsUpdatingReceipt] = useState(false);
+
+  // Track label yang sudah dicetak (per transaction id)
+  const [printedLabels, setPrintedLabels] = useState<Set<number>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const saved = localStorage.getItem("__printed_labels__");
+      return saved ? new Set(JSON.parse(saved) as number[]) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const markLabelPrinted = (txId: number) => {
+    setPrintedLabels(prev => {
+      const next = new Set(prev);
+      next.add(txId);
+      try { localStorage.setItem("__printed_labels__", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
 
   // Shipping receipt/resi modal state
   const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
@@ -233,6 +251,131 @@ export default function TransactionPage() {
       </html>
     `);
     printWindow.document.close();
+  };
+
+  // Print label A6 untuk kurir
+  const handlePrintA6Label = () => {
+    if (!shippingDetail) return;
+    const store = shippingDetail.stores?.[0];
+    let courierInfo = { name: "", service: "", etd: "" };
+    try {
+      if (store?.shipment_detail) courierInfo = JSON.parse(store.shipment_detail);
+    } catch { /* ignore */ }
+
+    const allItems = (shippingDetail.stores ?? []).flatMap(s => s?.details ?? []);
+    const customerName = shippingDetail.user_name || shippingDetail.guest_name || "-";
+    const customerPhone = shippingDetail.guest_phone || "-";
+    const customerEmail = shippingDetail.user_email || shippingDetail.guest_email || "-";
+    const address = [shippingDetail.address_line_1, shippingDetail.address_line_2].filter(Boolean).join(", ");
+    const postalCode = shippingDetail.postal_code || "";
+    const courier = (courierInfo.name || store?.courier || "").toUpperCase();
+    const service = courierInfo.service || "";
+
+    const itemsHtml = allItems.map((detail) => {
+      const pd = parseProductDetail(detail.product_detail);
+      const variant = pd.variant_name || pd.color || "";
+      const size = pd.size_name || "";
+      const info = [variant, size].filter(Boolean).join(" / ");
+      return `
+        <tr>
+          <td style="padding:3px 0;border-bottom:1px dotted #ccc;">${pd.name}${info ? ` <span style="color:#666;font-size:9px;">(${info})</span>` : ""}</td>
+          <td style="padding:3px 6px;border-bottom:1px dotted #ccc;text-align:center;">${detail.quantity}</td>
+          <td style="padding:3px 0;border-bottom:1px dotted #ccc;text-align:right;">${formatRupiah(detail.price)}</td>
+        </tr>`;
+    }).join("");
+
+    const printWindow = window.open("", "_blank", "width=420,height=600");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>Label Pengiriman - ${shippingDetail.reference}</title>
+        <style>
+          @page { size: 105mm 148mm; margin: 0; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            width: 105mm; min-height: 148mm;
+            padding: 8mm;
+            font-size: 10px; color: #000;
+          }
+          .label-box { border: 2px solid #000; padding: 6mm; height: 100%; display: flex; flex-direction: column; }
+          .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
+          .header h1 { font-size: 14px; letter-spacing: 2px; margin-bottom: 2px; }
+          .header .ref { font-size: 11px; font-weight: bold; }
+          .header .date { font-size: 9px; color: #555; }
+          .courier-badge {
+            display: inline-block; background: #000; color: #fff;
+            padding: 3px 10px; font-size: 11px; font-weight: bold;
+            letter-spacing: 1px; margin-top: 4px;
+          }
+          .section { margin-bottom: 8px; }
+          .section-title { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
+          .row { display: flex; margin-bottom: 2px; font-size: 10px; }
+          .row .lbl { width: 55px; color: #666; flex-shrink: 0; }
+          .row .val { font-weight: bold; flex: 1; }
+          .address { font-weight: bold; font-size: 11px; line-height: 1.4; margin-top: 2px; }
+          table.items { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 4px; }
+          table.items th { text-align: left; font-size: 8px; text-transform: uppercase; color: #666; padding: 3px 0; border-bottom: 1px solid #000; }
+          table.items th:nth-child(2) { text-align: center; }
+          table.items th:nth-child(3) { text-align: right; }
+          .totals { border-top: 2px solid #000; padding-top: 6px; margin-top: 6px; }
+          .total-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px; }
+          .total-row.grand { font-size: 13px; font-weight: bold; margin-top: 4px; padding-top: 4px; border-top: 1px solid #000; }
+          .footer { text-align: center; margin-top: auto; padding-top: 8px; border-top: 1px dashed #999; font-size: 8px; color: #888; }
+          .resi-box { text-align: center; border: 2px dashed #999; padding: 6px; margin-top: 6px; }
+          .resi-box .lbl { font-size: 8px; color: #666; text-transform: uppercase; }
+          .resi-box .val { font-size: 14px; font-weight: bold; letter-spacing: 1px; margin-top: 2px; }
+          @media print { body { padding: 0; } .label-box { border: none; padding: 8mm; } }
+        </style>
+      </head>
+      <body>
+        <div class="label-box">
+          <div class="header">
+            <h1>BLACKBOX.INC</h1>
+            <div class="ref">${shippingDetail.reference}</div>
+            <div class="date">${formatDateTime(shippingDetail.created_at)}</div>
+            <div class="courier-badge">${courier} ${service ? "- " + service : ""}</div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Penerima</div>
+            <div class="row"><span class="lbl">Nama</span><span class="val">${customerName}</span></div>
+            <div class="row"><span class="lbl">Telp</span><span class="val">${customerPhone}</span></div>
+            <div class="row"><span class="lbl">Email</span><span class="val">${customerEmail}</span></div>
+            <div class="address">${address} ${postalCode}</div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Detail Pesanan</div>
+            <table class="items">
+              <thead><tr><th>Produk</th><th>Qty</th><th>Harga</th></tr></thead>
+              <tbody>${itemsHtml}</tbody>
+            </table>
+          </div>
+
+          <div class="totals">
+            <div class="total-row"><span>Subtotal</span><span>${formatRupiah(shippingDetail.total)}</span></div>
+            ${shippingDetail.discount_total > 0 ? `<div class="total-row"><span>Diskon</span><span>-${formatRupiah(shippingDetail.discount_total)}</span></div>` : ""}
+            <div class="total-row"><span>Ongkir (${courier})</span><span>${formatRupiah(shippingDetail.shipment_cost)}</span></div>
+            <div class="total-row grand"><span>Total</span><span>${formatRupiah(shippingDetail.grand_total)}</span></div>
+          </div>
+
+          <div class="resi-box">
+            <div class="lbl">Nomor Resi</div>
+            <div class="val">${store?.receipt_code || receiptCode || "________________"}</div>
+          </div>
+
+          <div class="footer">Terima kasih telah berbelanja di BLACKBOX.INC</div>
+        </div>
+      </body>
+      <script>window.onload = function() { window.print(); window.close(); }<\/script>
+      </html>
+    `);
+    printWindow.document.close();
+
+    // Track label sudah dicetak
+    markLabelPrinted(shippingDetail.id);
   };
 
   // Process shipping: save receipt code + update status to SHIPPED, then print
@@ -555,31 +698,55 @@ export default function TransactionPage() {
                           </span>
                         )}
                       </td>
-                      {/* Kolom Pengiriman: Atur Pengiriman / Sudah Diproses */}
+                      {/* Kolom Pengiriman */}
                       <td className="px-4 py-2">
-                        {(item.status === 1 || item.status === 2) ? (
-                          processed ? (
-                            <div className="flex flex-col gap-1">
-                              <Badge variant="success" className="text-xs whitespace-nowrap">
-                                Sudah Diproses
-                              </Badge>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-xs px-1 py-0 h-auto text-blue-600 hover:text-blue-800"
-                                onClick={() => {
-                                  setReceiptCode("");
-                                  handleShippingClick(item.id);
-                                }}
-                              >
-                                Lihat / Cetak Ulang
-                              </Button>
-                            </div>
-                          ) : (
+                        {(item.status === 1 || item.status === 2) ? (() => {
+                          const labelPrinted = printedLabels.has(item.id);
+                          if (processed) {
+                            return (
+                              <div className="flex flex-col gap-1">
+                                <Badge variant="success" className="text-xs whitespace-nowrap">
+                                  {labelPrinted ? "Sudah Dicetak" : "Sudah Diproses"}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs px-1 py-0 h-auto text-blue-600 hover:text-blue-800"
+                                  onClick={() => {
+                                    setReceiptCode("");
+                                    handleShippingClick(item.id);
+                                  }}
+                                >
+                                  Lihat / Cetak Ulang
+                                </Button>
+                              </div>
+                            );
+                          }
+                          if (labelPrinted) {
+                            return (
+                              <div className="flex flex-col gap-1">
+                                <Badge className="text-xs whitespace-nowrap bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+                                  Label Dicetak
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs px-1 py-0 h-auto text-blue-600 hover:text-blue-800"
+                                  onClick={() => {
+                                    setReceiptCode("");
+                                    handleShippingClick(item.id);
+                                  }}
+                                >
+                                  Atur Resi
+                                </Button>
+                              </div>
+                            );
+                          }
+                          return (
                             <Button
                               size="sm"
                               variant="outline"
-                              className="border-blue-300 text-blue-600 hover:bg-blue-50 text-xs whitespace-nowrap"
+                              className="border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 text-xs whitespace-nowrap"
                               onClick={() => {
                                 setReceiptCode("");
                                 handleShippingClick(item.id);
@@ -587,8 +754,8 @@ export default function TransactionPage() {
                             >
                               Atur Pengiriman
                             </Button>
-                          )
-                        ) : (
+                          );
+                        })() : (
                           <span className="text-muted-foreground text-xs">-</span>
                         )}
                       </td>
@@ -1057,25 +1224,36 @@ export default function TransactionPage() {
                 )}
 
                 {/* Action buttons */}
-                <div className="flex gap-2 justify-end border-t pt-4">
+                <div className="flex items-center justify-between border-t pt-4">
                   <Button
                     variant="outline"
-                    onClick={() => setIsShippingModalOpen(false)}
+                    className="gap-2"
+                    onClick={handlePrintA6Label}
+                    title="Cetak label pengiriman ukuran A6 untuk kurir"
                   >
-                    Tutup
+                    <Printer className="h-4 w-4" />
+                    Cetak Label A6
                   </Button>
-                  {alreadyProcessed ? (
-                    <Button onClick={handlePrintResi}>
-                      Cetak Ulang Resi
-                    </Button>
-                  ) : (
+                  <div className="flex gap-2">
                     <Button
-                      onClick={handleProcessShipping}
-                      disabled={isUpdatingReceipt || !receiptCode.trim()}
+                      variant="outline"
+                      onClick={() => setIsShippingModalOpen(false)}
                     >
-                      {isUpdatingReceipt ? "Memproses..." : "Simpan & Cetak Resi"}
+                      Tutup
                     </Button>
-                  )}
+                    {alreadyProcessed ? (
+                      <Button onClick={handlePrintResi}>
+                        Cetak Ulang Resi
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleProcessShipping}
+                        disabled={isUpdatingReceipt || !receiptCode.trim()}
+                      >
+                        {isUpdatingReceipt ? "Memproses..." : "Simpan & Cetak Resi"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

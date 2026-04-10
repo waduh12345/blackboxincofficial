@@ -94,11 +94,12 @@ export interface Transaction {
   discount_total: number;
   shipment_cost: number;
   grand_total: number;
-  order_id: string;
+  order_id?: string;
   payment_link: string | null;
-  expires_at: string;
-  paid_at: string | null;
+  expires_at?: string;
+  paid_at?: string | null;
   status: number;
+  payment_type?: string;
   payment_method?: string;
   payment_proof?: string;
   created_at: string;
@@ -109,8 +110,27 @@ export interface Transaction {
   address_line_2?: string;
   postal_code?: string;
   media?: Array<{ original_url: string }>;
-  // An array of stores associated with this transaction
-  stores: Store[];
+  payment?: TransactionPayment | null;
+  // API returns "shops" — normalized to "stores" in transformResponse
+  stores?: Store[];
+}
+
+// Payment info from DOKU
+export interface TransactionPayment {
+  id: number;
+  driver: string;
+  order_id: string;
+  transaction_id: string;
+  payment_type: string;
+  account_number: string;
+  account_code: string | null;
+  channel: string;
+  payment_url?: string | null;
+  expired_at: string;
+  paid_at: string | null;
+  amount: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // Interface for a single store within a transaction
@@ -141,14 +161,30 @@ export interface Store {
 export interface TransactionItem {
   id: number;
   transaction_id: number;
-  transaction_store_id: number;
+  transaction_store_id?: number;
+  transaction_shop_id?: number;
   product_id: number;
+  product_variant_id?: number | null;
+  product_variant_size_id?: number | null;
   product_detail: string; // JSON string containing full product data
   quantity: number;
   price: number;
   total: number;
   created_at: string;
   updated_at: string;
+  product?: {
+    id: number;
+    name: string;
+    image?: string;
+    media?: Array<{ id: number; original_url: string }>;
+  };
+  product_variant?: {
+    id: number;
+    name: string;
+    sku: string;
+    price: string;
+    product_variant_sizes?: Array<{ id: number; name: string }>;
+  };
 }
 
 // For API service typing (list response)

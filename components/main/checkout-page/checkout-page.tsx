@@ -96,36 +96,28 @@ export default function CheckoutPage() {
 
   const paymentMethods: PaymentMethod[] = [
     {
-      id: "bank_transfer",
-      name: "Transfer Bank",
-      type: "bank",
+      id: "virtual_account",
+      name: "Virtual Account",
+      type: "va",
       icon: "🏦",
       fee: 0,
-      description: "BCA, Mandiri, BRI, BNI",
+      description: "BCA, BNI, BRI, Mandiri, CIMB, Permata, BSI",
+    },
+    {
+      id: "qris",
+      name: "QRIS",
+      type: "qris",
+      icon: "📱",
+      fee: 0,
+      description: "Scan QR — semua e-wallet & m-banking",
     },
     {
       id: "ewallet",
       name: "E-Wallet",
       type: "digital",
-      icon: "📱",
-      fee: 0,
-      description: "GoPay, OVO, DANA, ShopeePay",
-    },
-    {
-      id: "virtual_account",
-      name: "Virtual Account",
-      type: "va",
       icon: "💳",
       fee: 0,
-      description: "VA Bank & Retail",
-    },
-    {
-      id: "credit_card",
-      name: "Kartu Kredit",
-      type: "card",
-      icon: "💳",
-      fee: 0,
-      description: "Visa, Mastercard, JCB",
+      description: "GoPay, OVO, DANA, ShopeePay, LinkAja",
     },
   ];
 
@@ -589,9 +581,9 @@ export default function CheckoutPage() {
                           Pembayaran Aman
                         </h4>
                         <p className="text-sm text-blue-700">
-                          Pembayaran diproses melalui Doku yang telah
-                          tersertifikasi PCI DSS Level 1. Data kartu kredit Anda
-                          tidak disimpan di server kami.
+                          Pembayaran diproses melalui DOKU yang telah
+                          tersertifikasi PCI DSS Level 1. Semua transaksi
+                          diverifikasi secara otomatis.
                         </p>
                       </div>
                     </div>

@@ -238,21 +238,20 @@ export function useCheckout() {
         ) {
           const dataUnknown: unknown = result.data;
 
-          if (paymentType === "automatic" && hasPaymentLink(dataUnknown)) {
-            const paymentLink = dataUnknown.payment.account_number ?? null;
-            if (paymentLink) {
-              await Swal.fire({
-                icon: "success",
-                title: "Pesanan Berhasil Dibuat",
-                text: "Silakan lanjutkan ke halaman pembayaran.",
-                confirmButtonText: "Lanjut ke Pembayaran",
-                confirmButtonColor: "#000000",
-              });
-              window.open(paymentLink, "_blank");
-              clearCart();
-              router.push("/me");
-              return;
-            }
+          // DOKU Full API: pembayaran otomatis mengembalikan detail langsung
+          // (VA number, QRIS string, e-wallet deep link) — BUKAN redirect URL
+          if (paymentType === "automatic" && hasReference(dataUnknown)) {
+            const ref = dataUnknown.reference;
+            await Swal.fire({
+              icon: "success",
+              title: "Pesanan Berhasil Dibuat",
+              text: `Pesanan #${ref} berhasil dibuat. Silakan selesaikan pembayaran.`,
+              confirmButtonText: "Lihat Detail Pembayaran",
+              confirmButtonColor: "#000000",
+            });
+            clearCart();
+            router.push("/me");
+            return;
           }
 
           if (hasReference(dataUnknown)) {
@@ -312,6 +311,8 @@ export function useCheckout() {
         address_line_2: shippingInfo.address_line_2 ?? null,
         postal_code: shippingInfo.postal_code,
         payment_type: paymentType as "automatic" | "manual",
+        payment_method: paymentMethod,
+        payment_channel: paymentChannel,
         voucher: voucher,
         data: [
           {
@@ -342,45 +343,24 @@ export function useCheckout() {
         rajaongkir_district_id: shippingInfo.rajaongkir_district_id,
       });
 
-      // Handle Response
+      // Handle Response — DOKU Full API: detail pembayaran langsung (bukan redirect)
       const txData = res.data;
       const referenceCode = txData?.reference ?? "";
+      const txEncryptedId = txData?.id ?? "";
 
-      if (paymentType === "automatic" && txData?.payment?.account_number) {
-        const paymentUrl = txData.payment.account_number;
-
-        const swalResult = await Swal.fire({
+      if (paymentType === "automatic") {
+        await Swal.fire({
           icon: "success",
           title: "Pesanan Berhasil Dibuat",
           html: `
             Kode pesanan Anda: <strong>${referenceCode}</strong><br/>
-            Silakan lanjutkan pembayaran sekarang.<br/><br/>
-            <small id="swal-countdown" style="color:#888;">
-              Redirect otomatis dalam <b>10</b> detik...
-            </small>
+            Silakan selesaikan pembayaran sebelum batas waktu.
           `,
           confirmButtonColor: "#000000",
-          confirmButtonText: "Bayar Sekarang",
+          confirmButtonText: "Lihat Detail Pembayaran",
           allowOutsideClick: false,
           allowEscapeKey: false,
-          showCancelButton: false,
-          timer: 10000,
-          timerProgressBar: true,
-          didOpen: () => {
-            let secs = 10;
-            const el = document.getElementById("swal-countdown");
-            const interval = setInterval(() => {
-              secs--;
-              if (el)
-                el.innerHTML = `Redirect otomatis dalam <b>${secs}</b> detik...`;
-              if (secs <= 0) clearInterval(interval);
-            }, 1000);
-          },
         });
-
-        if (swalResult.isConfirmed) {
-          window.open(paymentUrl, "_blank");
-        }
       } else {
         await Swal.fire({
           icon: "success",
@@ -394,7 +374,13 @@ export function useCheckout() {
       }
 
       clearCart();
-      router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
+      // Untuk pembayaran otomatis, arahkan ke halaman detail transaksi
+      // agar user bisa melihat VA number / QRIS / e-wallet langsung
+      if (paymentType === "automatic" && txEncryptedId) {
+        router.push(`/transaction/${txEncryptedId}`);
+      } else {
+        router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
+      }
     },
     [createPrivateTx, createPublicTx, router]
   );

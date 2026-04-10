@@ -3,7 +3,7 @@
 import { Check, Clock, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-export type PaymentTypeResp = "qris" | "bank_transfer";
+export type PaymentTypeResp = "qris" | "bank_transfer" | "emoney";
 
 export interface PaymentResp {
   id: number;
@@ -21,6 +21,7 @@ export interface PaymentResp {
   amount: number;
   created_at: string;
   updated_at: string;
+  payment_url?: string | null;
 }
 
 const bankLabelFrom = (code: string | null, channel: string) =>
@@ -294,6 +295,77 @@ export default function PaymentPanel({
         <button
           onClick={onClose}
           className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700"
+        >
+          OK
+        </button>
+      </Card>
+    );
+  }
+
+  // ======= Menunggu Pembayaran: E-Wallet =======
+  if (payment.payment_type === "emoney") {
+    const deepLink = payment.payment_url || payment.account_number;
+    const channelLabel = payment.channel?.toUpperCase() || "E-Wallet";
+
+    return (
+      <Card>
+        <div className="relative flex flex-col items-center text-center">
+          <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+            {channelLabel}
+          </span>
+          <h3 className="mt-2 text-[clamp(18px,2.6vh,22px)] font-bold text-neutral-900">
+            Pembayaran E-Wallet
+          </h3>
+          <p className="mt-1 text-[clamp(12px,2vh,14px)] text-neutral-500">
+            Klik tombol di bawah untuk membayar via {channelLabel}
+          </p>
+        </div>
+
+        <div className="mt-[clamp(12px,2vh,20px)] rounded-2xl border p-[clamp(10px,1.8vh,16px)] text-center">
+          <div className="text-neutral-500 text-[clamp(11px,1.8vh,13px)]">Nominal</div>
+          <div className="mt-1 font-extrabold tracking-tight text-[clamp(22px,3.4vh,30px)]">
+            {formatRupiah(payment.amount)}
+          </div>
+        </div>
+
+        <div className="mt-[clamp(10px,1.8vh,16px)] rounded-2xl border p-[clamp(10px,1.8vh,16px)]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-neutral-600">
+              <Clock className="w-4 h-4" />
+              <span className="text-[clamp(11px,1.8vh,13px)]">Batas bayar</span>
+            </div>
+            <div className="text-[clamp(11px,1.8vh,13px)] font-semibold">
+              {new Date(payment.expired_at).toLocaleString("id-ID")}
+            </div>
+          </div>
+          <div className="mt-3 h-2 rounded-full bg-neutral-100 overflow-hidden">
+            <div
+              className="h-full bg-blue-500 transition-all"
+              style={{ width: `${usedPct}%` }}
+            />
+          </div>
+          <div className="mt-1 text-[clamp(10px,1.6vh,12px)] text-neutral-500 text-right">
+            Sisa waktu:{" "}
+            <span className="font-medium">
+              {mm}:{ss}
+            </span>
+          </div>
+        </div>
+
+        {deepLink && (
+          <a
+            href={deepLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 text-center block"
+          >
+            Bayar via {channelLabel}
+          </a>
+        )}
+
+        <button
+          onClick={onClose}
+          className="mt-2 w-full rounded-xl bg-neutral-200 px-4 py-3 font-semibold text-neutral-700 hover:bg-neutral-300"
         >
           OK
         </button>

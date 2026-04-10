@@ -208,10 +208,11 @@ export default function GuestConfirmationPage() {
   // Menggunakan grand_total dari API sebagai sumber kebenaran utama
   const grandTotal = transactionData.grand_total;
 
-  // --- LOGIKA PEMBAYARAN ---
-  // Cek apakah ada payment link/account number dari gateway
-  const paymentUrl = transactionData.payment?.account_number;
-  const isPaymentGateway = !!paymentUrl;
+  // --- LOGIKA PEMBAYARAN (DOKU Full API) ---
+  // Cek payment type: qris, bank_transfer (VA), atau emoney (e-wallet)
+  const paymentInfo = transactionData.payment;
+  const paymentType = paymentInfo?.payment_type;
+  const isPaymentGateway = !!paymentInfo && transactionData.status === 0;
 
   return (
     <div
@@ -252,7 +253,7 @@ export default function GuestConfirmationPage() {
           {/* LEFT COLUMN: Payment Method Display */}
           <div className="lg:col-span-2 space-y-6">
             {isPaymentGateway ? (
-              /* --- TAMPILAN PAYMENT GATEWAY (DOKU/DSB) --- */
+              /* --- TAMPILAN DOKU FULL API: VA / QRIS / E-Wallet --- */
               <div
                 className={`bg-white rounded-3xl p-8 shadow-lg border-l-4 ${ACCENT_BORDER}`}
               >
@@ -261,33 +262,82 @@ export default function GuestConfirmationPage() {
                     <ShieldCheck className="w-8 h-8 text-blue-600" />
                   </div>
                   <h3 className="font-bold text-2xl text-gray-900 mb-2">
-                    Pembayaran Otomatis
+                    {paymentType === "qris"
+                      ? "Pembayaran QRIS"
+                      : paymentType === "emoney"
+                      ? `Pembayaran E-Wallet`
+                      : "Pembayaran Virtual Account"}
                   </h3>
                   <p className="text-gray-600 mb-6 max-w-md">
-                    Silakan selesaikan pembayaran Anda melalui Payment Gateway
-                    kami. Verifikasi akan dilakukan secara otomatis setelah
-                    pembayaran berhasil.
+                    Verifikasi akan dilakukan secara otomatis setelah pembayaran berhasil.
                   </p>
 
-                  <div className="w-full max-w-sm bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6">
+                  {/* QRIS — Tampilkan QR Code */}
+                  {paymentType === "qris" && paymentInfo?.account_number && (
+                    <div className="mb-6">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(paymentInfo.account_number)}&size=480x480`}
+                        alt="QRIS"
+                        className="rounded-2xl border w-64 h-64 mx-auto"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Scan menggunakan aplikasi e-wallet atau m-banking
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Virtual Account — Tampilkan Nomor VA */}
+                  {paymentType === "bank_transfer" && paymentInfo?.account_number && (
+                    <div className="w-full max-w-sm bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6">
+                      <p className="text-sm text-gray-500 mb-1">
+                        {paymentInfo.channel?.toUpperCase()} Virtual Account
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-2xl font-mono font-bold text-gray-900 break-all">
+                          {paymentInfo.account_number}
+                        </p>
+                        <button
+                          onClick={() => handleCopyRekening(paymentInfo.account_number)}
+                          className="p-2 hover:bg-gray-100 rounded-lg"
+                        >
+                          <Copy className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* E-Wallet — Tampilkan deep link */}
+                  {paymentType === "emoney" && (
+                    <div className="w-full max-w-sm mb-6">
+                      <a
+                        href={paymentInfo?.payment_url || paymentInfo?.account_number}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center justify-center gap-2 w-full ${ACCENT_BG_COLOR} text-white py-4 rounded-2xl font-bold text-lg ${ACCENT_HOVER_BG} transition-all shadow-lg hover:shadow-xl`}
+                      >
+                        Bayar via {paymentInfo?.channel?.toUpperCase()} <ExternalLink className="w-5 h-5" />
+                      </a>
+                    </div>
+                  )}
+
+                  <div className="w-full max-w-sm bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4">
                     <p className="text-sm text-gray-500 mb-1">Total Tagihan</p>
                     <p className={`text-3xl font-bold ${ACCENT_TEXT_COLOR}`}>
                       {formatRupiahWithRp(grandTotal)}
                     </p>
                   </div>
 
-                  <a
-                    href={paymentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`inline-flex items-center justify-center gap-2 w-full max-w-sm ${ACCENT_BG_COLOR} text-white py-4 rounded-2xl font-bold text-lg ${ACCENT_HOVER_BG} transition-all shadow-lg hover:shadow-xl`}
-                  >
-                    Bayar Sekarang <ExternalLink className="w-5 h-5" />
-                  </a>
-
-                  <p className="text-xs text-gray-400 mt-4">
-                    Link pembayaran akan terbuka di tab baru.
-                  </p>
+                  {paymentInfo?.expired_at && (
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Clock className="w-4 h-4" />
+                      <span>
+                        Batas bayar:{" "}
+                        {format(new Date(paymentInfo.expired_at), "dd MMM yyyy HH:mm", {
+                          locale: idLocale,
+                        })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

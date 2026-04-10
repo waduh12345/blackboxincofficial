@@ -3,13 +3,11 @@
 import { useState } from "react";
 import Swal from "sweetalert2";
 import {
-  CreditCard,
   Smartphone,
   Building2,
   MonitorCheck,
   ChevronRight,
   Copy,
-  Store, // Icon untuk Retail
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -58,34 +56,6 @@ const PAYMENT_METHODS_DATA = [
       "Arahkan kamera ke QRIS di layar.",
       "Cek nominal dan masukkan PIN.",
       "Pembayaran berhasil terverifikasi secara instan.",
-    ],
-  },
-  {
-    id: "retail",
-    label: "Alfamart / Indomaret",
-    icon: <Store className="w-5 h-5" />,
-    description: "Bayar tunai di kasir minimarket terdekat.",
-    steps: [
-      "Pilih metode 'Gerai Retail' (Alfamart/Indomaret).",
-      "Klik 'Get Payment Code' untuk mendapatkan Kode Pembayaran.",
-      "Datang ke gerai terdekat dan menuju kasir.",
-      "Infokan ingin membayar tagihan 'DOKU' atau merchant terkait.",
-      "Tunjukkan Kode Pembayaran.",
-      "Bayar sesuai nominal dan simpan struk sebagai bukti sah.",
-    ],
-  },
-  {
-    id: "cc",
-    label: "Credit Card",
-    icon: <CreditCard className="w-5 h-5" />,
-    description: "Visa, Mastercard, JCB (Cicilan/Full Payment).",
-    steps: [
-      "Pilih Kartu Kredit pada halaman pembayaran.",
-      "Masukkan 16 digit Nomor Kartu, Masa Berlaku, dan CVV.",
-      "Pastikan kartu aktif untuk transaksi online (3D Secure).",
-      "Klik 'Bayar'. Anda akan diarahkan ke halaman OTP Bank.",
-      "Masukkan kode OTP yang masuk via SMS.",
-      "Transaksi selesai.",
     ],
   },
 ];

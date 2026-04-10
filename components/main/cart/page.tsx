@@ -11,11 +11,8 @@ import {
   CreditCard,
   CheckCircle,
   Sparkles,
-  Shield,
   Truck,
   Upload,
-  Banknote,
-  ExternalLink,
   Layers,
   Maximize2,
 } from "lucide-react";
@@ -50,9 +47,11 @@ import VariantPickerModal from "@/components/variant-picker-modal";
 import VoucherPicker from "@/components/voucher-picker";
 import type { Voucher } from "@/types/voucher";
 import useCart, { CartItem } from "@/hooks/use-cart"; // Import useCart
+import PaymentMethodSelector from "@/components/payment-method";
+import type { PaymentMethod, PaymentChannel } from "@/types/admin/transaction";
 
 // Definisi Tipe Pembayaran
-type PaymentType = "automatic" | "manual" | "cod";
+type PaymentType = "automatic" | "manual";
 
 interface RelatedProductView {
   id: number;
@@ -219,6 +218,8 @@ export default function CartPage() {
 
   // State Payment Type (Default Automatic)
   const [paymentType, setPaymentType] = useState<PaymentType>("automatic");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
+  const [paymentChannel, setPaymentChannel] = useState<PaymentChannel | undefined>(undefined);
 
   const [shippingCourier, setShippingCourier] = useState<string | null>(null);
   const [shippingMethod, setShippingMethod] =
@@ -264,8 +265,8 @@ export default function CartPage() {
         address_line_2: shippingInfo.address_line_2,
       },
       paymentType: paymentType,
-      paymentMethod: undefined,
-      paymentChannel: undefined,
+      paymentMethod: paymentMethod,
+      paymentChannel: paymentChannel,
       clearCart,
       voucher: selectedVoucher ? [selectedVoucher.id] : [],
     };
@@ -452,12 +453,7 @@ export default function CartPage() {
 
   const shippingCost = shippingMethod?.cost ?? 0;
 
-  const codFee =
-    paymentType === "cod"
-      ? Math.round((subtotal - discount + shippingCost) * 0.02)
-      : 0;
-
-  const total = Math.max(0, subtotal - discount + shippingCost + codFee);
+  const total = Math.max(0, subtotal - discount + shippingCost);
 
   if (cartItems.length === 0) {
     return (
@@ -878,9 +874,7 @@ export default function CartPage() {
                   onValueChange={(val) => {
                     setShippingCourier(val);
                     setShippingMethod(null);
-                    if (val === "international" && paymentType === "cod") {
-                      setPaymentType("automatic");
-                    }
+                    // COD removed — no longer needed
                   }}
                 >
                   <SelectTrigger className="w-full">
@@ -979,101 +973,20 @@ export default function CartPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-[#6B6B6B]" />
-                Metode Pembayaran
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipe Pembayaran
-                  </label>
-                  <div className="space-y-2">
-                    <div
-                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        paymentType === "automatic"
-                          ? "border-black bg-neutral-50"
-                          : "border-neutral-200 hover:bg-neutral-50"
-                      }`}
-                      onClick={() => setPaymentType("automatic")}
-                    >
-                      <div
-                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                          paymentType === "automatic"
-                            ? "border-black"
-                            : "border-neutral-400"
-                        }`}
-                      >
-                        {paymentType === "automatic" && (
-                          <div className="h-2 w-2 rounded-full bg-black" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">Otomatis</p>
-                        <p className="text-sm text-gray-500">
-                          Pembayaran online (Gateway)
-                        </p>
-                      </div>
-                    </div>
-
-                    <div
-                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        paymentType === "manual"
-                          ? "border-black bg-neutral-50"
-                          : "border-neutral-200 hover:bg-neutral-50"
-                      }`}
-                      onClick={() => setPaymentType("manual")}
-                    >
-                      <div
-                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                          paymentType === "manual"
-                            ? "border-black"
-                            : "border-neutral-400"
-                        }`}
-                      >
-                        {paymentType === "manual" && (
-                          <div className="h-2 w-2 rounded-full bg-black" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">Manual</p>
-                        <p className="text-sm text-gray-500">
-                          Transfer Manual (Konfirmasi Admin)
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {paymentType === "automatic" && (
-                  <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
-                    <div className="mt-0.5">
-                      <ExternalLink className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div className="text-sm text-blue-800">
-                      <p className="font-semibold mb-1">Pembayaran via Doku</p>
-                      <p>
-                        Anda akan diarahkan ke halaman pembayaran aman setelah
-                        menekan tombol Checkout. Tersedia berbagai metode (QRIS,
-                        VA, E-Wallet).
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {paymentType === "manual" && (
-                  <div className="p-3 bg-neutral-100 rounded-lg border border-neutral-200">
-                    <div className="flex items-center gap-2 text-sm text-neutral-700">
-                      <Banknote className="w-4 h-4" />
-                      <span>
-                        Silakan selesaikan pesanan, admin akan menghubungi Anda.
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <PaymentMethodSelector
+              paymentType={paymentType}
+              onPaymentTypeChange={(t) => {
+                setPaymentType(t);
+                if (t === "manual") {
+                  setPaymentMethod(undefined);
+                  setPaymentChannel(undefined);
+                }
+              }}
+              paymentMethod={paymentMethod}
+              onPaymentMethodChange={setPaymentMethod}
+              paymentChannel={paymentChannel}
+              onPaymentChannelChange={setPaymentChannel}
+            />
 
             <div className="bg-white rounded-3xl p-6 shadow-lg">
               <VoucherPicker
@@ -1107,14 +1020,7 @@ export default function CartPage() {
                     Rp {shippingCost.toLocaleString("id-ID")}
                   </span>
                 </div>
-                {paymentType === "cod" && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Fee COD (2%)</span>
-                    <span className="font-semibold">
-                      Rp {codFee.toLocaleString("id-ID")}
-                    </span>
-                  </div>
-                )}
+                {/* COD removed — only VA, QRIS, E-Wallet */}
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
@@ -1140,6 +1046,7 @@ export default function CartPage() {
                   !shippingInfo.postal_code ||
                   !isPhoneValid ||
                   !paymentType ||
+                  (paymentType === "automatic" && (!paymentMethod || !paymentChannel)) ||
                   (!isLoggedIn && !isEmailValid)
                 }
                 className="w-full bg-[#6B6B6B] text-white py-4 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"

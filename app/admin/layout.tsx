@@ -9,6 +9,7 @@ import {
   Tag,
   BookDashed,
   PackagePlus,
+  LayoutDashboard,
 } from "lucide-react";
 import Header from "@/components/admin-components/header";
 import Sidebar from "@/components/admin-components/sidebar";
@@ -90,7 +91,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
       id: "news",
       label: "Berita",
       icon: <IconNews className="h-5 w-5" />,
-      href: "/admin/news", 
+      href: "/admin/news",
+    },
+    {
+      id: "content",
+      label: "Konten Website",
+      icon: <LayoutDashboard className="h-5 w-5" />,
+      href: "/admin/content",
     },
     {
       id: "voucher",

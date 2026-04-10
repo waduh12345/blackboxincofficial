@@ -272,16 +272,19 @@ export default function GuestConfirmationPage() {
                     Verifikasi akan dilakukan secara otomatis setelah pembayaran berhasil.
                   </p>
 
-                  {/* QRIS — Tampilkan QR Code */}
-                  {paymentType === "qris" && paymentInfo?.account_number && (
-                    <div className="mb-6">
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(paymentInfo.account_number)}&size=480x480`}
-                        alt="QRIS"
-                        className="rounded-2xl border w-64 h-64 mx-auto"
-                      />
-                      <p className="text-xs text-gray-500 mt-2">
-                        Scan menggunakan aplikasi e-wallet atau m-banking
+                  {/* QRIS — Redirect ke DOKU Checkout */}
+                  {paymentType === "qris" && (paymentInfo?.payment_url || paymentInfo?.account_number) && (
+                    <div className="w-full max-w-sm mb-6">
+                      <a
+                        href={paymentInfo?.payment_url || paymentInfo?.account_number}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center justify-center gap-2 w-full ${ACCENT_BG_COLOR} text-white py-4 rounded-2xl font-bold text-lg ${ACCENT_HOVER_BG} transition-all shadow-lg hover:shadow-xl`}
+                      >
+                        Bayar via QRIS <ExternalLink className="w-5 h-5" />
+                      </a>
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        Anda akan diarahkan ke halaman pembayaran QRIS
                       </p>
                     </div>
                   )}

@@ -230,8 +230,10 @@ export default function PaymentPanel({
     return <SuccessSummary payment={payment} onClose={onClose} />;
   }
 
-  // ======= Menunggu Pembayaran: QRIS (footer hanya OK) =======
+  // ======= Menunggu Pembayaran: QRIS (redirect ke DOKU Checkout) =======
   if (payment.payment_type === "qris") {
+    const qrisUrl = payment.payment_url || payment.account_number;
+
     return (
       <Card>
         {/* Header */}
@@ -243,17 +245,8 @@ export default function PaymentPanel({
             Pembayaran QRIS
           </h3>
           <p className="mt-1 text-[clamp(12px,2vh,14px)] text-neutral-500">
-            Scan kode di bawah ini dan bayar sesuai nominal
+            Klik tombol di bawah untuk membayar via QRIS
           </p>
-        </div>
-
-        {/* QR */}
-        <div className="relative mt-[clamp(12px,2vh,20px)] flex justify-center">
-          <img
-            src={qrisImageUrl(payment.account_number)}
-            alt="QRIS"
-            className="rounded-2xl border w-[clamp(180px,30vh,288px)] h-[clamp(180px,30vh,288px)]"
-          />
         </div>
 
         {/* Nominal */}
@@ -291,10 +284,21 @@ export default function PaymentPanel({
           </div>
         </div>
 
-        {/* FOOTER: hanya OK */}
+        {/* Tombol Bayar → buka DOKU Checkout */}
+        {qrisUrl && (
+          <a
+            href={qrisUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 text-center block"
+          >
+            Bayar via QRIS
+          </a>
+        )}
+
         <button
           onClick={onClose}
-          className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700"
+          className="mt-2 w-full rounded-xl bg-neutral-200 px-4 py-3 font-semibold text-neutral-700 hover:bg-neutral-300"
         >
           OK
         </button>

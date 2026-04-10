@@ -45,14 +45,18 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
 }
 
-function hasPaymentLink(
+function hasPaymentUrl(
   v: unknown
-): v is { payment: { account_number?: string | null } } {
+): v is { payment: { payment_url?: string | null; account_number?: string | null } } {
   if (!isRecord(v)) return false;
   const p = v["payment"];
-  if (!isRecord(p)) return false;
-  const acc = (p as Record<string, unknown>)["account_number"];
-  return typeof acc === "string" || acc === null;
+  return isRecord(p);
+}
+
+function getPaymentUrl(v: unknown): string | null {
+  if (!hasPaymentUrl(v)) return null;
+  const p = v.payment;
+  return (p.payment_url as string) || (p.account_number as string) || null;
 }
 
 function hasReference(v: unknown): v is { reference: string } {
@@ -237,8 +241,26 @@ export function useCheckout() {
         ) {
           const dataUnknown: unknown = result.data;
 
-          // DOKU Full API: pembayaran otomatis mengembalikan detail langsung
-          // (VA number, QRIS string, e-wallet deep link) — BUKAN redirect URL
+          // QRIS & E-Wallet: backend returns payment_url (DOKU Checkout) → buka di tab baru
+          if (paymentType === "automatic" && (paymentMethod === "qris" || paymentMethod === "emoney")) {
+            const payUrl = getPaymentUrl(dataUnknown);
+            if (payUrl) {
+              const ref = hasReference(dataUnknown) ? dataUnknown.reference : "";
+              await Swal.fire({
+                icon: "success",
+                title: "Pesanan Berhasil Dibuat",
+                html: `Kode pesanan: <strong>${ref}</strong><br/>Anda akan diarahkan ke halaman pembayaran.`,
+                confirmButtonText: "Bayar Sekarang",
+                confirmButtonColor: "#000000",
+              });
+              window.open(payUrl, "_blank");
+              clearCart();
+              router.push("/me");
+              return;
+            }
+          }
+
+          // VA (bank_transfer): arahkan ke halaman detail untuk lihat nomor VA
           if (paymentType === "automatic" && hasReference(dataUnknown)) {
             const ref = dataUnknown.reference;
             await Swal.fire({
@@ -342,12 +364,36 @@ export function useCheckout() {
         rajaongkir_district_id: shippingInfo.rajaongkir_district_id,
       });
 
-      // Handle Response — DOKU Full API: detail pembayaran langsung (bukan redirect)
+      // Handle Response
       const txData = res.data;
       const referenceCode = txData?.reference ?? "";
       const txEncryptedId = txData?.id ?? "";
 
-      if (paymentType === "automatic") {
+      // QRIS & E-Wallet: backend returns payment_url (DOKU Checkout) → buka di tab baru
+      const payUrl = txData?.payment?.payment_url || txData?.payment?.account_number;
+      const isRedirectPayment = paymentType === "automatic" && (paymentMethod === "qris" || paymentMethod === "emoney");
+
+      if (isRedirectPayment && payUrl) {
+        await Swal.fire({
+          icon: "success",
+          title: "Pesanan Berhasil Dibuat",
+          html: `
+            Kode pesanan Anda: <strong>${referenceCode}</strong><br/>
+            Anda akan diarahkan ke halaman pembayaran.
+          `,
+          confirmButtonColor: "#000000",
+          confirmButtonText: "Bayar Sekarang",
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+        });
+        window.open(payUrl, "_blank");
+        clearCart();
+        router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
+        return;
+      }
+
+      // VA (bank_transfer): arahkan ke halaman detail untuk lihat nomor VA
+      if (paymentType === "automatic" && txEncryptedId) {
         await Swal.fire({
           icon: "success",
           title: "Pesanan Berhasil Dibuat",
@@ -360,26 +406,23 @@ export function useCheckout() {
           allowOutsideClick: false,
           allowEscapeKey: false,
         });
-      } else {
-        await Swal.fire({
-          icon: "success",
-          title: "Pesanan Berhasil Dibuat",
-          html: `Kode pesanan Anda: <strong>${referenceCode}</strong><br/>Simpan kode ini untuk melacak pesanan Anda.`,
-          confirmButtonColor: "#000000",
-          confirmButtonText: "Lacak Pesanan",
-          allowOutsideClick: false,
-          allowEscapeKey: false,
-        });
+        clearCart();
+        router.push(`/transaction/${txEncryptedId}`);
+        return;
       }
 
+      // Manual transfer
+      await Swal.fire({
+        icon: "success",
+        title: "Pesanan Berhasil Dibuat",
+        html: `Kode pesanan Anda: <strong>${referenceCode}</strong><br/>Simpan kode ini untuk melacak pesanan Anda.`,
+        confirmButtonColor: "#000000",
+        confirmButtonText: "Lacak Pesanan",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+      });
       clearCart();
-      // Untuk pembayaran otomatis, arahkan ke halaman detail transaksi
-      // agar user bisa melihat VA number / QRIS / e-wallet langsung
-      if (paymentType === "automatic" && txEncryptedId) {
-        router.push(`/transaction/${txEncryptedId}`);
-      } else {
-        router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
-      }
+      router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
     },
     [createPrivateTx, createPublicTx, router]
   );

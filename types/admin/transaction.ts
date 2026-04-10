@@ -289,7 +289,8 @@ export interface CreatePublicTransactionRequest {
 
 export interface PublicTransactionPaymentData {
   order_id: string;
-  account_number: string; // URL ke halaman pembayaran DOKU
+  account_number: string;
+  payment_url?: string | null; // URL ke DOKU Checkout (QRIS / E-Wallet)
   amount: number;
   expired_at: string;
 }

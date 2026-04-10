@@ -200,6 +200,7 @@ export interface CreateTransactionRequest {
     details: Array<{
       product_id: number;
       product_variant_id: number;
+      product_variant_size_id?: number | null;
       quantity: number;
     }>;
     shipment: {
@@ -280,7 +281,7 @@ export interface CreatePublicTransactionRequest {
     details: Array<{
       product_id: number;
       product_variant_id: number;
-      product_variant_size_id?: number;
+      product_variant_size_id?: number | null;
       quantity: number;
     }>;
   }>;

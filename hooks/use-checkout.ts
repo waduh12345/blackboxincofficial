@@ -166,6 +166,16 @@ export function useCheckout() {
         return;
       }
 
+      // Validasi payment method & channel jika automatic
+      if (paymentType === "automatic" && (!paymentMethod || !paymentChannel)) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Pilih Metode Pembayaran",
+          text: "Harap pilih metode dan channel pembayaran untuk melanjutkan.",
+        });
+        return;
+      }
+
       const stored = parseStorage();
       const totalWeight = calcTotalWeight(stored);
 
@@ -173,27 +183,16 @@ export function useCheckout() {
           LOGIN → /transaction
          ========================= */
       if (sessionEmail) {
-        // Tipe lokal untuk Private Detail agar mencakup size_id
-        type PrivateDetailWithSize = PrivateDetailItem & {
-          product_variant_size_id?: number;
-        };
+        const privateDetails = stored.map((item) => {
+          const variantId = getVariantId(item) ?? item.id;
+          const sizeId = getSizeId(item);
 
-        const privateDetails: PrivateDetailWithSize[] = stored.map((item) => {
-          const variantId = getVariantId(item) ?? item.id; // fallback
-          const sizeId = getSizeId(item); // Ambil Size ID
-
-          const detail: PrivateDetailWithSize = {
+          return {
             product_id: item.id,
             product_variant_id: variantId,
+            product_variant_size_id: sizeId ?? null,
             quantity: item.quantity ?? 1,
           };
-
-          // Masukkan size_id jika ada
-          if (sizeId) {
-            detail.product_variant_size_id = sizeId;
-          }
-
-          return detail;
         });
 
         const payload: CreateTransactionRequest = {
@@ -298,8 +297,8 @@ export function useCheckout() {
         return {
           product_id: item.id,
           product_variant_id: variantId,
+          product_variant_size_id: sizeId ?? null,
           quantity: item.quantity ?? 1,
-          ...(sizeId && sizeId > 0 ? { product_variant_size_id: sizeId } : {}),
         };
       });
 

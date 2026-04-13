@@ -84,11 +84,11 @@ export default function PaymentMethodSelector({
                 </h4>
                 <div className="bg-white p-3 rounded-lg">
                   <p className="font-semibold text-gray-900">
-                    Warna Kreasi Alam PT
+                    Naufaludin Akbar
                   </p>
                   <p className="text-sm text-gray-600">Bank BCA</p>
                   <p className="font-mono text-lg font-bold text-gray-900">
-                    7311087405
+                    5465011979
                   </p>
                 </div>
                 <p className="text-sm text-blue-700 mt-3">

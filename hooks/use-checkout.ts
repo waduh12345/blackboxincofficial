@@ -170,15 +170,8 @@ export function useCheckout() {
         return;
       }
 
-      // Validasi payment method & channel jika automatic
-      if (paymentType === "automatic" && (!paymentMethod || !paymentChannel)) {
-        await Swal.fire({
-          icon: "warning",
-          title: "Pilih Metode Pembayaran",
-          text: "Harap pilih metode dan channel pembayaran untuk melanjutkan.",
-        });
-        return;
-      }
+      // Automatic selalu pakai DOKU Checkout Page (aggregated) — user memilih
+      // VA / QRIS / E-Wallet di halaman DOKU.
 
       const stored = parseStorage();
       const totalWeight = calcTotalWeight(stored);
@@ -241,15 +234,15 @@ export function useCheckout() {
         ) {
           const dataUnknown: unknown = result.data;
 
-          // QRIS & E-Wallet: backend returns payment_url (DOKU Checkout) → buka di tab baru
-          if (paymentType === "automatic" && (paymentMethod === "qris" || paymentMethod === "emoney")) {
+          // Automatic (DOKU Checkout Page): backend return payment_url → buka di tab baru
+          if (paymentType === "automatic") {
             const payUrl = getPaymentUrl(dataUnknown);
+            const ref = hasReference(dataUnknown) ? dataUnknown.reference : "";
             if (payUrl) {
-              const ref = hasReference(dataUnknown) ? dataUnknown.reference : "";
               await Swal.fire({
                 icon: "success",
                 title: "Pesanan Berhasil Dibuat",
-                html: `Kode pesanan: <strong>${ref}</strong><br/>Anda akan diarahkan ke halaman pembayaran.`,
+                html: `Kode pesanan: <strong>${ref}</strong><br/>Anda akan diarahkan ke halaman pembayaran DOKU.`,
                 confirmButtonText: "Bayar Sekarang",
                 confirmButtonColor: "#000000",
               });
@@ -258,21 +251,6 @@ export function useCheckout() {
               router.push("/me");
               return;
             }
-          }
-
-          // VA (bank_transfer): arahkan ke halaman detail untuk lihat nomor VA
-          if (paymentType === "automatic" && hasReference(dataUnknown)) {
-            const ref = dataUnknown.reference;
-            await Swal.fire({
-              icon: "success",
-              title: "Pesanan Berhasil Dibuat",
-              text: `Pesanan #${ref} berhasil dibuat. Silakan selesaikan pembayaran.`,
-              confirmButtonText: "Lihat Detail Pembayaran",
-              confirmButtonColor: "#000000",
-            });
-            clearCart();
-            router.push("/me");
-            return;
           }
 
           if (hasReference(dataUnknown)) {
@@ -369,46 +347,45 @@ export function useCheckout() {
       const referenceCode = txData?.reference ?? "";
       const txEncryptedId = txData?.id ?? "";
 
-      // QRIS & E-Wallet: backend returns payment_url (DOKU Checkout) → buka di tab baru
-      const payUrl = txData?.payment?.payment_url || txData?.payment?.account_number;
-      const isRedirectPayment = paymentType === "automatic" && (paymentMethod === "qris" || paymentMethod === "emoney");
+      // Automatic (DOKU Checkout Page): backend return payment_url → buka di tab baru
+      if (paymentType === "automatic") {
+        const payUrl = txData?.payment?.payment_url || txData?.payment?.account_number;
+        if (payUrl) {
+          await Swal.fire({
+            icon: "success",
+            title: "Pesanan Berhasil Dibuat",
+            html: `
+              Kode pesanan Anda: <strong>${referenceCode}</strong><br/>
+              Anda akan diarahkan ke halaman pembayaran DOKU.
+            `,
+            confirmButtonColor: "#000000",
+            confirmButtonText: "Bayar Sekarang",
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+          });
+          window.open(payUrl, "_blank");
+          clearCart();
+          router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
+          return;
+        }
 
-      if (isRedirectPayment && payUrl) {
-        await Swal.fire({
-          icon: "success",
-          title: "Pesanan Berhasil Dibuat",
-          html: `
-            Kode pesanan Anda: <strong>${referenceCode}</strong><br/>
-            Anda akan diarahkan ke halaman pembayaran.
-          `,
-          confirmButtonColor: "#000000",
-          confirmButtonText: "Bayar Sekarang",
-          allowOutsideClick: false,
-          allowEscapeKey: false,
-        });
-        window.open(payUrl, "_blank");
-        clearCart();
-        router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
-        return;
-      }
-
-      // VA (bank_transfer): arahkan ke halaman detail untuk lihat nomor VA
-      if (paymentType === "automatic" && txEncryptedId) {
-        await Swal.fire({
-          icon: "success",
-          title: "Pesanan Berhasil Dibuat",
-          html: `
-            Kode pesanan Anda: <strong>${referenceCode}</strong><br/>
-            Silakan selesaikan pembayaran sebelum batas waktu.
-          `,
-          confirmButtonColor: "#000000",
-          confirmButtonText: "Lihat Detail Pembayaran",
-          allowOutsideClick: false,
-          allowEscapeKey: false,
-        });
-        clearCart();
-        router.push(`/transaction/${txEncryptedId}`);
-        return;
+        if (txEncryptedId) {
+          await Swal.fire({
+            icon: "success",
+            title: "Pesanan Berhasil Dibuat",
+            html: `
+              Kode pesanan Anda: <strong>${referenceCode}</strong><br/>
+              Silakan selesaikan pembayaran sebelum batas waktu.
+            `,
+            confirmButtonColor: "#000000",
+            confirmButtonText: "Lihat Detail Pembayaran",
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+          });
+          clearCart();
+          router.push(`/transaction/${txEncryptedId}`);
+          return;
+        }
       }
 
       // Manual transfer

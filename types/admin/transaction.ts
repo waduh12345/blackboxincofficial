@@ -217,9 +217,10 @@ export interface TransactionListParams {
   search?: string;
 }
 
-// Create transaction request payload — DOKU Full API (VA, QRIS, E-Wallet only)
-export type PaymentMethod = "bank_transfer" | "qris" | "emoney";
+// Create transaction request payload — DOKU Checkout Page (aggregated) + legacy channels
+export type PaymentMethod = "checkout" | "bank_transfer" | "qris" | "emoney";
 export type PaymentChannel =
+  | "checkout"                                                                                 // DOKU Checkout Page (aggregated)
   | "bca" | "bnc" | "bjb" | "bni" | "bsi" | "bss" | "cimb" | "mandiri" | "bri" | "permata"  // VA channels
   | "qris"                                                                                     // QRIS
   | "gopay" | "ovo" | "dana" | "shopeepay" | "linkaja";                                       // E-Wallet channels

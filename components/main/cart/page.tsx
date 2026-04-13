@@ -48,7 +48,6 @@ import VoucherPicker from "@/components/voucher-picker";
 import type { Voucher } from "@/types/voucher";
 import useCart, { CartItem } from "@/hooks/use-cart"; // Import useCart
 import PaymentMethodSelector from "@/components/payment-method";
-import type { PaymentMethod, PaymentChannel } from "@/types/admin/transaction";
 
 // Definisi Tipe Pembayaran
 type PaymentType = "automatic" | "manual";
@@ -218,8 +217,6 @@ export default function CartPage() {
 
   // State Payment Type (Default Automatic)
   const [paymentType, setPaymentType] = useState<PaymentType>("automatic");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
-  const [paymentChannel, setPaymentChannel] = useState<PaymentChannel | undefined>(undefined);
 
   const [shippingCourier, setShippingCourier] = useState<string | null>(null);
   const [shippingMethod, setShippingMethod] =
@@ -265,8 +262,8 @@ export default function CartPage() {
         address_line_2: shippingInfo.address_line_2,
       },
       paymentType: paymentType,
-      paymentMethod: paymentMethod,
-      paymentChannel: paymentChannel,
+      paymentMethod: paymentType === "automatic" ? "checkout" : undefined,
+      paymentChannel: paymentType === "automatic" ? "checkout" : undefined,
       clearCart,
       voucher: selectedVoucher ? [selectedVoucher.id] : [],
     };
@@ -976,17 +973,7 @@ export default function CartPage() {
 
             <PaymentMethodSelector
               paymentType={paymentType}
-              onPaymentTypeChange={(t) => {
-                setPaymentType(t);
-                if (t === "manual") {
-                  setPaymentMethod(undefined);
-                  setPaymentChannel(undefined);
-                }
-              }}
-              paymentMethod={paymentMethod}
-              onPaymentMethodChange={setPaymentMethod}
-              paymentChannel={paymentChannel}
-              onPaymentChannelChange={setPaymentChannel}
+              onPaymentTypeChange={setPaymentType}
             />
 
             <div className="bg-white rounded-3xl p-6 shadow-lg">
@@ -1047,7 +1034,6 @@ export default function CartPage() {
                   !shippingInfo.postal_code ||
                   !isPhoneValid ||
                   !paymentType ||
-                  (paymentType === "automatic" && (!paymentMethod || !paymentChannel)) ||
                   (!isLoggedIn && !isEmailValid)
                 }
                 className="w-full bg-[#6B6B6B] text-white py-4 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"

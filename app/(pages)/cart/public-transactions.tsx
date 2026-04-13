@@ -51,7 +51,6 @@ import useCart, { CartItem } from "@/hooks/use-cart"; // Pastikan import CartIte
 import { useCheckout } from "@/hooks/use-checkout";
 import type { CheckoutDeps } from "@/types/checkout";
 import PaymentMethodSelector from "@/components/payment-method";
-import type { PaymentMethod, PaymentChannel } from "@/types/admin/transaction";
 
 /** ====== Helpers & Types ====== */
 
@@ -354,8 +353,6 @@ export default function PublicTransaction() {
   /** ——— Payment & Voucher ——— */
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [paymentType, setPaymentType] = useState<PaymentType>("manual");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
-  const [paymentChannel, setPaymentChannel] = useState<PaymentChannel | undefined>(undefined);
 
   const subtotal = cartItems.reduce(
     (sum, it) => sum + it.price * it.quantity,
@@ -459,8 +456,8 @@ export default function PublicTransaction() {
           rajaongkir_district_id: guest.rajaongkir_district_id,
         },
         paymentType,
-        paymentMethod,
-        paymentChannel,
+        paymentMethod: paymentType === "automatic" ? "checkout" : undefined,
+        paymentChannel: paymentType === "automatic" ? "checkout" : undefined,
         clearCart,
         voucher: selectedVoucher ? [selectedVoucher.id] : [],
       };
@@ -1107,17 +1104,7 @@ export default function PublicTransaction() {
 
             <PaymentMethodSelector
               paymentType={paymentType}
-              onPaymentTypeChange={(t) => {
-                setPaymentType(t);
-                if (t === "manual") {
-                  setPaymentMethod(undefined);
-                  setPaymentChannel(undefined);
-                }
-              }}
-              paymentMethod={paymentMethod}
-              onPaymentMethodChange={setPaymentMethod}
-              paymentChannel={paymentChannel}
-              onPaymentChannelChange={setPaymentChannel}
+              onPaymentTypeChange={setPaymentType}
             />
 
             <div className="bg-white rounded-3xl p-6 shadow-lg">
@@ -1196,8 +1183,7 @@ export default function PublicTransaction() {
                 onClick={onCheckout}
                 disabled={
                   isProcessing ||
-                  cartItems.some((it) => !it.stock) ||
-                  (paymentType === "automatic" && (!paymentMethod || !paymentChannel))
+                  cartItems.some((it) => !it.stock)
                 }
                 className="w-full bg-[#000000] text-white py-4 rounded-2xl font-semibold hover:bg-[#000000]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >

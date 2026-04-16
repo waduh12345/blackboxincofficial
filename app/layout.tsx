@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import ReduxProvider from "@/providers/redux";
+import WhatsAppFloat from "@/components/whatsapp-float";
 
 // Font utama untuk body text (mirip DIN)
 const barlow = Barlow({
@@ -36,6 +37,7 @@ export default function RootLayout({
         className={`${barlow.variable} ${barlowCondensed.variable} antialiased font-sans`}
       >
         <ReduxProvider>{children}</ReduxProvider>
+        <WhatsAppFloat />
       </body>
     </html>
   );

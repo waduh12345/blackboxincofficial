@@ -220,7 +220,7 @@ function ProductDetailClient({ slug }: { slug: string }) {
     toNumber(selectedVariant?.price) +
     toNumber(selectedSize?.price);
 
-  const currentMarkupPrice = toNumber(product.markup_price);
+  const currentHargaCoret = toNumber(product.harga_coret);
 
   // Stok tetap hierarki: Size -> Variant -> Product
   const currentStock = toNumber(
@@ -410,22 +410,22 @@ function ProductDetailClient({ slug }: { slug: string }) {
 
           {/* Harga Display */}
           <div className="mt-4">
-            {currentMarkupPrice > currentPrice ? (
+            {currentHargaCoret > currentPrice ? (
               <div className="flex flex-col">
                 <div className="flex items-baseline gap-3">
                   <span className="text-3xl font-extrabold text-red-600">
                     {CURRENCY(currentPrice)}
                   </span>
                   <span className="text-xl text-gray-400 line-through">
-                    {CURRENCY(currentMarkupPrice)}
+                    {CURRENCY(currentHargaCoret)}
                   </span>
                 </div>
                 <div className="mt-1">
                   <span className="inline-flex items-center rounded bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
                     Save{" "}
                     {Math.round(
-                      ((currentMarkupPrice - currentPrice) /
-                        currentMarkupPrice) *
+                      ((currentHargaCoret - currentPrice) /
+                        currentHargaCoret) *
                         100
                     )}
                     %

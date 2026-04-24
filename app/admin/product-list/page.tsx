@@ -39,6 +39,7 @@ interface BulkEditRow {
   name: string;
   description: string;
   price: number;
+  harga_coret: number;
   stock: number;
   weight: number;
   image: File | string | null;
@@ -53,6 +54,7 @@ interface VariantEditRow {
   name: string; // color name
   sku: string;
   price: number;
+  harga_coret: number;
   stock: number;
   weight: number;
   image: File | string | null;
@@ -172,6 +174,7 @@ export default function ProductPage() {
       name: item.name,
       description: item.description || "",
       price: item.price,
+      harga_coret: item.harga_coret ?? 0,
       stock: item.stock,
       weight: item.weight || 0,
       image: item.image,
@@ -253,6 +256,7 @@ export default function ProductPage() {
       name: "",
       sku: "",
       price: 0,
+      harga_coret: 0,
       stock: 0,
       weight: 0,
       image: null,
@@ -356,6 +360,7 @@ export default function ProductPage() {
           formData.append("name", row.name);
           formData.append("description", row.description);
           formData.append("price", String(row.price));
+          formData.append("harga_coret", String(row.harga_coret ?? 0));
           formData.append("stock", String(row.stock));
           formData.append("weight", String(row.weight));
 
@@ -372,6 +377,7 @@ export default function ProductPage() {
               variantFormData.append("name", variant.name);
               variantFormData.append("sku", variant.sku || `${row.slug}-${variant.name}`);
               variantFormData.append("price", String(variant.price));
+              variantFormData.append("harga_coret", String(variant.harga_coret ?? 0));
               variantFormData.append("stock", String(variant.stock));
               variantFormData.append("weight", String(variant.weight));
               variantFormData.append("length", "0");
@@ -497,6 +503,7 @@ export default function ProductPage() {
                     <th className="px-3 py-3 text-left w-20">Foto</th>
                     <th className="px-3 py-3 text-left min-w-[200px]">Nama Produk</th>
                     <th className="px-3 py-3 text-left min-w-[150px]">Harga (Rp)</th>
+                    <th className="px-3 py-3 text-left min-w-[150px]">Harga Coret (Rp)</th>
                     <th className="px-3 py-3 text-left w-24">Stok</th>
                     <th className="px-3 py-3 text-left w-24">Berat (g)</th>
                     <th className="px-3 py-3 text-left w-32">Variasi</th>
@@ -577,6 +584,20 @@ export default function ProductPage() {
                           />
                         </td>
 
+                        {/* Harga Coret */}
+                        <td className="px-3 py-3">
+                          <input
+                            type="number"
+                            value={row.harga_coret}
+                            onChange={(e) =>
+                              updateBulkEditRow(row.slug, "harga_coret", Number(e.target.value))
+                            }
+                            placeholder="0"
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
+                            min={0}
+                          />
+                        </td>
+
                         {/* Stock */}
                         <td className="px-3 py-3">
                           <input
@@ -624,7 +645,7 @@ export default function ProductPage() {
                       {/* Variants Section */}
                       {row.isExpanded && (
                         <tr key={`${row.slug}-variants`}>
-                          <td colSpan={6} className="bg-gray-50 px-6 py-4">
+                          <td colSpan={7} className="bg-gray-50 px-6 py-4">
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
                                 <h4 className="font-medium text-gray-700">
@@ -652,6 +673,7 @@ export default function ProductPage() {
                                         <th className="px-3 py-2 text-left w-16">Foto</th>
                                         <th className="px-3 py-2 text-left">Nama Variasi</th>
                                         <th className="px-3 py-2 text-left w-32">Harga</th>
+                                        <th className="px-3 py-2 text-left w-32">Harga Coret</th>
                                         <th className="px-3 py-2 text-left w-20">Stok</th>
                                         <th className="px-3 py-2 text-left w-20">Berat</th>
                                         <th className="px-3 py-2 text-left w-16">Aksi</th>
@@ -730,6 +752,25 @@ export default function ProductPage() {
                                                   Number(e.target.value)
                                                 )
                                               }
+                                              className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-black focus:border-transparent"
+                                              min={0}
+                                            />
+                                          </td>
+
+                                          {/* Variant Harga Coret */}
+                                          <td className="px-3 py-2">
+                                            <input
+                                              type="number"
+                                              value={variant.harga_coret}
+                                              onChange={(e) =>
+                                                updateVariantInProduct(
+                                                  row.slug,
+                                                  vIndex,
+                                                  "harga_coret",
+                                                  Number(e.target.value)
+                                                )
+                                              }
+                                              placeholder="0"
                                               className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-black focus:border-transparent"
                                               min={0}
                                             />
@@ -823,6 +864,7 @@ export default function ProductPage() {
                   <th className="px-4 py-3">Kategori</th>
                   <th className="px-4 py-3">Nama Produk</th>
                   <th className="px-4 py-3">Harga</th>
+                  <th className="px-4 py-3">Harga Coret</th>
                   <th className="px-4 py-3">Stok</th>
                   <th className="px-4 py-3">Status</th>
                 </tr>
@@ -880,6 +922,11 @@ export default function ProductPage() {
                       <td className="px-4 py-3 font-medium">{item.name}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         Rp {item.price.toLocaleString("id-ID")}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                        {item.harga_coret && item.harga_coret > 0
+                          ? `Rp ${item.harga_coret.toLocaleString("id-ID")}`
+                          : "-"}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">{item.stock}</td>
                       <td className="px-4 py-3 whitespace-nowrap">

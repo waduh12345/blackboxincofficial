@@ -144,6 +144,7 @@ export default function FormProduct({
       );
       payload.append("status", productForm.status ? "1" : "0");
       payload.append("price", String(productForm.price ?? 0));
+      payload.append("harga_coret", String(productForm.harga_coret ?? 0));
       payload.append("weight", String(productForm.weight ?? 0));
       payload.append("stock", String(productForm.stock ?? 0));
       // Dimensi
@@ -287,6 +288,7 @@ export default function FormProduct({
       payload.append("name", variantForm.name || "");
       payload.append("sku", variantForm.sku || "");
       payload.append("price", String(variantForm.price ?? 0));
+      payload.append("harga_coret", String(variantForm.harga_coret ?? 0));
       payload.append("stock", String(variantForm.stock ?? 0));
       payload.append("weight", String(variantForm.weight ?? 0));
       payload.append("status", variantForm.status ? "1" : "0");
@@ -378,12 +380,14 @@ export default function FormProduct({
 
   // === BULK EDIT STATES ===
   const [bulkVariantPrice, setBulkVariantPrice] = useState<number | "">("");
+  const [bulkVariantHargaCoret, setBulkVariantHargaCoret] = useState<number | "">("");
   const [bulkVariantWeight, setBulkVariantWeight] = useState<number | "">("");
   const [bulkVariantStock, setBulkVariantStock] = useState<number | "">("");
   const [selectedVariantIds, setSelectedVariantIds] = useState<Set<number>>(new Set());
   const [isApplyingBulkVariant, setIsApplyingBulkVariant] = useState(false);
 
   const [bulkSizePrice, setBulkSizePrice] = useState<number | "">("");
+  const [bulkSizeHargaCoret, setBulkSizeHargaCoret] = useState<number | "">("");
   const [bulkSizeWeight, setBulkSizeWeight] = useState<number | "">("");
   const [bulkSizeStock, setBulkSizeStock] = useState<number | "">("");
   const [selectedSizeIds, setSelectedSizeIds] = useState<Set<number>>(new Set());
@@ -419,7 +423,11 @@ export default function FormProduct({
       return;
     }
 
-    const hasChanges = bulkVariantPrice !== "" || bulkVariantWeight !== "" || bulkVariantStock !== "";
+    const hasChanges =
+      bulkVariantPrice !== "" ||
+      bulkVariantHargaCoret !== "" ||
+      bulkVariantWeight !== "" ||
+      bulkVariantStock !== "";
     if (!hasChanges) {
       Swal.fire("Info", "Masukkan nilai yang ingin diubah", "info");
       return;
@@ -438,6 +446,10 @@ export default function FormProduct({
         payload.append("name", variant.name);
         payload.append("sku", variant.sku);
         payload.append("price", String(bulkVariantPrice !== "" ? bulkVariantPrice : variant.price));
+        payload.append(
+          "harga_coret",
+          String(bulkVariantHargaCoret !== "" ? bulkVariantHargaCoret : variant.harga_coret ?? 0)
+        );
         payload.append("stock", String(bulkVariantStock !== "" ? bulkVariantStock : variant.stock));
         payload.append("weight", String(bulkVariantWeight !== "" ? bulkVariantWeight : variant.weight));
         payload.append("status", String(variant.status ? 1 : 0));
@@ -473,6 +485,7 @@ export default function FormProduct({
 
       // Reset bulk edit values
       setBulkVariantPrice("");
+      setBulkVariantHargaCoret("");
       setBulkVariantWeight("");
       setBulkVariantStock("");
       setSelectedVariantIds(new Set());
@@ -514,7 +527,11 @@ export default function FormProduct({
       return;
     }
 
-    const hasChanges = bulkSizePrice !== "" || bulkSizeWeight !== "" || bulkSizeStock !== "";
+    const hasChanges =
+      bulkSizePrice !== "" ||
+      bulkSizeHargaCoret !== "" ||
+      bulkSizeWeight !== "" ||
+      bulkSizeStock !== "";
     if (!hasChanges) {
       Swal.fire("Info", "Masukkan nilai yang ingin diubah", "info");
       return;
@@ -533,6 +550,10 @@ export default function FormProduct({
         payload.append("name", size.name);
         payload.append("sku", size.sku);
         payload.append("price", String(bulkSizePrice !== "" ? bulkSizePrice : size.price));
+        payload.append(
+          "harga_coret",
+          String(bulkSizeHargaCoret !== "" ? bulkSizeHargaCoret : size.harga_coret ?? 0)
+        );
         payload.append("stock", String(bulkSizeStock !== "" ? bulkSizeStock : size.stock));
         payload.append("weight", String(bulkSizeWeight !== "" ? bulkSizeWeight : size.weight));
         payload.append("status", String(size.status ? 1 : 0));
@@ -568,6 +589,7 @@ export default function FormProduct({
 
       // Reset bulk edit values
       setBulkSizePrice("");
+      setBulkSizeHargaCoret("");
       setBulkSizeWeight("");
       setBulkSizeStock("");
       setSelectedSizeIds(new Set());
@@ -580,7 +602,7 @@ export default function FormProduct({
   };
 
   // Copy price/weight from product to all variants
-  const copyProductToAllVariants = async (field: "price" | "weight" | "stock") => {
+  const copyProductToAllVariants = async (field: "price" | "harga_coret" | "weight" | "stock") => {
     if (!currentSlug || !variantsData?.data?.length) {
       Swal.fire("Info", "Tidak ada variant untuk diupdate", "info");
       return;
@@ -612,6 +634,10 @@ export default function FormProduct({
         payload.append("name", variant.name);
         payload.append("sku", variant.sku);
         payload.append("price", String(field === "price" ? value : variant.price));
+        payload.append(
+          "harga_coret",
+          String(field === "harga_coret" ? value : variant.harga_coret ?? 0)
+        );
         payload.append("stock", String(field === "stock" ? value : variant.stock));
         payload.append("weight", String(field === "weight" ? value : variant.weight));
         payload.append("status", String(variant.status ? 1 : 0));
@@ -653,6 +679,7 @@ export default function FormProduct({
       payload.append("name", sizeForm.name || "");
       payload.append("sku", sizeForm.sku || "");
       payload.append("price", String(sizeForm.price ?? 0));
+      payload.append("harga_coret", String(sizeForm.harga_coret ?? 0));
       payload.append("stock", String(sizeForm.stock ?? 0));
       payload.append("weight", String(sizeForm.weight ?? 0));
       payload.append("status", sizeForm.status ? "1" : "0");
@@ -749,9 +776,9 @@ export default function FormProduct({
   // VIEW: STEP 1 (PRODUCT)
   const renderStep1 = () => (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         {/* ... (Input lainnya tetap sama) ... */}
-        <div className="col-span-2 space-y-1.5">
+        <div className="col-span-4 space-y-1.5">
           <Label>Nama Produk</Label>
           <Input
             value={productForm.name || ""}
@@ -761,7 +788,7 @@ export default function FormProduct({
             placeholder="Nama Produk"
           />
         </div>
-        <div className="col-span-2 space-y-1.5">
+        <div className="col-span-4 space-y-1.5">
           <Label>Kategori</Label>
           <Combobox
             data={categories?.data || []}
@@ -773,7 +800,7 @@ export default function FormProduct({
             placeholder="Pilih Kategori"
           />
         </div>
-        <div className="col-span-2 space-y-1.5">
+        <div className="col-span-4 space-y-1.5">
           <Label>Deskripsi</Label>
           <SunEditorWrapper
             value={productForm.description || ""}
@@ -784,7 +811,7 @@ export default function FormProduct({
             placeholder="Tulis deskripsi produk..."
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="col-span-2 md:col-span-1 space-y-1.5">
           <Label>Harga</Label>
           <Input
             type="number"
@@ -794,7 +821,21 @@ export default function FormProduct({
             }
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="col-span-2 md:col-span-1 space-y-1.5">
+          <Label>Harga Coret</Label>
+          <Input
+            type="number"
+            placeholder="0 jika tidak ada"
+            value={productForm.harga_coret ?? ""}
+            onChange={(e) =>
+              setProductForm({
+                ...productForm,
+                harga_coret: Number(e.target.value),
+              })
+            }
+          />
+        </div>
+        <div className="col-span-2 md:col-span-1 space-y-1.5">
           <Label>Stok</Label>
           <Input
             type="number"
@@ -804,7 +845,7 @@ export default function FormProduct({
             }
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="col-span-2 md:col-span-1 space-y-1.5">
           <Label>Berat (Gram)</Label>
           <Input
             type="number"
@@ -814,7 +855,7 @@ export default function FormProduct({
             }
           />
         </div>
-        <div className="flex items-end">
+        <div className="col-span-4 flex items-center">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -901,6 +942,15 @@ export default function FormProduct({
               size="sm"
               variant="outline"
               className="border-blue-400 text-blue-700 hover:bg-blue-100"
+              onClick={() => copyProductToAllVariants("harga_coret")}
+              disabled={isApplyingBulkVariant}
+            >
+              <Copy className="w-3 h-3 mr-1" /> Harga Coret ({formatNumber(productForm.harga_coret ?? 0)})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-blue-400 text-blue-700 hover:bg-blue-100"
               onClick={() => copyProductToAllVariants("weight")}
               disabled={isApplyingBulkVariant}
             >
@@ -918,7 +968,7 @@ export default function FormProduct({
           </div>
 
           {/* Manual Bulk Edit */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
             <div>
               <Label className="text-xs mb-1 block text-blue-700">Harga Baru (Rp)</Label>
               <Input
@@ -926,6 +976,16 @@ export default function FormProduct({
                 placeholder="Kosongkan jika tidak diubah"
                 value={bulkVariantPrice}
                 onChange={(e) => setBulkVariantPrice(e.target.value ? Number(e.target.value) : "")}
+                className="bg-white"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block text-blue-700">Harga Coret Baru (Rp)</Label>
+              <Input
+                type="number"
+                placeholder="Kosongkan jika tidak diubah"
+                value={bulkVariantHargaCoret}
+                onChange={(e) => setBulkVariantHargaCoret(e.target.value ? Number(e.target.value) : "")}
                 className="bg-white"
               />
             </div>
@@ -1157,6 +1217,20 @@ export default function FormProduct({
                   setVariantForm({
                     ...variantForm,
                     price: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Harga Coret (IDR)</Label>
+              <Input
+                type="number"
+                placeholder="0 jika tidak ada"
+                value={variantForm.harga_coret ?? ""}
+                onChange={(e) =>
+                  setVariantForm({
+                    ...variantForm,
+                    harga_coret: Number(e.target.value),
                   })
                 }
               />
@@ -1399,6 +1473,26 @@ export default function FormProduct({
               onClick={async () => {
                 if (!selectedVariant || !sizesData?.data?.length) return;
                 const confirm = await Swal.fire({
+                  title: "Copy harga coret variant ke semua size?",
+                  text: `Harga Coret: ${formatNumber(selectedVariant.harga_coret ?? 0)}`,
+                  icon: "question",
+                  showCancelButton: true,
+                });
+                if (!confirm.isConfirmed) return;
+                setBulkSizeHargaCoret(selectedVariant.harga_coret ?? 0);
+                setSelectedSizeIds(new Set(sizesData.data.map(s => s.id)));
+              }}
+              disabled={isApplyingBulkSize}
+            >
+              <Copy className="w-3 h-3 mr-1" /> Harga Coret ({formatNumber(selectedVariant?.harga_coret ?? 0)})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-green-400 text-green-700 hover:bg-green-100"
+              onClick={async () => {
+                if (!selectedVariant || !sizesData?.data?.length) return;
+                const confirm = await Swal.fire({
                   title: "Copy berat variant ke semua size?",
                   text: `Berat: ${selectedVariant.weight}g`,
                   icon: "question",
@@ -1435,7 +1529,7 @@ export default function FormProduct({
           </div>
 
           {/* Manual Bulk Edit */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
             <div>
               <Label className="text-xs mb-1 block text-green-700">Harga Baru (Rp)</Label>
               <Input
@@ -1443,6 +1537,16 @@ export default function FormProduct({
                 placeholder="Kosongkan jika tidak diubah"
                 value={bulkSizePrice}
                 onChange={(e) => setBulkSizePrice(e.target.value ? Number(e.target.value) : "")}
+                className="bg-white"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block text-green-700">Harga Coret Baru (Rp)</Label>
+              <Input
+                type="number"
+                placeholder="Kosongkan jika tidak diubah"
+                value={bulkSizeHargaCoret}
+                onChange={(e) => setBulkSizeHargaCoret(e.target.value ? Number(e.target.value) : "")}
                 className="bg-white"
               />
             </div>
@@ -1508,6 +1612,14 @@ export default function FormProduct({
             value={sizeForm.price ?? ""}
             onChange={(e) =>
               setSizeForm({ ...sizeForm, price: Number(e.target.value) })
+            }
+          />
+          <Input
+            type="number"
+            placeholder="Harga Coret (0 jika tidak ada)"
+            value={sizeForm.harga_coret ?? ""}
+            onChange={(e) =>
+              setSizeForm({ ...sizeForm, harga_coret: Number(e.target.value) })
             }
           />
           <Input
@@ -1629,7 +1741,7 @@ export default function FormProduct({
   );
 
   return (
-    <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col shadow-xl border border-black">
+    <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col shadow-xl border border-black">
       {/* Header Stepper - DIBUAT KLIKABLE JIKA DATA ADA */}
       <div className="flex justify-between items-center p-6 border-b border-black bg-gray-50">
         <div className="flex items-center space-x-4 select-none">

@@ -40,7 +40,7 @@ export interface Product {
   quantity: number;
   description: string;
   price: number;
-  markup_price: number;
+  harga_coret: number;
   rating: number | string;
   total_reviews: number;
   stock: number;

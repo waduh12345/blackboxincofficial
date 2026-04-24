@@ -58,7 +58,7 @@ function getProductName(p: Product): string {
 function getPrices(p: Product): { price: number; was?: number } {
   const maybe = p as unknown as {
     price?: number; // Harga jual
-    markup_price?: number; // Harga markup/asli
+    harga_coret?: number; // Harga coret
     // Fallback names
     selling_price?: number;
     compare_at_price?: number;
@@ -68,9 +68,9 @@ function getPrices(p: Product): { price: number; was?: number } {
   // Prioritaskan 'price' sebagai harga jual
   const price = maybe.price ?? maybe.selling_price ?? 0;
 
-  // Prioritaskan 'markup_price' sebagai harga coret
+  // Prioritaskan 'harga_coret' sebagai harga coret
   const wasCandidate =
-    maybe.markup_price ??
+    maybe.harga_coret ??
     maybe.compare_at_price ??
     maybe.original_price ??
     undefined;

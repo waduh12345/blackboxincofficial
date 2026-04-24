@@ -856,7 +856,7 @@ export default function ProductsPage() {
                           <div className="mt-2 flex flex-wrap gap-y-2 items-end justify-between">
                             {/* --- BAGIAN HARGA (STYLE UNIQLO) --- */}
                             <div className="flex flex-col">
-                              {product.markup_price > product.price ? (
+                              {product.harga_coret > product.price ? (
                                 <>
                                   {/* Baris 1: Harga Jual (Merah) & Harga Asli (Coret) Berdampingan */}
                                   <div className="flex items-baseline gap-2">
@@ -867,7 +867,7 @@ export default function ProductsPage() {
 
                                     {/* Harga Markup: Abu-abu, Coret, Lebih Kecil */}
                                     <span className="text-gray-400 line-through text-xs">
-                                      {formatCurrency(product.markup_price)}
+                                      {formatCurrency(product.harga_coret)}
                                     </span>
                                   </div>
 
@@ -875,8 +875,8 @@ export default function ProductsPage() {
                                   <span className="text-[10px] md:text-xs text-red-600 font-medium mt-0.5">
                                     Save{" "}
                                     {Math.round(
-                                      ((product.markup_price - product.price) /
-                                        product.markup_price) *
+                                      ((product.harga_coret - product.price) /
+                                        product.harga_coret) *
                                         100
                                     )}
                                     %
@@ -1110,7 +1110,7 @@ export default function ProductsPage() {
                   {/* --- BAGIAN HARGA YANG SUDAH DIPERBAIKI (Added ?? 0) --- */}
                   <div className="mt-3 border-b border-gray-100 pb-3">
                     <div className="flex flex-col">
-                      {(getNumberProp(detailProduct, "markup_price") ?? 0) >
+                      {(getNumberProp(detailProduct, "harga_coret") ?? 0) >
                       currentPrice ? (
                         <>
                           <div className="flex items-baseline gap-3">
@@ -1122,7 +1122,7 @@ export default function ProductsPage() {
                             {/* Harga Coret (Abu-abu) */}
                             <span className="text-lg text-gray-400 line-through">
                               {formatCurrency(
-                                getNumberProp(detailProduct, "markup_price") ??
+                                getNumberProp(detailProduct, "harga_coret") ??
                                   0
                               )}
                             </span>
@@ -1135,12 +1135,12 @@ export default function ProductsPage() {
                               {Math.round(
                                 (((getNumberProp(
                                   detailProduct,
-                                  "markup_price"
+                                  "harga_coret"
                                 ) ?? 0) -
                                   currentPrice) /
                                   (getNumberProp(
                                     detailProduct,
-                                    "markup_price"
+                                    "harga_coret"
                                   ) ?? 1)) * // Avoid division by zero risk in TS eyes, though condition prevents it
                                   100
                               )}

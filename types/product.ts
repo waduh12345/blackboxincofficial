@@ -2,7 +2,7 @@ export interface Products {
   id: number;
   name: string;
   price: number;
-  markup_price: number;
+  harga_coret: number;
   image: string;
   kecamatan: string;
   kategori: string;

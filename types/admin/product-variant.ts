@@ -8,6 +8,7 @@ export interface ProductVariant {
 
   // Pricing & inventory
   price: number; // in IDR
+  harga_coret: number; // harga coret / strikethrough
   stock: number;
 
   image?: string | null;

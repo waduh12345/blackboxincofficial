@@ -10,6 +10,7 @@ export interface ProductVariantSize {
   name: string;
   sku: string;
   price: number;
+  harga_coret: number;
   stock: number;
   weight: number;
   length: number;
@@ -47,6 +48,7 @@ type UpsertProductVariantSize =
       name: string;
       sku: string;
       price: number;
+      harga_coret: number;
       stock: number;
       weight: number;
       length: number;

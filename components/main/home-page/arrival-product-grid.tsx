@@ -12,7 +12,7 @@ type CardProduct = {
   id: string | number;
   name: string;
   price: number;
-  markup_price: number; // Tambahkan ini
+  harga_coret: number; // Tambahkan ini
   href: string;
   image?: string | null;
 };
@@ -45,8 +45,8 @@ export default function NewArrival() {
         (p as { price?: number }).price ??
         (p as { base_price?: number }).base_price ??
         0,
-      // Mapping markup_price dari API
-      markup_price: (p as { markup_price?: number }).markup_price ?? 0,
+      // Mapping harga_coret dari API
+      harga_coret: (p as { harga_coret?: number }).harga_coret ?? 0,
       href: `/products/${
         (p as { slug?: string }).slug ??
         (p as { id?: number | string }).id ??
@@ -116,7 +116,7 @@ export default function NewArrival() {
 
                 {/* --- LOGIKA DISKON DIMULAI DISINI --- */}
                 <div className="mt-1">
-                  {p.markup_price > p.price ? (
+                  {p.harga_coret > p.price ? (
                     <div className="flex flex-col items-start">
                       {/* Baris Harga: Jual (Merah) & Coret (Abu) */}
                       <div className="flex items-baseline gap-2">
@@ -124,14 +124,14 @@ export default function NewArrival() {
                           {CURRENCY(p.price)}
                         </span>
                         <span className="text-xs text-gray-400 line-through">
-                          {CURRENCY(p.markup_price)}
+                          {CURRENCY(p.harga_coret)}
                         </span>
                       </div>
                       {/* Badge Hemat */}
                       <span className="mt-1 inline-block rounded-sm bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
                         Save{" "}
                         {Math.round(
-                          ((p.markup_price - p.price) / p.markup_price) * 100
+                          ((p.harga_coret - p.price) / p.harga_coret) * 100
                         )}
                         %
                       </span>

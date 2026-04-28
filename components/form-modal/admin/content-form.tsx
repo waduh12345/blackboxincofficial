@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { X, Upload, ImageIcon } from "lucide-react";
+import { X, Upload, ImageIcon, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ContentItem, ContentSection } from "@/types/admin/content";
 
@@ -46,6 +46,14 @@ export default function ContentForm({
   const [previewDesktop, setPreviewDesktop] = useState<string | null>(null);
   const [previewMobile, setPreviewMobile] = useState<string | null>(null);
 
+  // Reset preview saat modal dibuka/ditutup supaya tidak bocor antar-edit
+  useEffect(() => {
+    if (!isOpen) {
+      setPreviewDesktop(null);
+      setPreviewMobile(null);
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     return () => {
       if (previewDesktop) URL.revokeObjectURL(previewDesktop);
@@ -62,15 +70,45 @@ export default function ContentForm({
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Validasi ukuran (max 2MB) & tipe
+    const MAX_SIZE = 2 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      alert("Ukuran gambar terlalu besar (maks 2MB)");
+      e.target.value = "";
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      alert("File harus berupa gambar");
+      e.target.value = "";
+      return;
+    }
     setForm((prev) => ({ ...prev, [field]: file }));
     setPreview(URL.createObjectURL(file));
   };
 
+  const handleRemoveImage = (
+    field: "imageFile" | "imageMobileFile",
+    imageField: "image" | "image_mobile",
+    setPreview: (url: string | null) => void,
+    inputRef: React.RefObject<HTMLInputElement | null>
+  ) => {
+    setForm((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      next[imageField] = null;
+      return next;
+    });
+    setPreview(null);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
   const imgSrc = (url: string | null | undefined) => {
-    if (!url) return null;
+    if (!url || typeof url !== "string" || url.trim() === "") return null;
     if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("/"))
       return url;
-    return `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "")}/storage/${url}`;
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "");
+    if (!base) return null;
+    return `${base}/storage/${url}`;
   };
 
   return (
@@ -169,23 +207,49 @@ export default function ContentForm({
           {/* Image Desktop */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Gambar Desktop
+              Gambar Desktop{" "}
+              {["hero_slider", "banner_promo", "popup", "testimonial"].includes(
+                form.section || ""
+              ) && <span className="text-red-500">*</span>}
             </label>
-            <div
-              className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400 transition-colors relative"
-              onClick={() => !readonly && fileRef.current?.click()}
-            >
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-gray-400 transition-colors relative">
               {previewDesktop || imgSrc(form.image) ? (
-                <div className="relative w-full h-48">
-                  <Image
-                    src={previewDesktop || imgSrc(form.image)!}
-                    alt="Preview"
-                    fill
-                    className="object-contain rounded-lg"
-                  />
-                </div>
+                <>
+                  <div
+                    className="relative w-full h-48 cursor-pointer"
+                    onClick={() => !readonly && fileRef.current?.click()}
+                  >
+                    <Image
+                      src={previewDesktop || imgSrc(form.image)!}
+                      alt="Preview"
+                      fill
+                      className="object-contain rounded-lg"
+                    />
+                  </div>
+                  {!readonly && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveImage(
+                          "imageFile",
+                          "image",
+                          setPreviewDesktop,
+                          fileRef
+                        );
+                      }}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-md"
+                      title="Hapus gambar"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </>
               ) : (
-                <div className="flex flex-col items-center gap-2 py-6">
+                <div
+                  className="flex flex-col items-center gap-2 py-6 cursor-pointer"
+                  onClick={() => !readonly && fileRef.current?.click()}
+                >
                   <ImageIcon className="w-10 h-10 text-gray-400" />
                   <p className="text-sm text-gray-500">
                     Klik untuk upload gambar (maks 2MB)
@@ -209,21 +273,44 @@ export default function ContentForm({
             <label className="block text-sm font-semibold text-gray-700 mb-1">
               Gambar Mobile (Opsional)
             </label>
-            <div
-              className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400 transition-colors relative"
-              onClick={() => !readonly && fileMobileRef.current?.click()}
-            >
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-gray-400 transition-colors relative">
               {previewMobile || imgSrc(form.image_mobile) ? (
-                <div className="relative w-full h-36">
-                  <Image
-                    src={previewMobile || imgSrc(form.image_mobile)!}
-                    alt="Preview Mobile"
-                    fill
-                    className="object-contain rounded-lg"
-                  />
-                </div>
+                <>
+                  <div
+                    className="relative w-full h-36 cursor-pointer"
+                    onClick={() => !readonly && fileMobileRef.current?.click()}
+                  >
+                    <Image
+                      src={previewMobile || imgSrc(form.image_mobile)!}
+                      alt="Preview Mobile"
+                      fill
+                      className="object-contain rounded-lg"
+                    />
+                  </div>
+                  {!readonly && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveImage(
+                          "imageMobileFile",
+                          "image_mobile",
+                          setPreviewMobile,
+                          fileMobileRef
+                        );
+                      }}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-md"
+                      title="Hapus gambar"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </>
               ) : (
-                <div className="flex flex-col items-center gap-2 py-4">
+                <div
+                  className="flex flex-col items-center gap-2 py-4 cursor-pointer"
+                  onClick={() => !readonly && fileMobileRef.current?.click()}
+                >
                   <Upload className="w-8 h-8 text-gray-400" />
                   <p className="text-sm text-gray-500">Gambar mobile</p>
                 </div>

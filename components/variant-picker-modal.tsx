@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Minus, Plus, ShoppingCart, X } from "lucide-react";
+import { Minus, Plus, ShoppingCart, X, Info, CheckCircle2 } from "lucide-react";
 import { Product } from "@/types/admin/product";
 import { useGetProductVariantBySlugQuery } from "@/services/product.service";
 import { useGetProductVariantSizesQuery } from "@/services/admin/product-variant-size.service";
@@ -288,8 +288,21 @@ export default function VariantPickerModal({
 
             {/* --- VARIAN --- */}
             <div className="mb-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-black">
-                Varian
+              <div className="flex items-center gap-2">
+                <div className="text-xs font-bold uppercase tracking-wider text-black">
+                  Varian
+                  <span className="text-red-500 ml-1">*</span>
+                </div>
+                {selectedVariant ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-600">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {String(selectedVariant.name)}
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-medium text-red-500">
+                    Wajib dipilih
+                  </span>
+                )}
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {variants.map((v) => {
@@ -337,8 +350,21 @@ export default function VariantPickerModal({
               ) : (
                 sizes.length > 0 && (
                   <div className="mb-4">
-                    <div className="text-xs font-bold uppercase tracking-wider text-black">
-                      Ukuran
+                    <div className="flex items-center gap-2">
+                      <div className="text-xs font-bold uppercase tracking-wider text-black">
+                        Ukuran
+                        <span className="text-red-500 ml-1">*</span>
+                      </div>
+                      {selectedSize ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-600">
+                          <CheckCircle2 className="h-3 w-3" />
+                          {String(selectedSize.name)}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-medium text-red-500">
+                          Wajib dipilih
+                        </span>
+                      )}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {sizes.map((s) => {
@@ -413,6 +439,26 @@ export default function VariantPickerModal({
               </div>
             </div>
 
+            {/* Info Banner: tampilkan jika user belum melengkapi pilihan */}
+            {curStock > 0 &&
+              (!selectedVariant ||
+                (sizes.length > 0 && !selectedSize)) && (
+                <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold">
+                      Lengkapi pilihan untuk melanjutkan:
+                    </p>
+                    <ul className="mt-0.5 list-inside list-disc space-y-0.5">
+                      {!selectedVariant && <li>Pilih varian produk</li>}
+                      {selectedVariant && sizes.length > 0 && !selectedSize && (
+                        <li>Pilih ukuran produk</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
             {/* --- ADD BUTTON --- */}
             <button
               onClick={handleAdd}
@@ -421,13 +467,24 @@ export default function VariantPickerModal({
                 curStock <= 0 ||
                 (sizes.length > 0 && !selectedSize)
               }
+              title={
+                curStock <= 0
+                  ? "Stok habis"
+                  : !selectedVariant
+                  ? "Silakan pilih varian terlebih dahulu"
+                  : sizes.length > 0 && !selectedSize
+                  ? "Silakan pilih ukuran terlebih dahulu"
+                  : "Tambah produk ke keranjang"
+              }
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-black px-4 py-3 text-white transition hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               <ShoppingCart className="h-5 w-5" />
               {curStock <= 0
                 ? "Stok Habis"
+                : !selectedVariant
+                ? "Pilih Varian Dulu"
                 : sizes.length > 0 && !selectedSize
-                ? "Pilih Ukuran"
+                ? "Pilih Ukuran Dulu"
                 : "Tambah ke Keranjang"}
             </button>
           </div>

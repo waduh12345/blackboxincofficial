@@ -25,6 +25,7 @@ import {
 } from "@/services/admin/content.service";
 import type { ContentItem, ContentSection } from "@/types/admin/content";
 import ContentForm from "@/components/form-modal/admin/content-form";
+import type { ApiErrorResponse } from "@/lib/error-handle";
 
 const SECTION_LABELS: Record<ContentSection, string> = {
   hero_slider: "Hero Slider",
@@ -98,6 +99,35 @@ export default function ContentPage() {
   };
 
   const handleSubmit = async () => {
+    // Validasi manual supaya user tahu apa yang salah
+    if (!form.section) {
+      Swal.fire("Validasi", "Section wajib dipilih", "warning");
+      return;
+    }
+    if (!form.title || form.title.trim().length === 0) {
+      Swal.fire("Validasi", "Judul wajib diisi", "warning");
+      return;
+    }
+    // Saat create, image wajib untuk section berbasis gambar
+    const imageBased: ContentSection[] = [
+      "hero_slider",
+      "banner_promo",
+      "popup",
+      "testimonial",
+    ];
+    if (
+      !editingId &&
+      imageBased.includes(form.section as ContentSection) &&
+      !form.imageFile
+    ) {
+      Swal.fire(
+        "Validasi",
+        `Gambar wajib diupload untuk section "${form.section}"`,
+        "warning"
+      );
+      return;
+    }
+
     try {
       const payload = buildFormData(form);
 
@@ -113,8 +143,13 @@ export default function ContentPage() {
       await refetch();
       closeModal();
     } catch (error) {
-      console.error(error);
-      Swal.fire("Gagal", "Gagal menyimpan data", "error");
+      console.error("Content submit error:", error);
+      const err = error as ApiErrorResponse;
+      const message =
+        err?.data?.message ||
+        err?.message ||
+        "Gagal menyimpan data. Silakan coba lagi.";
+      Swal.fire("Gagal", message, "error");
     }
   };
 
@@ -135,8 +170,12 @@ export default function ContentPage() {
         await deleteContent(item.id).unwrap();
         Swal.fire("Terhapus", "Konten berhasil dihapus", "success");
         refetch();
-      } catch {
-        Swal.fire("Gagal", "Gagal menghapus konten", "error");
+      } catch (error) {
+        console.error("Content delete error:", error);
+        const err = error as ApiErrorResponse;
+        const message =
+          err?.data?.message || err?.message || "Gagal menghapus konten";
+        Swal.fire("Gagal", message, "error");
       }
     }
   };

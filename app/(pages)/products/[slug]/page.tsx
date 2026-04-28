@@ -11,7 +11,7 @@ import type {
   Product as ApiProduct,
   ProductMedia,
 } from "@/types/admin/product";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Info, CheckCircle2 } from "lucide-react";
 import Swal from "sweetalert2";
 import clsx from "clsx";
 import useCart from "@/hooks/use-cart";
@@ -456,8 +456,21 @@ function ProductDetailClient({ slug }: { slug: string }) {
           {variants.length > 0 && (
             <div className="mt-5 grid grid-cols-1">
               <div>
-                <div className="text-sm font-bold uppercase tracking-wider text-gray-900">
-                  Pilih Varian
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-bold uppercase tracking-wider text-gray-900">
+                    Pilih Varian
+                    <span className="text-red-500 ml-1">*</span>
+                  </div>
+                  {selectedVariant ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {String(selectedVariant.name)}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-medium text-red-500">
+                      Wajib dipilih
+                    </span>
+                  )}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {variants.map((v) => {
@@ -503,8 +516,21 @@ function ProductDetailClient({ slug }: { slug: string }) {
               sizes.length > 0 && (
                 <div className="mt-5 grid grid-cols-1">
                   <div>
-                    <div className="text-sm font-bold uppercase tracking-wider text-gray-900">
-                      Pilih Ukuran
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-bold uppercase tracking-wider text-gray-900">
+                        Pilih Ukuran
+                        <span className="text-red-500 ml-1">*</span>
+                      </div>
+                      {selectedSize ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {String(selectedSize.name)}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-medium text-red-500">
+                          Wajib dipilih
+                        </span>
+                      )}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {sizes.map((s) => {
@@ -626,6 +652,33 @@ function ProductDetailClient({ slug }: { slug: string }) {
 
           {/* Button Action */}
           <div className="mt-10">
+            {/* Info Banner: tampilkan jika user belum melengkapi pilihan */}
+            {currentStock > 0 &&
+              ((variants.length > 0 && !selectedVariant) ||
+                (sizes.length > 0 && !selectedSize)) && (
+                <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold">
+                      Lengkapi pilihan untuk melanjutkan:
+                    </p>
+                    <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs">
+                      {variants.length > 0 && !selectedVariant && (
+                        <li>Pilih varian produk</li>
+                      )}
+                      {sizes.length > 0 && !selectedSize && (
+                        <li>Pilih ukuran produk</li>
+                      )}
+                      {variants.length > 0 &&
+                        selectedVariant &&
+                        !selectedSize &&
+                        sizes.length === 0 &&
+                        !isFetchingSizes && <li>Memuat ukuran...</li>}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
             <button
               onClick={addToCart}
               type="button"
@@ -633,6 +686,15 @@ function ProductDetailClient({ slug }: { slug: string }) {
                 currentStock <= 0 ||
                 (variants.length > 0 && !selectedVariant) ||
                 (sizes.length > 0 && !selectedSize)
+              }
+              title={
+                currentStock <= 0
+                  ? "Stok habis"
+                  : variants.length > 0 && !selectedVariant
+                  ? "Silakan pilih varian terlebih dahulu"
+                  : sizes.length > 0 && !selectedSize
+                  ? "Silakan pilih ukuran terlebih dahulu"
+                  : "Tambah produk ke keranjang"
               }
               className="flex w-full items-center justify-center rounded-md border border-transparent bg-black px-8 py-3 text-base font-medium text-white hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >

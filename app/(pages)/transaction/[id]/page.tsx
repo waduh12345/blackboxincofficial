@@ -369,7 +369,7 @@ export default function GuestConfirmationPage() {
                             Bank Central Asia
                           </p>
                           <p className="font-bold text-gray-900">
-                            PT. KREASI ANAK BANGSA
+                            Naufaludin Akbar
                           </p>
                         </div>
                       </div>
@@ -380,10 +380,10 @@ export default function GuestConfirmationPage() {
                         </p>
                         <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-200">
                           <span className="text-xl font-mono font-bold text-gray-800 tracking-wider">
-                            8735089123
+                            5465011979
                           </span>
                           <button
-                            onClick={() => handleCopyRekening("8735089123")}
+                            onClick={() => handleCopyRekening("5465011979")}
                             className={`p-2 hover:bg-gray-100 rounded-lg transition-colors ${ACCENT_TEXT_COLOR}`}
                             title="Salin"
                           >

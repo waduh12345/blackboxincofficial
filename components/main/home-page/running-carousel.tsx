@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,11 +13,13 @@ import Swal from "sweetalert2";
 
 // --- IMPORTS SERVICES & TYPES ---
 import {
-  useGetSliderListQuery,
-  useCreateSliderMutation,
-  useUpdateSliderMutation,
-} from "@/services/customize/home/slider.service";
-import type { Slider } from "@/types/customization/home/slider";
+  useGetPublicContentBySectionQuery,
+} from "@/services/public-content.service";
+import {
+  useCreateContentMutation,
+  useUpdateContentMutation,
+} from "@/services/admin/content.service";
+import type { ContentItem } from "@/types/admin/content";
 
 // --- IMPORTS MODE EDIT ---
 import { useEditMode } from "@/hooks/use-edit-mode";
@@ -27,8 +29,9 @@ import DotdLoader from "@/components/loader/3dot";
 import { Button } from "@/components/ui/button";
 
 // --- KONFIGURASI BASE URL IMAGE ---
-const BASE_IMAGE_URL =
-  process.env.NEXT_PUBLIC_API_SECOND_URL || "https://api-dev.blackbox.id";
+const STORAGE_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL || ""
+).replace("/api/v1", "");
 
 // --- KAMUS BAHASA SEDERHANA ---
 const TRANSLATIONS = {
@@ -87,6 +90,25 @@ export default function RunningCarousel(props: RunningCarouselProps) {
   );
 }
 
+// Bangun URL gambar absolut dari berbagai bentuk path yang mungkin
+// dikembalikan API (full URL, /storage/..., atau path relatif dari Laravel).
+function buildImageUrl(source: string | File | Blob | null): string {
+  if (!source) return "/placeholder.webp";
+  if (source instanceof File || source instanceof Blob) {
+    return URL.createObjectURL(source);
+  }
+  const s = source.trim();
+  if (!s) return "/placeholder.webp";
+  if (s.startsWith("http") || s.startsWith("data:") || s.startsWith("blob:")) {
+    return s;
+  }
+  if (s.startsWith("/")) {
+    // Pastikan tidak double slash & tetap mengarah ke storage backend
+    return `${STORAGE_BASE_URL}${s}`;
+  }
+  return `${STORAGE_BASE_URL}/storage/${s}`;
+}
+
 // =========================================
 // CONTENT COMPONENT
 // =========================================
@@ -105,42 +127,23 @@ function RunningCarouselContent({
   // Ambil teks label berdasarkan bahasa aktif
   const t = TRANSLATIONS[lang as keyof typeof TRANSLATIONS] || TRANSLATIONS.id;
 
-  // Client Code
-  const [clientCode, setClientCode] = useState<string>("");
-  useEffect(() => {
-    const code =
-      typeof window !== "undefined"
-        ? "$2b$10$OQn8T3wDmOw4pDZz.jPC4ONpoheZvpx9eReWIajaggH/aZDkU1koC"
-        : "";
-    if (code) setClientCode(code);
-  }, []);
-
-  // 1. API HOOKS
+  // 1. API HOOKS — baca slider hero dari CMS (sumber yang sama dengan admin)
   const {
-    data: sliderApiResult,
+    data: contentItems,
     isLoading,
     refetch,
-  } = useGetSliderListQuery(
-    { client_code: clientCode, bahasa: lang },
-    { skip: !clientCode }
-  );
+  } = useGetPublicContentBySectionQuery("hero_slider");
 
-  useEffect(() => {
-    if (clientCode) refetch();
-  }, [lang, clientCode, refetch]);
+  const [createContent, { isLoading: isCreating }] =
+    useCreateContentMutation();
+  const [updateContent, { isLoading: isUpdating }] =
+    useUpdateContentMutation();
 
-  const [createSlider, { isLoading: isCreating }] = useCreateSliderMutation();
-  const [updateSlider, { isLoading: isUpdating }] = useUpdateSliderMutation();
-
-  // 2. STATE LOKAL
-  const [localSlides, setLocalSlides] = useState<Slider[]>([]);
-
-  // 3. SYNC DATA API -> LOCAL STATE
-  useEffect(() => {
-    if (sliderApiResult?.data?.items) {
-      setLocalSlides(sliderApiResult.data.items);
-    }
-  }, [sliderApiResult]);
+  // 2. STATE LOKAL — disusun urut sort_order, hanya yang aktif
+  const slides = useMemo<ContentItem[]>(() => {
+    const list = (contentItems || []).filter((c) => c.is_active);
+    return [...list].sort((a, b) => a.sort_order - b.sort_order);
+  }, [contentItems]);
 
   // Carousel Logic
   const [index, setIndex] = useState(0);
@@ -149,69 +152,63 @@ function RunningCarouselContent({
 
   useEffect(() => {
     setIndex(0);
-  }, [localSlides.length]);
+  }, [slides.length]);
 
   useEffect(() => {
-    if (paused || isEditMode || localSlides.length <= 1) return;
+    if (paused || isEditMode || slides.length <= 1) return;
     timerRef.current = window.setInterval(() => {
-      setIndex((i) => (i + 1) % localSlides.length);
+      setIndex((i) => (i + 1) % slides.length);
     }, intervalMs);
     return () => {
       if (timerRef.current !== null) window.clearInterval(timerRef.current);
     };
-  }, [localSlides.length, intervalMs, paused, isEditMode]);
+  }, [slides.length, intervalMs, paused, isEditMode]);
 
   const go = (dir: -1 | 1) =>
-    setIndex((i) => (i + dir + localSlides.length) % localSlides.length);
+    setIndex((i) => (i + dir + slides.length) % slides.length);
+
+  // --- HELPER: Bangun FormData untuk endpoint /web/contents ---
+  const buildContentFormData = (params: {
+    section?: string;
+    title?: string;
+    file?: File | Blob;
+    sortOrder?: number;
+  }) => {
+    const fd = new FormData();
+    if (params.section) fd.append("section", params.section);
+    if (params.title !== undefined) fd.append("title", params.title);
+    fd.append("is_active", "1");
+    fd.append("sort_order", String(params.sortOrder ?? 0));
+    if (params.file) fd.append("image", params.file);
+    return fd;
+  };
 
   // --- HELPER: Unified Save Handler ---
   const handleUpdateItem = async (
     slideIndex: number,
-    field: "image" | "judul",
+    field: "image" | "title",
     value: string | File | Blob,
     isNew: boolean = false
   ) => {
-    if (!clientCode) return;
-
-    const currentSlide = isNew ? null : localSlides[slideIndex];
-
-    // Optimistic Update (Hanya jika update existing & bukan file)
-    if (!isNew && typeof value === "string") {
-      setLocalSlides((prev) => {
-        const updated = [...prev];
-        if (updated[slideIndex]) {
-          updated[slideIndex] = {
-            ...updated[slideIndex],
-            [field]: value,
-          };
-        }
-        return updated;
-      });
-    }
+    const currentSlide = isNew ? null : slides[slideIndex];
+    const isFileOrBlob = value instanceof File || value instanceof Blob;
 
     try {
-      const formData = new FormData();
-      formData.append("client_id", "6");
-      formData.append("bahasa", lang);
-      formData.append("status", "1");
-
-      const isFileOrBlob = value instanceof File || value instanceof Blob;
-
       if (isNew) {
         // --- LOGIC CREATE ---
-        formData.append(
-          "judul",
-          field === "judul" ? (value as string) : "New Slider"
-        );
-
-        if (field === "image" && isFileOrBlob) {
-          formData.append("image", value as Blob);
-        } else {
+        if (field !== "image" || !isFileOrBlob) {
           Swal.fire("Error", t.errorFile, "warning");
           return;
         }
 
-        await createSlider(formData).unwrap();
+        const fd = buildContentFormData({
+          section: "hero_slider",
+          title: "New Slider",
+          file: value as Blob,
+          sortOrder: slides.length,
+        });
+
+        await createContent(fd).unwrap();
         Swal.fire({
           icon: "success",
           title: t.successCreate,
@@ -223,14 +220,15 @@ function RunningCarouselContent({
       } else if (currentSlide) {
         // --- LOGIC UPDATE ---
         const titleToSend =
-          field === "judul" ? (value as string) : currentSlide.judul;
-        formData.append("judul", titleToSend || "");
+          field === "title" ? (value as string) : currentSlide.title;
+        const fd = buildContentFormData({
+          section: "hero_slider",
+          title: titleToSend ?? "",
+          file: field === "image" && isFileOrBlob ? (value as Blob) : undefined,
+          sortOrder: currentSlide.sort_order,
+        });
 
-        if (field === "image" && isFileOrBlob) {
-          formData.append("image", value as Blob);
-        }
-
-        await updateSlider({ id: currentSlide.id, data: formData }).unwrap();
+        await updateContent({ id: currentSlide.id, payload: fd }).unwrap();
         Swal.fire({
           icon: "success",
           title: t.successUpdate,
@@ -244,29 +242,19 @@ function RunningCarouselContent({
       refetch();
     } catch (error) {
       console.error("Slider save error:", error);
-      Swal.fire("Error", "Failed to save slider", "error");
+      const message =
+        (error as { data?: { message?: string }; message?: string })?.data
+          ?.message ||
+        (error as { message?: string })?.message ||
+        "Failed to save slider";
+      Swal.fire("Error", message, "error");
     }
-  };
-
-  // --- HELPER: Get Image URL ---
-  const getImageUrl = (source: string | File | Blob | null) => {
-    if (!source) return "/placeholder.webp";
-    if (source instanceof File || source instanceof Blob) {
-      return URL.createObjectURL(source);
-    }
-    if (typeof source === "string") {
-      if (source.startsWith("http") || source.startsWith("data:")) {
-        return source;
-      }
-      return `${BASE_IMAGE_URL}/media/${source}`;
-    }
-    return "/placeholder.webp";
   };
 
   // --- RENDERING ---
 
   // 1. Loading State
-  if (isLoading && localSlides.length === 0) {
+  if (isLoading && slides.length === 0) {
     return (
       <div
         className={clsx(
@@ -282,7 +270,7 @@ function RunningCarouselContent({
   }
 
   // 2. Empty State (Create First Slider)
-  if (!isLoading && localSlides.length === 0) {
+  if (!isLoading && slides.length === 0) {
     return (
       <div
         className={clsx(
@@ -296,14 +284,12 @@ function RunningCarouselContent({
             <p className="text-sm text-blue-600">{t.upload}:</p>
             <div
               className="w-32 h-32 relative bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors"
-              onClick={() => fileInputRef.current?.click()} // Trigger ref input
+              onClick={() => fileInputRef.current?.click()}
             >
-              {/* Image Preview / Placeholder */}
               <div className="w-full h-full flex items-center justify-center">
                 <PlusCircle className="w-8 h-8 text-gray-400" />
               </div>
             </div>
-            {/* Hidden Input khusus Empty State */}
             <input
               type="file"
               ref={fileInputRef}
@@ -338,14 +324,14 @@ function RunningCarouselContent({
         className="flex h-full w-full transition-transform duration-700 ease-out"
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
-        {localSlides.map((slide, i) => (
+        {slides.map((slide, i) => (
           <div key={`${slide.id}-${i}`} className="relative min-w-full h-full">
             {/* GAMBAR SLIDER */}
             <EditableImage
               isEditMode={isEditMode}
-              src={getImageUrl(slide.image)}
+              src={buildImageUrl(slide.image)}
               onSave={(file) => handleUpdateItem(i, "image", file, false)}
-              alt={slide.judul || `Slide ${i + 1}`}
+              alt={slide.title || `Slide ${i + 1}`}
               containerClassName="w-full h-full"
               className="h-full w-full object-cover"
               width={1200}
@@ -361,8 +347,8 @@ function RunningCarouselContent({
               <div className="text-white text-3xl md:text-4xl font-bold drop-shadow-md">
                 <EditableText
                   isEditMode={isEditMode}
-                  text={slide.judul || ""}
-                  onSave={(val) => handleUpdateItem(i, "judul", val, false)}
+                  text={slide.title || ""}
+                  onSave={(val) => handleUpdateItem(i, "title", val, false)}
                   className="bg-transparent border-none text-white focus:ring-0 placeholder:text-white/50 w-full"
                 />
               </div>
@@ -372,7 +358,7 @@ function RunningCarouselContent({
       </div>
 
       {/* Arrows */}
-      {showArrows && localSlides.length > 1 && (
+      {showArrows && slides.length > 1 && (
         <>
           <button
             onClick={() => go(-1)}
@@ -390,9 +376,9 @@ function RunningCarouselContent({
       )}
 
       {/* Dots */}
-      {showDots && localSlides.length > 1 && (
+      {showDots && slides.length > 1 && (
         <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 z-20">
-          {localSlides.map((_, i) => (
+          {slides.map((_, i) => (
             <button
               key={`dot-${i}`}
               onClick={() => setIndex(i)}
@@ -410,12 +396,10 @@ function RunningCarouselContent({
       {/* INDIKATOR MODE EDIT & BUTTON SAVE/LOADING */}
       {isEditMode && (
         <div className="absolute top-4 left-4 z-30 flex items-center gap-3">
-          {/* Label Mode Edit */}
           <div className="bg-blue-600/90 text-white text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-wider backdrop-blur-sm shadow-md">
             Editable
           </div>
 
-          {/* Indikator Loading / Save */}
           {isCreating || isUpdating ? (
             <div className="flex items-center gap-2 bg-emerald-600/90 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm shadow-md animate-pulse">
               <Loader2 className="w-3 h-3 animate-spin" />
@@ -428,9 +412,7 @@ function RunningCarouselContent({
             </div>
           )}
 
-          {/* Tombol Tambah Slide Baru (DENGAN FIX REF INPUT) */}
           <div className="relative">
-            {/* Input File Tersembunyi */}
             <input
               type="file"
               ref={fileInputRef}
@@ -439,19 +421,17 @@ function RunningCarouselContent({
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  // Reset agar bisa pilih file yg sama jika perlu
                   e.target.value = "";
                   handleUpdateItem(-1, "image", file, true);
                 }
               }}
             />
 
-            {/* Button Trigger */}
             <Button
               size="icon"
               className="h-8 w-8 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md border-2 border-white/20"
               title={t.addNew}
-              onClick={() => fileInputRef.current?.click()} // Trigger Klik Input
+              onClick={() => fileInputRef.current?.click()}
             >
               <PlusCircle className="h-5 w-5" />
             </Button>

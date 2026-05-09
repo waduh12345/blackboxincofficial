@@ -31,6 +31,16 @@ export const contentAdminApi = apiSlice.injectEndpoints({
         total: response.data.total,
         per_page: response.data.per_page,
       }),
+      providesTags: (result) =>
+        result?.data
+          ? [
+              ...result.data.map((item) => ({
+                type: "Content" as const,
+                id: item.id,
+              })),
+              { type: "Content" as const, id: "LIST" },
+            ]
+          : [{ type: "Content" as const, id: "LIST" }],
     }),
 
     // Detail konten by ID
@@ -44,6 +54,7 @@ export const contentAdminApi = apiSlice.injectEndpoints({
         message: string;
         data: ContentItem;
       }) => response.data,
+      providesTags: (_result, _error, id) => [{ type: "Content", id }],
     }),
 
     // Create konten baru
@@ -58,6 +69,7 @@ export const contentAdminApi = apiSlice.injectEndpoints({
         message: string;
         data: ContentItem;
       }) => response.data,
+      invalidatesTags: [{ type: "Content", id: "LIST" }],
     }),
 
     // Update konten by ID
@@ -75,6 +87,10 @@ export const contentAdminApi = apiSlice.injectEndpoints({
         message: string;
         data: ContentItem;
       }) => response.data,
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "Content", id },
+        { type: "Content", id: "LIST" },
+      ],
     }),
 
     // Delete konten by ID
@@ -83,6 +99,10 @@ export const contentAdminApi = apiSlice.injectEndpoints({
         url: `/web/contents/${id}`,
         method: "DELETE",
       }),
+      invalidatesTags: (_result, _error, id) => [
+        { type: "Content", id },
+        { type: "Content", id: "LIST" },
+      ],
     }),
   }),
   overrideExisting: false,

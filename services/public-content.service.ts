@@ -18,6 +18,16 @@ export const publicContentApi = apiSlice.injectEndpoints({
         const d = response.data;
         return Array.isArray(d) ? d : d.data;
       },
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map((item) => ({
+                type: "Content" as const,
+                id: item.id,
+              })),
+              { type: "Content" as const, id: "LIST" },
+            ]
+          : [{ type: "Content" as const, id: "LIST" }],
     }),
 
     // Ambil semua konten aktif untuk home page (semua section sekaligus)
@@ -35,6 +45,16 @@ export const publicContentApi = apiSlice.injectEndpoints({
         const d = response.data;
         return Array.isArray(d) ? d : d.data;
       },
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map((item) => ({
+                type: "Content" as const,
+                id: item.id,
+              })),
+              { type: "Content" as const, id: "LIST" },
+            ]
+          : [{ type: "Content" as const, id: "LIST" }],
     }),
   }),
   overrideExisting: false,

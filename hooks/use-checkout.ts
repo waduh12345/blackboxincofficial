@@ -234,6 +234,13 @@ export function useCheckout() {
         ) {
           const dataUnknown: unknown = result.data;
 
+          // Bersihkan keranjang segera setelah transaksi dikonfirmasi backend
+          // (ada reference/kode transaksi). Tidak menunggu dialog dikonfirmasi
+          // user, supaya item tidak tertinggal di keranjang kalau dialog ditutup.
+          if (hasReference(dataUnknown)) {
+            clearCart();
+          }
+
           // Automatic (DOKU Checkout Page): backend return payment_url → buka di tab baru
           if (paymentType === "automatic") {
             const payUrl = getPaymentUrl(dataUnknown);
@@ -247,7 +254,6 @@ export function useCheckout() {
                 confirmButtonColor: "#000000",
               });
               window.open(payUrl, "_blank");
-              clearCart();
               router.push("/me");
               return;
             }
@@ -261,7 +267,6 @@ export function useCheckout() {
               confirmButtonText: "Lihat Pesanan Saya",
               confirmButtonColor: "#000000",
             });
-            clearCart();
             router.push("/me");
             return;
           }
@@ -347,6 +352,13 @@ export function useCheckout() {
       const referenceCode = txData?.reference ?? "";
       const txEncryptedId = txData?.id ?? "";
 
+      // Bersihkan keranjang segera setelah backend balikkan kode transaksi.
+      // Dilakukan sebelum dialog ditampilkan supaya item tidak tertinggal di
+      // keranjang kalau user menutup dialog/tab tanpa konfirmasi.
+      if (referenceCode) {
+        clearCart();
+      }
+
       // Automatic (DOKU Checkout Page): backend return payment_url → buka di tab baru
       if (paymentType === "automatic") {
         const payUrl = txData?.payment?.payment_url || txData?.payment?.account_number;
@@ -364,7 +376,6 @@ export function useCheckout() {
             allowEscapeKey: false,
           });
           window.open(payUrl, "_blank");
-          clearCart();
           router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
           return;
         }
@@ -382,7 +393,6 @@ export function useCheckout() {
             allowOutsideClick: false,
             allowEscapeKey: false,
           });
-          clearCart();
           router.push(`/transaction/${txEncryptedId}`);
           return;
         }
@@ -398,7 +408,6 @@ export function useCheckout() {
         allowOutsideClick: false,
         allowEscapeKey: false,
       });
-      clearCart();
       router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
     },
     [createPrivateTx, createPublicTx, router]

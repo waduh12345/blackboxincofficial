@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"; // Asumsi Button sudah B&W
 import FilterBlocks from "@/components/ui/block-filter"; // Asumsi ini sudah B&W
 import Pagination from "@/components/ui/pagination"; // Asumsi ini sudah B&W
 import ProductDetailModal from "./modal/product-detail-modal"; // Asumsi ini sudah B&W
+import OutOfStockOverlay from "@/components/ui/out-of-stock-overlay";
 import clsx from "clsx";
 
 /* ---------- Types ---------- */
@@ -436,7 +437,7 @@ export default function ProductListingLayout({
                         />
                         {disc > 0 && (
                           // Discount Tag B&W
-                          <span className="absolute left-3 top-3 inline-flex items-center rounded-lg bg-black px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+                          <span className="absolute left-3 top-3 inline-flex items-center rounded-lg bg-black px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white z-10">
                             -{disc}%
                           </span>
                         )}
@@ -450,10 +451,11 @@ export default function ProductListingLayout({
                               new CustomEvent("wishlist:add", { detail: p })
                             );
                           }}
-                          className="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-black shadow-sm hover:bg-white transition-colors"
+                          className="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-black shadow-sm hover:bg-white transition-colors z-30"
                         >
                           <Heart className="h-4 w-4 fill-transparent hover:fill-black" />
                         </button>
+                        <OutOfStockOverlay show={out} />
                       </div>
                       <div className="p-4">
                         <h3 className="line-clamp-1 font-semibold text-black uppercase tracking-wide">
@@ -489,14 +491,24 @@ export default function ProductListingLayout({
                           </div>
                         )}
                         <div className="mt-4">
-                          {/* Button B&W (assuming destructive is black) */}
-                          <Button
-                            size="lg"
-                            variant="default" // Ubah ke default/black jika Button anda punya variant B&W
-                            className="w-full bg-black text-white hover:bg-gray-800 uppercase tracking-wider font-bold"
-                          >
-                            Add to Cart
-                          </Button>
+                          {out ? (
+                            <Button
+                              size="lg"
+                              variant="default"
+                              disabled
+                              className="w-full bg-gray-300 text-gray-600 uppercase tracking-wider font-bold cursor-not-allowed"
+                            >
+                              Stok Habis
+                            </Button>
+                          ) : (
+                            <Button
+                              size="lg"
+                              variant="default"
+                              className="w-full bg-black text-white hover:bg-gray-800 uppercase tracking-wider font-bold"
+                            >
+                              Add to Cart
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </button>

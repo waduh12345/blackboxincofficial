@@ -30,6 +30,7 @@ import useCart from "@/hooks/use-cart";
 import clsx from "clsx";
 import VariantPickerModal from "@/components/variant-picker-modal";
 import { ProductCategory } from "@/types/master/product-category";
+import OutOfStockOverlay from "@/components/ui/out-of-stock-overlay";
 
 /* =========================
    Small typed helpers
@@ -810,9 +811,11 @@ export default function ProductsPage() {
                           />
                         </Link>
 
+                        <OutOfStockOverlay show={toNumber(product.stock) <= 0} />
+
                         <div
                           className={clsx(
-                            "absolute top-4 right-4 flex flex-col gap-2 z-10 transition-opacity",
+                            "absolute top-4 right-4 flex flex-col gap-2 z-30 transition-opacity",
                             "opacity-0 group-hover:opacity-100"
                           )}
                         >
@@ -912,12 +915,20 @@ export default function ProductsPage() {
                         </div>
 
                         <div className="mt-4">
-                          <Button
-                            onClick={() => openVariantModalFor(product)}
-                            className="text-xs md:text-lg w-full bg-black text-white hover:bg-gray-800 uppercase tracking-wider font-bold py-2.5 rounded-lg transition-colors"
-                          >
-                            Add to Cart
-                          </Button>
+                          {toNumber(product.stock) <= 0 ? (
+                            <Button
+                              className="text-xs md:text-lg w-full bg-gray-300 text-gray-600 cursor-not-allowed uppercase tracking-wider font-bold py-2.5 rounded-lg"
+                            >
+                              Stok Habis
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => openVariantModalFor(product)}
+                              className="text-xs md:text-lg w-full bg-black text-white hover:bg-gray-800 uppercase tracking-wider font-bold py-2.5 rounded-lg transition-colors"
+                            >
+                              Add to Cart
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>

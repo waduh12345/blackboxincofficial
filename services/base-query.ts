@@ -39,6 +39,8 @@ export const apiSlice = createApi({
     "MyShop",
     "StockHistory",
     "Content",
+    "CekOrderContent",
+    "HowToOrderContent",
   ] as const,
   endpoints: () => ({}),
 });

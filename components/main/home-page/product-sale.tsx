@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useGetProductListQuery } from "@/services/product.service";
 import { Product } from "@/types/admin/product";
+import OutOfStockOverlay from "@/components/ui/out-of-stock-overlay";
 
 const FALLBACK_IMG = "https://placehold.co/800x1066/efefef/444?text=Product";
 
@@ -206,10 +207,11 @@ export default function ProductSale() {
 
                 {/* Badge Diskon di Gambar (Opsional, tapi bagus untuk quick view) */}
                 {hasDiscount && (
-                  <span className="absolute left-0 top-0 inline-flex items-center rounded-br-lg bg-red-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-md">
+                  <span className="absolute left-0 top-0 inline-flex items-center rounded-br-lg bg-red-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-md z-10">
                     Sale
                   </span>
                 )}
+                <OutOfStockOverlay show={(p.stock ?? 0) <= 0} />
               </div>
 
               <div className="mt-4 flex flex-col">

@@ -97,7 +97,24 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
       id: "content",
       label: "Konten Website",
       icon: <LayoutDashboard className="h-5 w-5" />,
-      href: "/admin/content",
+      href: "#",
+      children: [
+        {
+          id: "content-list",
+          label: "Konten Umum",
+          href: "/admin/content",
+        },
+        {
+          id: "content-cek-order",
+          label: "Halaman Cek Order",
+          href: "/admin/cek-order-content",
+        },
+        {
+          id: "content-how-to-order",
+          label: "Halaman How to Order",
+          href: "/admin/how-to-order-content",
+        },
+      ],
     },
     {
       id: "voucher",

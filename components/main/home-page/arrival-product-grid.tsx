@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useGetProductListQuery } from "@/services/product.service";
 import type { Product as ApiProduct } from "@/types/admin/product";
+import OutOfStockOverlay from "@/components/ui/out-of-stock-overlay";
 
 const FALLBACK_IMG =
   "https://i.pinimg.com/1200x/dc/28/77/dc2877f08ba923ba34c8fa70bae94128.jpg";
@@ -15,6 +16,7 @@ type CardProduct = {
   harga_coret: number; // Tambahkan ini
   href: string;
   image?: string | null;
+  stock: number;
 };
 
 const CURRENCY = (n: number) =>
@@ -56,6 +58,7 @@ export default function NewArrival() {
         (p as { thumbnail?: string | null }).thumbnail ??
         (p as { image?: string | null }).image ??
         FALLBACK_IMG,
+      stock: (p as { stock?: number }).stock ?? 0,
     }));
   }, [data]);
 
@@ -104,9 +107,10 @@ export default function NewArrival() {
                   className="h-full w-full object-cover grayscale-[10%] transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
                 />
-                <span className="absolute left-0 top-0 inline-flex items-center rounded-br-lg bg-black px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg">
+                <span className="absolute left-0 top-0 inline-flex items-center rounded-br-lg bg-black px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg z-10">
                   Best
                 </span>
+                <OutOfStockOverlay show={p.stock <= 0} />
               </div>
 
               <div className="mt-4 flex flex-col">

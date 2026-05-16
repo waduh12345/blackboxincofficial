@@ -41,6 +41,7 @@ export const apiSlice = createApi({
     "Content",
     "CekOrderContent",
     "HowToOrderContent",
+    "Setting",
   ] as const,
   endpoints: () => ({}),
 });

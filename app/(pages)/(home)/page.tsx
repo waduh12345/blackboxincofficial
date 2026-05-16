@@ -111,8 +111,14 @@ function CMSBanner({ item }: { item: ContentItem }) {
   const imgUrl = item.image?.startsWith("http")
     ? item.image
     : item.image
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "")}/storage/${item.image}`
-    : null;
+      ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "")}/storage/${item.image}`
+      : null;
+
+  const mobileImgUrl = item.image_mobile?.startsWith("http")
+    ? item.image_mobile
+    : item.image_mobile
+      ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "")}/storage/${item.image_mobile}`
+      : imgUrl;
 
   if (!imgUrl) return null;
 
@@ -125,7 +131,13 @@ function CMSBanner({ item }: { item: ContentItem }) {
         src={imgUrl}
         alt={item.title}
         fill
-        className="object-cover group-hover:scale-105 transition-transform duration-500"
+        className="object-cover group-hover:scale-105 transition-transform duration-500 hidden md:block"
+      />
+      <Image
+        src={mobileImgUrl || imgUrl}
+        alt={item.title}
+        fill
+        className="object-cover group-hover:scale-105 transition-transform duration-500 block md:hidden"
       />
       {(item.title || item.subtitle) && (
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6">
@@ -167,8 +179,14 @@ function CMSPopup({ item }: { item: ContentItem }) {
   const imgUrl = item.image?.startsWith("http")
     ? item.image
     : item.image
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "")}/storage/${item.image}`
-    : null;
+      ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "")}/storage/${item.image}`
+      : null;
+
+  const mobileImgUrl = item.image_mobile?.startsWith("http")
+    ? item.image_mobile
+    : item.image_mobile
+      ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "")}/storage/${item.image_mobile}`
+      : imgUrl;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -181,7 +199,8 @@ function CMSPopup({ item }: { item: ContentItem }) {
         </button>
         {imgUrl && (
           <div className="relative w-full h-52">
-            <Image src={imgUrl} alt={item.title} fill className="object-cover" />
+            <Image src={imgUrl} alt={item.title} fill className="object-cover hidden md:block" />
+            <Image src={mobileImgUrl || imgUrl} alt={item.title} fill className="object-cover block md:hidden" />
           </div>
         )}
         <div className="p-6">

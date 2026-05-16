@@ -10,6 +10,7 @@ import {
   BookDashed,
   PackagePlus,
   LayoutDashboard,
+  Settings,
 } from "lucide-react";
 import Header from "@/components/admin-components/header";
 import Sidebar from "@/components/admin-components/sidebar";
@@ -176,6 +177,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
       icon: <Users className="h-5 w-5" />,
       href: "/admin/pengelola",
     },
+    {
+      id: "settings",
+      label: "Pengaturan Global",
+      icon: <Settings className="h-5 w-5" />,
+      href: "/admin/settings",
+    },
   ];
 
   // Menu items untuk admin (terbatas)
@@ -227,6 +234,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
       label: "Data Customer",
       icon: <Users className="h-5 w-5" />,
       href: "/admin/customer",
+    },
+    {
+      id: "settings",
+      label: "Pengaturan Global",
+      icon: <Settings className="h-5 w-5" />,
+      href: "/admin/settings",
     },
   ];
 

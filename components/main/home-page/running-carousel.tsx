@@ -172,6 +172,7 @@ function RunningCarouselContent({
     section?: string;
     title?: string;
     file?: File | Blob;
+    mobileFile?: File | Blob;
     sortOrder?: number;
   }) => {
     const fd = new FormData();
@@ -180,13 +181,14 @@ function RunningCarouselContent({
     fd.append("is_active", "1");
     fd.append("sort_order", String(params.sortOrder ?? 0));
     if (params.file) fd.append("image", params.file);
+    if (params.mobileFile) fd.append("image_mobile", params.mobileFile);
     return fd;
   };
 
   // --- HELPER: Unified Save Handler ---
   const handleUpdateItem = async (
     slideIndex: number,
-    field: "image" | "title",
+    field: "image" | "image_mobile" | "title",
     value: string | File | Blob,
     isNew: boolean = false
   ) => {
@@ -225,6 +227,7 @@ function RunningCarouselContent({
           section: "hero_slider",
           title: titleToSend ?? "",
           file: field === "image" && isFileOrBlob ? (value as Blob) : undefined,
+          mobileFile: field === "image_mobile" && isFileOrBlob ? (value as Blob) : undefined,
           sortOrder: currentSlide.sort_order,
         });
 
@@ -326,15 +329,28 @@ function RunningCarouselContent({
       >
         {slides.map((slide, i) => (
           <div key={`${slide.id}-${i}`} className="relative min-w-full h-full">
-            {/* GAMBAR SLIDER */}
+            {/* GAMBAR SLIDER DESKTOP */}
             <EditableImage
               isEditMode={isEditMode}
               src={buildImageUrl(slide.image)}
               onSave={(file) => handleUpdateItem(i, "image", file, false)}
               alt={slide.title || `Slide ${i + 1}`}
-              containerClassName="w-full h-full"
+              containerClassName="w-full h-full hidden md:block"
               className="h-full w-full object-cover"
               width={1200}
+              height={800}
+              priority={i === 0}
+            />
+
+            {/* GAMBAR SLIDER MOBILE */}
+            <EditableImage
+              isEditMode={isEditMode}
+              src={buildImageUrl(slide.image_mobile || slide.image)}
+              onSave={(file) => handleUpdateItem(i, "image_mobile", file, false)}
+              alt={slide.title || `Slide ${i + 1} (Mobile)`}
+              containerClassName="w-full h-full block md:hidden"
+              className="h-full w-full object-cover"
+              width={600}
               height={800}
               priority={i === 0}
             />

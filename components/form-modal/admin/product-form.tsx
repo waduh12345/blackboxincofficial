@@ -811,16 +811,7 @@ export default function FormProduct({
             placeholder="Tulis deskripsi produk..."
           />
         </div>
-        <div className="col-span-2 md:col-span-1 space-y-1.5">
-          <Label>Berat (Gram)</Label>
-          <Input
-            type="number"
-            value={productForm.weight ?? ""}
-            onChange={(e) =>
-              setProductForm({ ...productForm, weight: Number(e.target.value) })
-            }
-          />
-        </div>
+        {/* Weight input removed as it is now managed at variant size level */}
         <div className="col-span-4 flex items-center">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -913,15 +904,7 @@ export default function FormProduct({
             >
               <Copy className="w-3 h-3 mr-1" /> Harga Coret ({formatNumber(productForm.harga_coret ?? 0)})
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-blue-400 text-blue-700 hover:bg-blue-100"
-              onClick={() => copyProductToAllVariants("weight")}
-              disabled={isApplyingBulkVariant}
-            >
-              <Copy className="w-3 h-3 mr-1" /> Berat ({productForm.weight ?? 0}g)
-            </Button>
+            {/* Copy Weight removed since weight is no longer in Step 1 */}
             <Button
               size="sm"
               variant="outline"

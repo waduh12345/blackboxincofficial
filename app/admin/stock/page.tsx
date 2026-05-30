@@ -344,6 +344,7 @@ function StockHistoryContent({ variantSizeId }: { variantSizeId: number }) {
 export default function StockPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedProduct, setExpandedProduct] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
 
   // Dialogs
   const [addSizeStockOpen, setAddSizeStockOpen] = useState(false);
@@ -373,6 +374,7 @@ export default function StockPage() {
     useGetProductListQuery({
       page: currentPage,
       paginate: 10,
+      search: search || undefined,
     });
 
   // Variant sizes for the "add stock to variant" dialog
@@ -448,12 +450,23 @@ export default function StockPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Manajemen Stok</h1>
           <p className="text-sm text-gray-500">
             Kelola stok produk berdasarkan varian dan ukuran.
           </p>
+        </div>
+        <div className="flex items-center w-full md:w-80">
+          <Input
+            placeholder="Cari nama produk..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full bg-white"
+          />
         </div>
       </div>
 

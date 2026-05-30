@@ -12,14 +12,15 @@ export const productCategoryApi = apiSlice.injectEndpoints({
         total: number;
         per_page: number;
       },
-      { page: number; paginate: number }
+      { page: number; paginate: number; search?: string }
     >({
-      query: ({ page, paginate }) => ({
+      query: ({ page, paginate, search }) => ({
         url: `/shop/products`,
         method: "GET",
         params: {
           page,
           paginate,
+          search: search || undefined,
         },
       }),
       transformResponse: (response: {

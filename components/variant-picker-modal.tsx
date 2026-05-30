@@ -18,6 +18,7 @@ type ProductVariantSize = {
   price: number | string;
   stock: number | string;
   sku?: string | null;
+  weight?: number | string | null;
 };
 
 // --- HELPERS ---
@@ -178,19 +179,30 @@ export default function VariantPickerModal({
   // Jika varian kosong, null (karena sudah di-handle auto-add)
   if (variants.length === 0) return null;
 
-  // 1. Hitung Harga Satuan (Aditif)
-  // Harga = Harga Produk + Harga Varian + Harga Size
-  const basePrice = toNumber(product.price);
-  const variantPrice = toNumber(selectedVariant?.price);
-  const sizePrice = toNumber(selectedSize?.price);
-
-  const unitPrice = basePrice + variantPrice + sizePrice;
+  // 1. Hitung Harga Satuan
+  let unitPrice = 0;
+  if (selectedSize && toNumber(selectedSize.price) > 0) {
+    unitPrice = toNumber(selectedSize.price);
+  } else {
+    const basePrice = toNumber(product.price);
+    const variantPrice = toNumber(selectedVariant?.price);
+    const sizePrice = toNumber(selectedSize?.price);
+    unitPrice = basePrice + variantPrice + sizePrice;
+  }
   const totalPrice = unitPrice * qty;
 
   // 2. Tentukan Stok Hierarkis (Size > Variant > Product)
   const curStock = toNumber(
     selectedSize?.stock ?? selectedVariant?.stock ?? product.stock
   );
+
+  // 3. Tentukan Berat
+  let unitWeight = 0;
+  if (selectedSize && toNumber(selectedSize.weight) > 0) {
+    unitWeight = toNumber(selectedSize.weight);
+  } else {
+    unitWeight = toNumber(selectedVariant?.weight ?? product.weight);
+  }
 
   // --- HANDLERS ---
 
@@ -218,6 +230,7 @@ export default function VariantPickerModal({
     const productToAdd = {
       ...product,
       price: unitPrice, // Harga final per unit
+      weight: unitWeight, // Weight final per unit
       product_variant_id: vId,
       product_variant_size_id: sId, // Tambahkan size ID
     };

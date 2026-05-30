@@ -173,7 +173,6 @@ export default function CartPage() {
   const { data: session } = useSession();
   const isLoggedIn = !!session?.user?.email;
 
-  // --- USE CART HOOK ---
   const {
     cartItems,
     removeItem,
@@ -181,6 +180,14 @@ export default function CartPage() {
     decreaseItemQuantity,
     clearCart,
   } = useCart();
+
+  // --- CALCULATE DYNAMIC CART WEIGHT ---
+  const totalWeight = useMemo(() => {
+    return cartItems.reduce((sum, it) => {
+      const w = typeof it.weight === "number" ? it.weight : 0;
+      return sum + w * it.quantity;
+    }, 0);
+  }, [cartItems]);
 
   // --- GROUPING LOGIC ---
   // Mengelompokkan item berdasarkan Product ID agar tampil dalam satu kartu
@@ -374,7 +381,7 @@ export default function CartPage() {
     {
       shop_id: 1,
       destination: String(shippingInfo.rajaongkir_district_id),
-      weight: 1000,
+      weight: totalWeight > 0 ? totalWeight : 1000,
       height: 10,
       length: 10,
       width: 10,

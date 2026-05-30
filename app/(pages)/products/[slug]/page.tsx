@@ -45,6 +45,7 @@ export interface ProductVariantSize {
   harga_coret?: number | string | null;
   stock: number | string;
   sku?: string | null;
+  weight?: number | string | null;
 }
 
 // Type guard untuk variant
@@ -215,11 +216,10 @@ function ProductDetailClient({ slug }: { slug: string }) {
 
   // --- LOGIKA HARGA & STOK ---
 
-  // Total Harga = Product + Variant + Size
   const currentPrice =
-    toNumber(product.price) +
-    toNumber(selectedVariant?.price) +
-    toNumber(selectedSize?.price);
+    selectedSize && toNumber(selectedSize.price) > 0
+      ? toNumber(selectedSize.price)
+      : toNumber(product.price) + toNumber(selectedVariant?.price) + toNumber(selectedSize?.price);
 
   const currentHargaCoret = toNumber(
     selectedSize?.harga_coret ?? selectedVariant?.harga_coret ?? product.harga_coret
@@ -229,6 +229,11 @@ function ProductDetailClient({ slug }: { slug: string }) {
   const currentStock = toNumber(
     selectedSize?.stock ?? selectedVariant?.stock ?? product.stock
   );
+
+  const currentWeight =
+    selectedSize && toNumber(selectedSize.weight) > 0
+      ? toNumber(selectedSize.weight)
+      : toNumber(selectedVariant?.weight ?? product.weight);
 
   const currentSku =
     selectedSize?.sku ?? selectedVariant?.sku ?? product.sku ?? "N/A";
@@ -290,6 +295,7 @@ function ProductDetailClient({ slug }: { slug: string }) {
     const productToAdd: ProductDetail = {
       ...product,
       price: currentPrice,
+      weight: currentWeight,
       product_variant_id: variantId,
       product_variant_size_id: sizeId,
       // TAMBAHAN: Simpan nama variant & size untuk ditampilkan di Cart Page
@@ -638,7 +644,7 @@ function ProductDetailClient({ slug }: { slug: string }) {
               </div>
               <div className="flex justify-between text-sm text-gray-600">
                 <dt className="font-medium text-gray-900">Berat</dt>
-                <dd>{product.weight} gram</dd>
+                <dd>{currentWeight} gram</dd>
               </div>
               <div className="flex justify-between text-sm text-gray-600">
                 <dt className="font-medium text-gray-900">Penjualan</dt>

@@ -812,40 +812,6 @@ export default function FormProduct({
           />
         </div>
         <div className="col-span-2 md:col-span-1 space-y-1.5">
-          <Label>Harga</Label>
-          <Input
-            type="number"
-            value={productForm.price ?? ""}
-            onChange={(e) =>
-              setProductForm({ ...productForm, price: Number(e.target.value) })
-            }
-          />
-        </div>
-        <div className="col-span-2 md:col-span-1 space-y-1.5">
-          <Label>Harga Coret</Label>
-          <Input
-            type="number"
-            placeholder="0 jika tidak ada"
-            value={productForm.harga_coret ?? ""}
-            onChange={(e) =>
-              setProductForm({
-                ...productForm,
-                harga_coret: Number(e.target.value),
-              })
-            }
-          />
-        </div>
-        <div className="col-span-2 md:col-span-1 space-y-1.5">
-          <Label>Stok</Label>
-          <Input
-            type="number"
-            value={productForm.stock ?? ""}
-            onChange={(e) =>
-              setProductForm({ ...productForm, stock: Number(e.target.value) })
-            }
-          />
-        </div>
-        <div className="col-span-2 md:col-span-1 space-y-1.5">
           <Label>Berat (Gram)</Label>
           <Input
             type="number"

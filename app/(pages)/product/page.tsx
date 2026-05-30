@@ -117,6 +117,7 @@ export interface ProductVariant {
 type SelectedVariant = {
   id?: number;
   price?: number | string;
+  harga_coret?: number | string | null;
   stock?: number | string;
   sku?: string | null;
 };
@@ -383,6 +384,9 @@ export default function ProductsPage() {
 
   const currentPrice = toNumber(
     selectedVariant?.price ?? detailProduct?.price ?? 0
+  );
+  const currentHargaCoret = toNumber(
+    selectedVariant?.harga_coret ?? detailProduct?.harga_coret ?? 0
   );
   const currentStock = toNumber(
     selectedVariant?.stock ?? detailProduct?.stock ?? 0
@@ -1121,8 +1125,7 @@ export default function ProductsPage() {
                   {/* --- BAGIAN HARGA YANG SUDAH DIPERBAIKI (Added ?? 0) --- */}
                   <div className="mt-3 border-b border-gray-100 pb-3">
                     <div className="flex flex-col">
-                      {(getNumberProp(detailProduct, "harga_coret") ?? 0) >
-                      currentPrice ? (
+                      {currentHargaCoret > currentPrice ? (
                         <>
                           <div className="flex items-baseline gap-3">
                             {/* Harga Jual (Merah & Besar) */}
@@ -1132,10 +1135,7 @@ export default function ProductsPage() {
 
                             {/* Harga Coret (Abu-abu) */}
                             <span className="text-lg text-gray-400 line-through">
-                              {formatCurrency(
-                                getNumberProp(detailProduct, "harga_coret") ??
-                                  0
-                              )}
+                              {formatCurrency(currentHargaCoret)}
                             </span>
                           </div>
 
@@ -1144,15 +1144,8 @@ export default function ProductsPage() {
                             <span className="inline-flex items-center rounded bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
                               Save{" "}
                               {Math.round(
-                                (((getNumberProp(
-                                  detailProduct,
-                                  "harga_coret"
-                                ) ?? 0) -
-                                  currentPrice) /
-                                  (getNumberProp(
-                                    detailProduct,
-                                    "harga_coret"
-                                  ) ?? 1)) * // Avoid division by zero risk in TS eyes, though condition prevents it
+                                ((currentHargaCoret - currentPrice) /
+                                  (currentHargaCoret || 1)) *
                                   100
                               )}
                               %

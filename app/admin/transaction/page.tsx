@@ -45,7 +45,7 @@ const TRANSACTION_STATUS: Record<TransactionStatusKey, TransactionStatusInfo> = 
 };
 
 // Helper: parse product_detail JSON safely
-function parseProductDetail(detailString: string): {
+function parseProductDetail(detailString: any): {
   name: string;
   variant_name?: string;
   size_name?: string;
@@ -53,13 +53,13 @@ function parseProductDetail(detailString: string): {
   image?: string;
 } {
   try {
-    const d = JSON.parse(detailString);
+    const d = typeof detailString === "string" ? JSON.parse(detailString) : detailString;
     return {
-      name: d.name || "Produk",
-      variant_name: d.variant_name || d.variant || undefined,
-      size_name: d.size_name || d.size || undefined,
-      color: d.color || d.color_name || undefined,
-      image: d.image || undefined,
+      name: d?.name || "Produk",
+      variant_name: d?.variant_name || d?.variant || undefined,
+      size_name: d?.size_name || d?.size || undefined,
+      color: d?.color || d?.color_name || undefined,
+      image: d?.image || undefined,
     };
   } catch {
     return { name: "Data Produk Rusak" };

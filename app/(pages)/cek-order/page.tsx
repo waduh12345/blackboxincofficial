@@ -130,9 +130,9 @@ function TrackOrderContent() {
           "";
       } else if (detail.product_detail) {
         try {
-          const pd = JSON.parse(detail.product_detail);
-          productName = pd.name ?? productName;
-          productImage = pd.image ?? productImage;
+          const pd = typeof detail.product_detail === "string" ? JSON.parse(detail.product_detail) : detail.product_detail;
+          productName = pd?.name ?? productName;
+          productImage = pd?.image ?? productImage;
         } catch {
           // ignore
         }

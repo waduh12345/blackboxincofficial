@@ -502,9 +502,6 @@ export default function ProductPage() {
                   <tr>
                     <th className="px-3 py-3 text-left w-20">Foto</th>
                     <th className="px-3 py-3 text-left min-w-[200px]">Nama Produk</th>
-                    <th className="px-3 py-3 text-left min-w-[150px]">Harga (Rp)</th>
-                    <th className="px-3 py-3 text-left min-w-[150px]">Harga Coret (Rp)</th>
-                    <th className="px-3 py-3 text-left w-24">Stok</th>
                     <th className="px-3 py-3 text-left w-24">Berat (g)</th>
                     <th className="px-3 py-3 text-left w-32">Variasi</th>
                   </tr>
@@ -571,46 +568,6 @@ export default function ProductPage() {
                           </div>
                         </td>
 
-                        {/* Price */}
-                        <td className="px-3 py-3">
-                          <input
-                            type="number"
-                            value={row.price}
-                            onChange={(e) =>
-                              updateBulkEditRow(row.slug, "price", Number(e.target.value))
-                            }
-                            className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
-                            min={0}
-                          />
-                        </td>
-
-                        {/* Harga Coret */}
-                        <td className="px-3 py-3">
-                          <input
-                            type="number"
-                            value={row.harga_coret}
-                            onChange={(e) =>
-                              updateBulkEditRow(row.slug, "harga_coret", Number(e.target.value))
-                            }
-                            placeholder="0"
-                            className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
-                            min={0}
-                          />
-                        </td>
-
-                        {/* Stock */}
-                        <td className="px-3 py-3">
-                          <input
-                            type="number"
-                            value={row.stock}
-                            onChange={(e) =>
-                              updateBulkEditRow(row.slug, "stock", Number(e.target.value))
-                            }
-                            className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
-                            min={0}
-                          />
-                        </td>
-
                         {/* Weight */}
                         <td className="px-3 py-3">
                           <input
@@ -645,7 +602,7 @@ export default function ProductPage() {
                       {/* Variants Section */}
                       {row.isExpanded && (
                         <tr key={`${row.slug}-variants`}>
-                          <td colSpan={7} className="bg-gray-50 px-6 py-4">
+                          <td colSpan={4} className="bg-gray-50 px-6 py-4">
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
                                 <h4 className="font-medium text-gray-700">

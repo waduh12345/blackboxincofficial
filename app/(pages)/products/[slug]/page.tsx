@@ -42,6 +42,7 @@ export interface ProductVariantSize {
   id: number;
   name: string | number;
   price: number | string;
+  harga_coret?: number | string | null;
   stock: number | string;
   sku?: string | null;
 }
@@ -179,12 +180,12 @@ function ProductDetailClient({ slug }: { slug: string }) {
         stock: product.stock,
         sku: product.sku ?? null,
       } as ProductVariant);
-    } else if (variants.length > 0) {
-      // Produk punya variant, reset selection agar user memilih
-      // Kecuali sudah ada yang dipilih user, biarkan state existing
+    } else if (variants.length > 0 && !selectedVariant) {
+      // Auto select the first variant if none is selected
+      setSelectedVariant(variants[0]);
     }
     setQty(1);
-  }, [product, variants.length]);
+  }, [product, variants, selectedVariant]);
 
   const isInitialLoading = isLoading && isFetching;
 
@@ -220,7 +221,9 @@ function ProductDetailClient({ slug }: { slug: string }) {
     toNumber(selectedVariant?.price) +
     toNumber(selectedSize?.price);
 
-  const currentHargaCoret = toNumber(product.harga_coret);
+  const currentHargaCoret = toNumber(
+    selectedSize?.harga_coret ?? selectedVariant?.harga_coret ?? product.harga_coret
+  );
 
   // Stok tetap hierarki: Size -> Variant -> Product
   const currentStock = toNumber(

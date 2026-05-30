@@ -45,6 +45,7 @@ const TRANSACTION_STATUS: Record<TransactionStatusKey, TransactionStatusInfo> = 
 };
 
 // Helper: parse product_detail JSON safely
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseProductDetail(detailString: any): {
   name: string;
   variant_name?: string;

@@ -11,8 +11,8 @@ export const mapTxnStatusToOrderStatus = (s?: number): OrderStatus => {
       return "pending";
     case 1: // CAPTURED
       return "processing";
-    case 2: // SETTLEMENT
-      return "delivered";
+    case 2: // SETTLEMENT (sudah dibayar — sedang diproses, BUKAN berarti diterima)
+      return "processing";
     case -1: // DENY
     case -2: // EXPIRED
     case -3: // CANCEL

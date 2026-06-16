@@ -23,6 +23,7 @@ import type {
 
 const STORAGE_KEY = "cart-storage";
 const GUEST_INFO_KEY = "__guest_checkout_info__";
+const LAST_ORDER_KEY = "__last_order__";
 
 /* =========================
    Utils & Type Guards
@@ -113,6 +114,32 @@ function saveGuestInfo(info: GuestInfo): void {
   try {
     localStorage.setItem(GUEST_INFO_KEY, JSON.stringify(info));
   } catch {}
+}
+
+/**
+ * Persist the just-created order so the DOKU return page (/transaction/status)
+ * can resolve which transaction to display after the hosted-checkout redirect.
+ * Same-origin localStorage is shared with the DOKU payment tab.
+ */
+function saveLastOrder(order: { id?: string | null; reference?: string | null }): void {
+  try {
+    localStorage.setItem(
+      LAST_ORDER_KEY,
+      JSON.stringify({
+        id: order.id ?? null,
+        reference: order.reference ?? null,
+        ts: Date.now(),
+      })
+    );
+  } catch {}
+}
+
+function getEncryptedId(v: unknown): string | null {
+  if (!isRecord(v)) return null;
+  const id = v["id"];
+  if (typeof id === "string") return id;
+  if (typeof id === "number") return String(id);
+  return null;
 }
 
 /** Helper Type untuk ekstraksi properti dinamis dari StoredCartItem */
@@ -253,6 +280,7 @@ export function useCheckout() {
                 confirmButtonText: "Bayar Sekarang",
                 confirmButtonColor: "#000000",
               });
+              saveLastOrder({ id: getEncryptedId(dataUnknown), reference: ref });
               window.open(payUrl, "_blank");
               router.push("/me");
               return;
@@ -375,6 +403,7 @@ export function useCheckout() {
             allowOutsideClick: false,
             allowEscapeKey: false,
           });
+          saveLastOrder({ id: txEncryptedId, reference: referenceCode });
           window.open(payUrl, "_blank");
           router.push(`/cek-order?ref=${encodeURIComponent(referenceCode)}`);
           return;

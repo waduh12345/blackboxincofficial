@@ -18,7 +18,10 @@ import {
   Package,
   Heart,
   Edit3,
+  Zap,
+  ShieldCheck,
 } from "lucide-react";
+import { PAYMENT_LOGOS } from "@/components/payment-logos";
 
 interface CheckoutItem {
   id: number;
@@ -65,7 +68,7 @@ export default function CheckoutPage() {
     province: "",
     notes: "",
   });
-  const [selectedPayment, setSelectedPayment] = useState<string>("");
+  const [selectedPayment, setSelectedPayment] = useState<string>("online");
   const [selectedShipping, setSelectedShipping] = useState("regular");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
@@ -96,28 +99,13 @@ export default function CheckoutPage() {
 
   const paymentMethods: PaymentMethod[] = [
     {
-      id: "virtual_account",
-      name: "Virtual Account",
-      type: "va",
-      icon: "🏦",
+      id: "online",
+      name: "Pembayaran Online",
+      type: "online",
+      icon: "⚡",
       fee: 0,
-      description: "BCA, BNI, BRI, Mandiri, CIMB, Permata, BSI",
-    },
-    {
-      id: "qris",
-      name: "QRIS",
-      type: "qris",
-      icon: "📱",
-      fee: 0,
-      description: "Scan QR — semua e-wallet & m-banking",
-    },
-    {
-      id: "ewallet",
-      name: "E-Wallet",
-      type: "digital",
-      icon: "💳",
-      fee: 0,
-      description: "GoPay, OVO, DANA, ShopeePay, LinkAja",
+      description:
+        "QRIS, e-wallet, Virtual Account semua bank, hingga kartu kredit/debit",
     },
   ];
 
@@ -532,41 +520,65 @@ export default function CheckoutPage() {
                       <div
                         key={method.id}
                         onClick={() => setSelectedPayment(method.id)}
-                        className={`p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
+                        className={`p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
                           selectedPayment === method.id
                             ? "border-[#A3B18A] bg-[#A3B18A]/5"
                             : "border-gray-200 hover:border-[#A3B18A]/50"
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div
-                              className={`w-5 h-5 rounded-full border-2 ${
-                                selectedPayment === method.id
-                                  ? "border-[#A3B18A] bg-[#A3B18A]"
-                                  : "border-gray-300"
-                              }`}
-                            >
-                              {selectedPayment === method.id && (
-                                <div className="w-3 h-3 bg-white rounded-full m-0.5"></div>
-                              )}
-                            </div>
-                            <div className="text-2xl">{method.icon}</div>
-                            <div>
+                        <div className="flex items-start gap-4">
+                          <div
+                            className={`mt-1 w-5 h-5 rounded-full border-2 flex-shrink-0 ${
+                              selectedPayment === method.id
+                                ? "border-[#A3B18A] bg-[#A3B18A]"
+                                : "border-gray-300"
+                            }`}
+                          >
+                            {selectedPayment === method.id && (
+                              <div className="w-3 h-3 bg-white rounded-full m-0.5"></div>
+                            )}
+                          </div>
+                          <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl flex-shrink-0">
+                            <Zap className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <h4 className="font-semibold text-gray-900">
                                 {method.name}
                               </h4>
-                              <p className="text-sm text-gray-600">
-                                {method.description}
-                              </p>
+                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600">
+                                Otomatis
+                              </span>
+                              <span className="text-sm text-green-600 font-semibold ml-auto">
+                                {method.fee === 0
+                                  ? "Gratis"
+                                  : `+Rp ${method.fee.toLocaleString("id-ID")}`}
+                              </span>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm text-green-600 font-semibold">
-                              {method.fee === 0
-                                ? "Gratis"
-                                : `+Rp ${method.fee.toLocaleString("id-ID")}`}
-                            </span>
+                            <p className="text-sm text-gray-600 mt-0.5">
+                              Bayar instan & langsung terverifikasi otomatis.
+                              Mendukung {method.description}.
+                            </p>
+
+                            {/* Strip logo metode pembayaran yang didukung */}
+                            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                              {PAYMENT_LOGOS.map(({ key, Logo }) => (
+                                <span
+                                  key={key}
+                                  className="flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-2 shadow-sm"
+                                >
+                                  <Logo />
+                                </span>
+                              ))}
+                              <span className="flex h-8 items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2 text-[11px] font-semibold text-gray-500">
+                                +lainnya
+                              </span>
+                            </div>
+
+                            <p className="mt-2 flex items-center gap-1 text-[11px] text-gray-400">
+                              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                              Transaksi diproses aman oleh payment gateway DOKU.
+                            </p>
                           </div>
                         </div>
                       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { CreditCard, ShieldCheck, Upload, Zap } from "lucide-react";
-import { PAYMENT_LOGOS } from "@/components/payment-logos";
+import { PaymentLogos } from "@/components/payment-logos";
 
 type PaymentType = "automatic" | "manual";
 
@@ -53,19 +53,7 @@ export default function PaymentMethodSelector({
             </p>
 
             {/* Strip logo metode pembayaran yang didukung */}
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              {PAYMENT_LOGOS.map(({ key, Logo }) => (
-                <span
-                  key={key}
-                  className="flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-2 shadow-sm"
-                >
-                  <Logo />
-                </span>
-              ))}
-              <span className="flex h-8 items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2 text-[11px] font-semibold text-gray-500">
-                +lainnya
-              </span>
-            </div>
+            <PaymentLogos className="mt-3" />
 
             <p className="mt-2 flex items-center gap-1 text-[11px] text-gray-400">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />

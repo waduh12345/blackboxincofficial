@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,8 +41,12 @@ export function PaymentLogos({ className }: { className?: string }) {
           </span>
         </span>
       ))}
-      <span className="flex h-10 w-[78px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-[11px] font-semibold text-gray-500">
-        +lainnya
+      {/* Virtual Account — diwakili ikon bank */}
+      <span className="flex h-10 w-[78px] flex-col items-center justify-center gap-0.5 rounded-lg border border-gray-200 bg-white px-1 py-1 shadow-sm">
+        <Landmark className="h-3.5 w-3.5 text-slate-600" />
+        <span className="text-center text-[7px] font-semibold leading-[1.1] text-slate-600">
+          Virtual Account
+        </span>
       </span>
     </div>
   );

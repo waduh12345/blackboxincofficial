@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, Suspense } from "react";
+import Image from "next/image";
 import {
   ChevronLeft,
   ChevronRight,
@@ -149,6 +150,21 @@ function RunningCarouselContent({
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const timerRef = useRef<number | null>(null);
+
+  // Tampilan desktop: tinggi slider mengikuti rasio asli gambar agar tampil
+  // penuh (tidak terpotong). Di mobile tetap pakai tinggi tetap (heightClass).
+  const [isDesktop, setIsDesktop] = useState(false);
+  // Rasio (lebar/tinggi) per slide, diukur saat gambar desktop selesai dimuat.
+  const [ratios, setRatios] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     setIndex(0);
@@ -312,12 +328,26 @@ function RunningCarouselContent({
     );
   }
 
+  const activeSlide = slides[index];
+  const activeRatio = activeSlide ? ratios[activeSlide.id] : undefined;
+  // Pakai tinggi sesuai rasio gambar hanya di desktop & mode tampil (bukan edit).
+  const useNaturalHeight = isDesktop && !isEditMode && !!activeRatio;
+
   return (
     <div
       className={clsx(
-        `relative w-full overflow-hidden rounded-3xl ${heightClass} bg-gray-100`,
-        "shadow-xl group/carousel"
+        "relative w-full overflow-hidden rounded-3xl bg-gray-100 shadow-xl group/carousel",
+        !useNaturalHeight && heightClass
       )}
+      style={
+        useNaturalHeight
+          ? {
+              aspectRatio: String(activeRatio),
+              maxHeight: "85vh",
+              minHeight: "300px",
+            }
+          : undefined
+      }
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       aria-roledescription="carousel"
@@ -370,33 +400,53 @@ function RunningCarouselContent({
               </div>
             ) : (
               <>
-                {/* GAMBAR SLIDER DESKTOP */}
-                <EditableImage
-                  isEditMode={false}
-                  src={buildImageUrl(slide.image)}
-                  onSave={(file) => handleUpdateItem(i, "image", file, false)}
-                  alt={slide.title || `Slide ${i + 1}`}
-                  containerClassName="w-full h-full hidden md:block"
-                  className="h-full w-full object-cover"
-                  width={1200}
-                  height={800}
-                  priority={i === 0}
-                />
+                {/* GAMBAR SLIDER DESKTOP — tampil penuh (tidak terpotong) */}
+                <div className="absolute inset-0 hidden md:block">
+                  {/* Backdrop blur untuk mengisi area kosong bila rasio berbeda */}
+                  <Image
+                    src={buildImageUrl(slide.image)}
+                    alt=""
+                    aria-hidden
+                    fill
+                    sizes="100vw"
+                    className="object-cover blur-2xl scale-110 opacity-50"
+                  />
+                  {/* Gambar utama tampil utuh sesuai yang diupload */}
+                  <Image
+                    src={buildImageUrl(slide.image)}
+                    alt={slide.title || `Slide ${i + 1}`}
+                    fill
+                    sizes="100vw"
+                    priority={i === 0}
+                    className="z-[1] object-contain"
+                    onLoad={(e) => {
+                      const img = e.currentTarget;
+                      if (img.naturalWidth && img.naturalHeight) {
+                        setRatios((prev) =>
+                          prev[slide.id]
+                            ? prev
+                            : {
+                                ...prev,
+                                [slide.id]:
+                                  img.naturalWidth / img.naturalHeight,
+                              }
+                        );
+                      }
+                    }}
+                  />
+                </div>
 
                 {/* GAMBAR SLIDER MOBILE */}
-                <EditableImage
-                  isEditMode={false}
-                  src={buildImageUrl(slide.image_mobile || slide.image)}
-                  onSave={(file) =>
-                    handleUpdateItem(i, "image_mobile", file, false)
-                  }
-                  alt={slide.title || `Slide ${i + 1} (Mobile)`}
-                  containerClassName="w-full h-full block md:hidden"
-                  className="h-full w-full object-cover"
-                  width={600}
-                  height={800}
-                  priority={i === 0}
-                />
+                <div className="absolute inset-0 block md:hidden">
+                  <Image
+                    src={buildImageUrl(slide.image_mobile || slide.image)}
+                    alt={slide.title || `Slide ${i + 1} (Mobile)`}
+                    fill
+                    sizes="100vw"
+                    priority={i === 0}
+                    className="object-cover"
+                  />
+                </div>
               </>
             )}
 

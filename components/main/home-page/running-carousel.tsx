@@ -329,31 +329,76 @@ function RunningCarouselContent({
       >
         {slides.map((slide, i) => (
           <div key={`${slide.id}-${i}`} className="relative min-w-full h-full">
-            {/* GAMBAR SLIDER DESKTOP */}
-            <EditableImage
-              isEditMode={isEditMode}
-              src={buildImageUrl(slide.image)}
-              onSave={(file) => handleUpdateItem(i, "image", file, false)}
-              alt={slide.title || `Slide ${i + 1}`}
-              containerClassName="w-full h-full hidden md:block"
-              className="h-full w-full object-cover"
-              width={1200}
-              height={800}
-              priority={i === 0}
-            />
+            {isEditMode ? (
+              /* MODE EDIT: tampilkan dua slot (desktop + mobile) sekaligus
+                 supaya admin bisa upload kedua versi dari satu layar. */
+              <div className="flex h-full w-full">
+                <div className="relative h-full w-2/3 border-r border-white/40">
+                  <span className="absolute top-2 left-2 z-20 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                    Desktop
+                  </span>
+                  <EditableImage
+                    isEditMode={isEditMode}
+                    src={buildImageUrl(slide.image)}
+                    onSave={(file) => handleUpdateItem(i, "image", file, false)}
+                    alt={slide.title || `Slide ${i + 1}`}
+                    containerClassName="w-full h-full"
+                    className="h-full w-full object-cover"
+                    width={1200}
+                    height={800}
+                    priority={i === 0}
+                  />
+                </div>
+                <div className="relative h-full w-1/3">
+                  <span className="absolute top-2 left-2 z-20 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                    Mobile
+                  </span>
+                  <EditableImage
+                    isEditMode={isEditMode}
+                    src={buildImageUrl(slide.image_mobile || slide.image)}
+                    onSave={(file) =>
+                      handleUpdateItem(i, "image_mobile", file, false)
+                    }
+                    alt={slide.title || `Slide ${i + 1} (Mobile)`}
+                    containerClassName="w-full h-full"
+                    className="h-full w-full object-cover"
+                    width={600}
+                    height={800}
+                    priority={i === 0}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* GAMBAR SLIDER DESKTOP */}
+                <EditableImage
+                  isEditMode={false}
+                  src={buildImageUrl(slide.image)}
+                  onSave={(file) => handleUpdateItem(i, "image", file, false)}
+                  alt={slide.title || `Slide ${i + 1}`}
+                  containerClassName="w-full h-full hidden md:block"
+                  className="h-full w-full object-cover"
+                  width={1200}
+                  height={800}
+                  priority={i === 0}
+                />
 
-            {/* GAMBAR SLIDER MOBILE */}
-            <EditableImage
-              isEditMode={isEditMode}
-              src={buildImageUrl(slide.image_mobile || slide.image)}
-              onSave={(file) => handleUpdateItem(i, "image_mobile", file, false)}
-              alt={slide.title || `Slide ${i + 1} (Mobile)`}
-              containerClassName="w-full h-full block md:hidden"
-              className="h-full w-full object-cover"
-              width={600}
-              height={800}
-              priority={i === 0}
-            />
+                {/* GAMBAR SLIDER MOBILE */}
+                <EditableImage
+                  isEditMode={false}
+                  src={buildImageUrl(slide.image_mobile || slide.image)}
+                  onSave={(file) =>
+                    handleUpdateItem(i, "image_mobile", file, false)
+                  }
+                  alt={slide.title || `Slide ${i + 1} (Mobile)`}
+                  containerClassName="w-full h-full block md:hidden"
+                  className="h-full w-full object-cover"
+                  width={600}
+                  height={800}
+                  priority={i === 0}
+                />
+              </>
+            )}
 
             {/* Gradient Overlay */}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-[1]" />

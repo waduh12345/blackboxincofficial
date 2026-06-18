@@ -283,7 +283,9 @@ export const EditableLink = ({
 // =========================================
 interface EditableImageProps extends Omit<ImageProps, "src" | "onLoad"> {
   src: string;
-  onSave: (newSrc: string) => void;
+  // Mengirim File asli (bukan data URL) supaya bisa di-upload sebagai
+  // multipart/form-data ke API.
+  onSave: (file: File) => void;
   isEditMode: boolean;
   containerClassName?: string;
 }
@@ -303,7 +305,12 @@ export const EditableImage = ({
   };
 
   const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    handleFileUpload(e, (url) => onSave(url));
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    onSave(file);
+    // Reset agar memilih file yang sama berturut-turut tetap memicu onChange.
+    e.target.value = "";
   };
 
   return (

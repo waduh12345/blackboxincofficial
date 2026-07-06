@@ -18,12 +18,26 @@ const barlowCondensed = Barlow_Condensed({
   variable: "--font-barlow-condensed",
 });
 
+const siteDescription =
+  "Temukan koleksi terbaru BLACKBOX.INC, Toko pakaian outfit stylish & sneakers ORIGINAL & NEW EST 2018 tren terbaru tersedia dengan harga affordable";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://blackboxincofficial.com"),
   title: "BLACKBOX.INC",
-  description:
-    "Temukan koleksi terbaru BLACKBOX.INC, Toko pakaian outfit stylish & sneakers ORIGINAL & NEW EST 2018 tren terbaru tersedia dengan harga affordable",
+  description: siteDescription,
   icons: {
     icon: "/images/new/logo/BLACKBOXINC-Shop.png",
+  },
+  openGraph: {
+    title: "BLACKBOX.INC",
+    description: siteDescription,
+    type: "website",
+    siteName: "BLACKBOX.INC",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BLACKBOX.INC",
+    description: siteDescription,
   },
 };
 

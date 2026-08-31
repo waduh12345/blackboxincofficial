@@ -418,7 +418,13 @@ function ProductDetailClient({ slug }: { slug: string }) {
 
           {/* Harga Display */}
           <div className="mt-4">
-            {currentHargaCoret > currentPrice ? (
+            {currentPrice <= 0 ? (
+              // Harga belum diisi di level mana pun (produk/varian/ukuran).
+              // "Rp 0" bikin salah paham seolah gratis atau harganya hilang.
+              <p className="text-xl font-semibold text-gray-500">
+                Harga belum tersedia
+              </p>
+            ) : currentHargaCoret > currentPrice ? (
               <div className="flex flex-col">
                 <div className="flex items-baseline gap-3">
                   <span className="text-3xl font-extrabold text-red-600">

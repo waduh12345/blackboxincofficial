@@ -148,10 +148,14 @@ type CartItemIds = {
   product_variant_size_id?: unknown;
 };
 
-/** Helper: Ambil Variant ID dengan aman */
+/**
+ * Helper: Ambil Variant ID dengan aman.
+ * Keranjang menyimpan 0 untuk produk sederhana (tanpa varian); API menerimanya
+ * sebagai null, jadi 0 tidak boleh lolos sebagai id.
+ */
 function getVariantId(item: StoredCartItem): number | null {
   const v = (item as unknown as CartItemIds).product_variant_id;
-  return typeof v === "number" && Number.isFinite(v) ? v : null;
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null;
 }
 
 /** Helper: Ambil Size ID dengan aman (BARU) */
@@ -207,17 +211,12 @@ export function useCheckout() {
           LOGIN → /transaction
          ========================= */
       if (sessionEmail) {
-        const privateDetails = stored.map((item) => {
-          const variantId = getVariantId(item) ?? item.id;
-          const sizeId = getSizeId(item);
-
-          return {
-            product_id: item.id,
-            product_variant_id: variantId,
-            product_variant_size_id: sizeId ?? null,
-            quantity: item.quantity ?? 1,
-          };
-        });
+        const privateDetails = stored.map((item) => ({
+          product_id: item.id,
+          product_variant_id: getVariantId(item),
+          product_variant_size_id: getSizeId(item),
+          quantity: item.quantity ?? 1,
+        }));
 
         const payload: CreateTransactionRequest = {
           address_line_1: shippingInfo.address_line_1,
@@ -323,17 +322,12 @@ export function useCheckout() {
         return;
       }
 
-      const publicDetails = stored.map((item) => {
-        const variantId = getVariantId(item) ?? item.id;
-        const sizeId = getSizeId(item);
-
-        return {
-          product_id: item.id,
-          product_variant_id: variantId,
-          product_variant_size_id: sizeId ?? null,
-          quantity: item.quantity ?? 1,
-        };
-      });
+      const publicDetails = stored.map((item) => ({
+        product_id: item.id,
+        product_variant_id: getVariantId(item),
+        product_variant_size_id: getSizeId(item),
+        quantity: item.quantity ?? 1,
+      }));
 
       const publicPayload: CreatePublicTransactionRequest = {
         guest_name: shippingInfo.fullName,

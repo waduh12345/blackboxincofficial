@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Swal from "sweetalert2";
 import {
@@ -49,6 +50,7 @@ import useCart, { CartItem } from "@/hooks/use-cart"; // Pastikan import CartIte
 
 // IMPORT USE CHECKOUT & TYPES
 import { useCheckout } from "@/hooks/use-checkout";
+import { resolvePrice, resolveStock } from "@/lib/pricing";
 import type { CheckoutDeps } from "@/types/checkout";
 import PaymentMethodSelector from "@/components/payment-method";
 
@@ -140,6 +142,8 @@ function formatWeight(grams: number): string {
 
 /** ====== Component ====== */
 export default function PublicTransaction() {
+  const router = useRouter();
+
   // --- Init Checkout Hook ---
   const { handleCheckout } = useCheckout();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -208,8 +212,27 @@ export default function PublicTransaction() {
   }, [relatedResp]);
 
   const addRelatedToCart = (p: Product) => {
-    // Gunakan addItem dari useCart, logic varian default akan dihandle di hook/modal (di sini asumsi simple product)
-    addItem({ ...p, quantity: 1 });
+    // Hanya produk sederhana yang bisa langsung masuk keranjang dari sini.
+    // Produk bervarian butuh pilihan varian/ukuran, kalau dipaksa masuk
+    // keranjangnya akan ditolak API saat checkout.
+    if (p.has_variants !== false) {
+      router.push(`/products/${p.slug}`);
+      return;
+    }
+
+    if (resolvePrice(p) <= 0 || resolveStock(p) <= 0) {
+      Swal.fire({
+        icon: "info",
+        title: "Belum bisa dipesan",
+        text:
+          resolvePrice(p) <= 0
+            ? "Harga produk ini belum diatur."
+            : "Stok produk ini sedang habis.",
+      });
+      return;
+    }
+
+    addItem({ ...p, quantity: 1, product_variant_size_id: null }, 0);
     Swal.fire({
       icon: "success",
       title: "Berhasil!",

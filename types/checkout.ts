@@ -41,7 +41,9 @@ export interface ShippingInfoState {
 /** Detail utk endpoint private (/transaction) — keduanya WAJIB */
 export interface PrivateDetailItem {
   product_id: number;
-  product_variant_id: number;
+  /** null untuk produk sederhana yang memang tidak punya varian */
+  product_variant_id: number | null;
+  product_variant_size_id?: number | null;
   quantity: number;
 }
 
@@ -49,7 +51,8 @@ export interface PrivateDetailItem {
 export type PublicDetailItem = {
   product_id: number;
   quantity: number;
-  product_variant_id?: number;
+  product_variant_id?: number | null;
+  product_variant_size_id?: number | null;
 };
 
 export interface CheckoutDeps {

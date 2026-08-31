@@ -26,11 +26,11 @@ import {
   useGetCategoryListQuery,
 } from "@/services/product.service";
 import DotdLoader from "@/components/loader/3dot";
-import useCart from "@/hooks/use-cart";
 import clsx from "clsx";
 import VariantPickerModal from "@/components/variant-picker-modal";
 import { ProductCategory } from "@/types/master/product-category";
 import OutOfStockOverlay from "@/components/ui/out-of-stock-overlay";
+import { resolveHargaCoret, resolvePrice } from "@/lib/pricing";
 
 /* =========================
    Small typed helpers
@@ -260,8 +260,6 @@ export default function ProductsPage() {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [onlyDiscount, setOnlyDiscount] = useState(false);
 
-  const { addItem } = useCart();
-
   /* ---------- API bindings ---------- */
   const ITEMS_PER_PAGE = 9;
 
@@ -382,12 +380,10 @@ export default function ProductsPage() {
     return isVariantArray(maybe) ? maybe : [];
   }, [detailProductVariant]);
 
-  const currentPrice = toNumber(
-    selectedVariant?.price ?? detailProduct?.price ?? 0
-  );
-  const currentHargaCoret = toNumber(
-    selectedVariant?.harga_coret ?? detailProduct?.harga_coret ?? 0
-  );
+  // Harga berjenjang: varian yang harganya masih 0 mewarisi harga produk,
+  // jangan ditampilkan sebagai Rp 0.
+  const currentPrice = resolvePrice(detailProduct, selectedVariant);
+  const currentHargaCoret = resolveHargaCoret(detailProduct, selectedVariant);
   const currentStock = toNumber(
     selectedVariant?.stock ?? detailProduct?.stock ?? 0
   );
@@ -401,20 +397,6 @@ export default function ProductsPage() {
         ? prev.filter((id) => id !== productId)
         : [...prev, productId]
     );
-  };
-
-  const addToCart = (
-    product: Product,
-    id?: number,
-    priceOverride?: number | string
-  ) => {
-    const variantId = id ?? product.product_variant_id ?? 0;
-    const priceNum = toNumber(
-      typeof priceOverride !== "undefined" ? priceOverride : product.price
-    );
-    addItem({ ...product, price: priceNum }, variantId);
-    if (typeof window !== "undefined")
-      window.dispatchEvent(new CustomEvent("cartUpdated"));
   };
 
   const openVariantModalFor = (p: Product) => {
@@ -431,16 +413,9 @@ export default function ProductsPage() {
   useEffect(() => {
     document.body.style.overflow = isModalOpen ? "hidden" : "";
     if (isModalOpen && detailProduct) {
-      if (variants.length > 0) {
-        setSelectedVariant(variants[0]);
-      } else {
-        setSelectedVariant({
-          id: detailProduct.id,
-          price: detailProduct.price,
-          stock: detailProduct.stock,
-          sku: detailProduct.sku ?? null,
-        });
-      }
+      // Produk sederhana tidak punya varian: biarkan null supaya harga & stok
+      // jatuh ke level produk (lihat resolvePrice/currentStock di bawah).
+      setSelectedVariant(variants.length > 0 ? variants[0] : null);
       setQty(1);
     } else {
       setSelectedVariant(null);
@@ -797,6 +772,13 @@ export default function ProductsPage() {
                   const totalReviews =
                     getNumberProp(product, "total_reviews") ?? 0;
 
+                  // API publik mengirim harga & stok efektif (produk -> varian
+                  // -> ukuran). Kalau harganya masih 0 berarti datanya memang
+                  // belum dilengkapi — jangan tampilkan "Rp 0" seolah gratis,
+                  // dan jangan biarkan masuk keranjang karena checkout menolak.
+                  const noPrice = toNumber(product.price) <= 0;
+                  const soldOut = toNumber(product.stock) <= 0;
+
                   return (
                     <div
                       key={product.id}
@@ -863,7 +845,11 @@ export default function ProductsPage() {
                           <div className="mt-2 flex flex-wrap gap-y-2 items-end justify-between">
                             {/* --- BAGIAN HARGA (STYLE UNIQLO) --- */}
                             <div className="flex flex-col">
-                              {product.harga_coret > product.price ? (
+                              {noPrice ? (
+                                <span className="text-sm font-semibold text-gray-500">
+                                  Harga belum tersedia
+                                </span>
+                              ) : product.harga_coret > product.price ? (
                                 <>
                                   {/* Baris 1: Harga Jual (Merah) & Harga Asli (Coret) Berdampingan */}
                                   <div className="flex items-baseline gap-2">
@@ -907,7 +893,11 @@ export default function ProductsPage() {
                           </div>
 
                           {/* --- STOCK INFO --- */}
-                          {product.stock <= 0 ? (
+                          {noPrice ? (
+                            <div className="mt-2 text-xs font-semibold text-gray-500">
+                              Belum bisa dipesan online
+                            </div>
+                          ) : soldOut ? (
                             <div className="mt-2 text-xs font-semibold text-red-600">
                               Sold out — notify me
                             </div>
@@ -919,11 +909,11 @@ export default function ProductsPage() {
                         </div>
 
                         <div className="mt-4">
-                          {toNumber(product.stock) <= 0 ? (
+                          {noPrice || soldOut ? (
                             <Button
                               className="text-xs md:text-lg w-full bg-gray-300 text-gray-600 cursor-not-allowed uppercase tracking-wider font-bold py-2.5 rounded-lg"
                             >
-                              Stok Habis
+                              {noPrice ? "Harga Belum Diatur" : "Stok Habis"}
                             </Button>
                           ) : (
                             <Button
@@ -1266,22 +1256,16 @@ export default function ProductsPage() {
                     <button
                       className="col-span-3 inline-flex items-center justify-center rounded-lg bg-black px-4 py-3 text-base font-bold text-white shadow-xl hover:bg-gray-800 transition-colors uppercase tracking-wider disabled:bg-gray-400"
                       onClick={() => {
-                        if (currentStock <= 0) return;
-                        if (variants.length > 0 && !selectedVariant)
-                          return alert("Pilih varian dulu.");
-                        addToCart(
-                          detailProduct,
-                          selectedVariant?.id,
-                          selectedVariant?.price
-                        );
+                        // Quick view tidak memuat daftar ukuran, sementara varian
+                        // yang punya ukuran wajib memilih ukuran. Serahkan ke
+                        // VariantPickerModal yang menangani ketiga levelnya.
                         setIsModalOpen(false);
+                        openVariantModalFor(detailProduct);
                       }}
-                      disabled={
-                        currentStock <= 0 ||
-                        (variants.length > 0 && !selectedVariant)
-                      }
+                      disabled={currentStock <= 0 || currentPrice <= 0}
                     >
-                      <ShoppingCart className="w-5 h-5" /> Add to Cart
+                      <ShoppingCart className="w-5 h-5" />{" "}
+                      {currentPrice <= 0 ? "Harga Belum Diatur" : "Add to Cart"}
                     </button>
                   </div>
 

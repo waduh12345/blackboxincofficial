@@ -236,7 +236,8 @@ export interface CreateTransactionRequest {
     shop_id: number;
     details: Array<{
       product_id: number;
-      product_variant_id: number;
+      // null untuk produk sederhana yang memang tidak punya varian
+      product_variant_id: number | null;
       product_variant_size_id?: number | null;
       quantity: number;
     }>;
@@ -317,7 +318,8 @@ export interface CreatePublicTransactionRequest {
     };
     details: Array<{
       product_id: number;
-      product_variant_id: number;
+      // null untuk produk sederhana yang memang tidak punya varian
+      product_variant_id: number | null;
       product_variant_size_id?: number | null;
       quantity: number;
     }>;

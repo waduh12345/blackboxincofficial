@@ -16,15 +16,15 @@ import Swal from "sweetalert2";
 import clsx from "clsx";
 import useCart from "@/hooks/use-cart";
 import { ProductVariant } from "@/types/admin/product-variant";
+import {
+  resolveHargaCoret,
+  resolvePrice,
+  resolveStock,
+  resolveWeight,
+  toNumber,
+} from "@/lib/pricing";
 
 // --- HELPERS ---
-
-const toNumber = (val: number | string | undefined | null): number => {
-  if (val === undefined || val === null) return 0;
-  if (typeof val === "number") return val;
-  const parsed = parseFloat(val);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
 
 // Fallback image
 const FALLBACK_IMG =
@@ -170,19 +170,11 @@ function ProductDetailClient({ slug }: { slug: string }) {
     }
   }, [selectedVariant]);
 
-  // Efek Sinkronisasi Awal: Auto select jika variant kosong (produk simple)
+  // Efek Sinkronisasi Awal: auto pilih varian pertama.
+  // Produk sederhana dibiarkan null supaya harga & stok jatuh ke level produk
+  // dan keranjang tidak menyimpan id varian palsu.
   useEffect(() => {
-    if (product && variants.length === 0) {
-      // Produk tanpa variant
-      setSelectedVariant({
-        id: product.id,
-        name: product.name,
-        price: 0, // Set 0 agar tidak double counting saat dijumlahkan dengan product.price
-        stock: product.stock,
-        sku: product.sku ?? null,
-      } as ProductVariant);
-    } else if (variants.length > 0 && !selectedVariant) {
-      // Auto select the first variant if none is selected
+    if (variants.length > 0 && !selectedVariant) {
       setSelectedVariant(variants[0]);
     }
     setQty(1);
@@ -216,24 +208,21 @@ function ProductDetailClient({ slug }: { slug: string }) {
 
   // --- LOGIKA HARGA & STOK ---
 
-  const currentPrice =
-    selectedSize && toNumber(selectedSize.price) > 0
-      ? toNumber(selectedSize.price)
-      : toNumber(product.price) + toNumber(selectedVariant?.price) + toNumber(selectedSize?.price);
+  // Harga berjenjang Size -> Variant -> Product (level 0 = belum diisi,
+  // mewarisi level di atasnya). Dulu ketiganya dijumlahkan, sehingga produk
+  // yang harganya diisi di produk sekaligus di varian tampil dua kali lipat.
+  const currentPrice = resolvePrice(product, selectedVariant, selectedSize);
 
-  const currentHargaCoret = toNumber(
-    selectedSize?.harga_coret ?? selectedVariant?.harga_coret ?? product.harga_coret
+  const currentHargaCoret = resolveHargaCoret(
+    product,
+    selectedVariant,
+    selectedSize
   );
 
   // Stok tetap hierarki: Size -> Variant -> Product
-  const currentStock = toNumber(
-    selectedSize?.stock ?? selectedVariant?.stock ?? product.stock
-  );
+  const currentStock = resolveStock(product, selectedVariant, selectedSize);
 
-  const currentWeight =
-    selectedSize && toNumber(selectedSize.weight) > 0
-      ? toNumber(selectedSize.weight)
-      : toNumber(selectedVariant?.weight ?? product.weight);
+  const currentWeight = resolveWeight(product, selectedVariant, selectedSize);
 
   const currentSku =
     selectedSize?.sku ?? selectedVariant?.sku ?? product.sku ?? "N/A";
@@ -276,9 +265,19 @@ function ProductDetailClient({ slug }: { slug: string }) {
       return;
     }
 
-    const variantId =
-      selectedVariant?.id ?? product.product_variant_id ?? product.id;
+    // 0 = tanpa varian (produk sederhana). Dikirim sebagai null ke API.
+    const variantId = selectedVariant?.id ?? 0;
     const sizeId = selectedSize?.id ?? null;
+
+    if (currentPrice <= 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Harga belum diatur",
+        text: "Produk ini belum bisa dipesan. Silakan hubungi admin.",
+        confirmButtonColor: "#d33",
+      });
+      return;
+    }
 
     // Cek Stok Real-time (Frontend check)
     if (currentStock <= 0) {
@@ -693,11 +692,14 @@ function ProductDetailClient({ slug }: { slug: string }) {
               type="button"
               disabled={
                 currentStock <= 0 ||
+                currentPrice <= 0 ||
                 (variants.length > 0 && !selectedVariant) ||
                 (sizes.length > 0 && !selectedSize)
               }
               title={
-                currentStock <= 0
+                currentPrice <= 0
+                  ? "Harga belum diatur"
+                  : currentStock <= 0
                   ? "Stok habis"
                   : variants.length > 0 && !selectedVariant
                   ? "Silakan pilih varian terlebih dahulu"
@@ -708,7 +710,9 @@ function ProductDetailClient({ slug }: { slug: string }) {
               className="flex w-full items-center justify-center rounded-md border border-transparent bg-black px-8 py-3 text-base font-medium text-white hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               <ShoppingCart className="w-5 h-5 mr-2" />
-              {currentStock > 0
+              {currentPrice <= 0
+                ? "Harga Belum Diatur"
+                : currentStock > 0
                 ? variants.length > 0 && !selectedVariant
                   ? "Pilih Varian Dulu"
                   : sizes.length > 0 && !selectedSize

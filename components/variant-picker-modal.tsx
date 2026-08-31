@@ -10,6 +10,12 @@ import useCart from "@/hooks/use-cart";
 import Swal from "sweetalert2";
 import clsx from "clsx";
 import { ProductVariant } from "@/types/admin/product-variant";
+import {
+  resolvePrice,
+  resolveStock,
+  resolveWeight,
+  toNumber,
+} from "@/lib/pricing";
 
 // --- TYPES ---
 type ProductVariantSize = {
@@ -46,16 +52,6 @@ const isSizeArray = (v: unknown): v is ProductVariantSize[] =>
       "price" in o &&
       "stock" in o
   );
-
-const toNumber = (val: number | string | undefined | null): number => {
-  if (val === undefined || val === null) return 0;
-  if (typeof val === "number") return val;
-  if (typeof val === "string") {
-    const n = parseFloat(val);
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
-};
 
 const IMG_FALLBACK =
   "https://via.placeholder.com/400x400/000000/FFFFFF?text=BLACKBOX.INC";
@@ -137,18 +133,42 @@ export default function VariantPickerModal({
     // Opsional: Jika ingin reset ke gambar produk saat deselect, tambahkan else logic di sini
   }, [selectedVariant]);
 
-  // Auto-add jika produk tidak memiliki varian sama sekali (Simple Product)
+  // Produk sederhana (tanpa varian sama sekali) langsung masuk keranjang.
+  // product_variant_id 0 adalah penanda "tanpa varian" di keranjang, dan
+  // dikirim sebagai null ke API (lihat hooks/use-checkout.ts).
   useEffect(() => {
     if (!open || !product) return;
-    if (!isLoadingVariants && variants.length === 0) {
-      const fallbackPrice = toNumber(product.price);
-      addItem(
-        { ...product, price: fallbackPrice },
-        product.product_variant_id ?? 0
-      );
-      onClose();
-      onAdded?.();
+    if (isLoadingVariants || variants.length > 0) return;
+
+    onClose();
+
+    const unitPrice = resolvePrice(product);
+    const stock = resolveStock(product);
+
+    if (unitPrice <= 0 || stock <= 0) {
+      Swal.fire({
+        icon: "info",
+        title: "Belum bisa dipesan",
+        text:
+          unitPrice <= 0
+            ? "Harga produk ini belum diatur. Silakan hubungi admin."
+            : "Stok produk ini sedang habis.",
+        confirmButtonColor: "#000000",
+      });
+      return;
     }
+
+    addItem({ ...product, price: unitPrice, product_variant_size_id: null }, 0);
+    onAdded?.();
+    Swal.fire({
+      icon: "success",
+      title: "Berhasil!",
+      text: "Produk telah ditambahkan ke keranjang.",
+      showConfirmButton: false,
+      timer: 1500,
+      toast: true,
+      position: "top-end",
+    });
   }, [
     open,
     isLoadingVariants,
@@ -179,30 +199,17 @@ export default function VariantPickerModal({
   // Jika varian kosong, null (karena sudah di-handle auto-add)
   if (variants.length === 0) return null;
 
-  // 1. Hitung Harga Satuan
-  let unitPrice = 0;
-  if (selectedSize && toNumber(selectedSize.price) > 0) {
-    unitPrice = toNumber(selectedSize.price);
-  } else {
-    const basePrice = toNumber(product.price);
-    const variantPrice = toNumber(selectedVariant?.price);
-    const sizePrice = toNumber(selectedSize?.price);
-    unitPrice = basePrice + variantPrice + sizePrice;
-  }
+  // 1. Harga satuan berjenjang: Size -> Variant -> Product. Level yang masih 0
+  // mewarisi level di atasnya, bukan dijumlahkan (dulu dijumlahkan sehingga
+  // produk yang harganya diisi di dua level tampil dobel).
+  const unitPrice = resolvePrice(product, selectedVariant, selectedSize);
   const totalPrice = unitPrice * qty;
 
   // 2. Tentukan Stok Hierarkis (Size > Variant > Product)
-  const curStock = toNumber(
-    selectedSize?.stock ?? selectedVariant?.stock ?? product.stock
-  );
+  const curStock = resolveStock(product, selectedVariant, selectedSize);
 
   // 3. Tentukan Berat
-  let unitWeight = 0;
-  if (selectedSize && toNumber(selectedSize.weight) > 0) {
-    unitWeight = toNumber(selectedSize.weight);
-  } else {
-    unitWeight = toNumber(selectedVariant?.weight ?? product.weight);
-  }
+  const unitWeight = resolveWeight(product, selectedVariant, selectedSize);
 
   // --- HANDLERS ---
 

@@ -59,6 +59,19 @@ export interface Product {
   image_6: File | string | null;
   image_7: File | string | null;
   was?: number;
+
+  /**
+   * Diisi oleh endpoint publik: price/harga_coret/stock di atas sudah berupa
+   * nilai efektif (produk -> varian -> ukuran), sementara base_* adalah angka
+   * mentah yang tersimpan di baris produk.
+   */
+  price_min?: number;
+  price_max?: number;
+  has_variants?: boolean;
+  base_price?: number;
+  base_harga_coret?: number;
+  base_stock?: number;
+
   kecamatan?: string;
   terlaris?: boolean;
   terbaru?: boolean;

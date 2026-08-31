@@ -58,6 +58,36 @@ interface FormProductProps {
   onSuccess: () => void;
 }
 
+/**
+ * Harga 0 di varian/ukuran berarti "belum diisi" dan otomatis mengikuti level
+ * di atasnya (lihat lib/pricing.ts dan Product::pricingSummary di API).
+ * Tabel menampilkan harga yang benar-benar berlaku supaya tidak terbaca gratis.
+ */
+function InheritedPrice({
+  own,
+  inherited,
+  inheritedFrom,
+}: {
+  own?: number | string | null;
+  inherited: number;
+  inheritedFrom: "produk" | "varian";
+}) {
+  const ownValue = Number(own) || 0;
+  if (ownValue > 0) return <>{formatNumber(ownValue)}</>;
+
+  if (inherited > 0)
+    return (
+      <span className="text-gray-500">
+        {formatNumber(inherited)}
+        <span className="ml-1 text-[10px] uppercase tracking-wide">
+          ikut {inheritedFrom}
+        </span>
+      </span>
+    );
+
+  return <span className="text-red-600 font-semibold">Belum diisi</span>;
+}
+
 export default function FormProduct({
   editingSlug,
   initialData,
@@ -1301,7 +1331,13 @@ export default function FormProduct({
                 </td>
                 <td className="p-2 font-medium">{v.name}</td>
                 <td className="p-2">{v.sku}</td>
-                <td className="p-2">{formatNumber(v.price)}</td>
+                <td className="p-2">
+                  <InheritedPrice
+                    own={v.price}
+                    inherited={productForm.price ?? 0}
+                    inheritedFrom="produk"
+                  />
+                </td>
                 <td className="p-2">{v.stock}</td>
                 <td className="p-2">{v.weight}g</td>
                 <td className="p-2 flex justify-center gap-1">
@@ -1651,7 +1687,19 @@ export default function FormProduct({
                 </td>
                 <td className="p-2 font-medium">{s.name}</td>
                 <td className="p-2">{s.sku}</td>
-                <td className="p-2">{formatNumber(s.price)}</td>
+                <td className="p-2">
+                  <InheritedPrice
+                    own={s.price}
+                    inherited={
+                      Number(selectedVariant?.price) > 0
+                        ? Number(selectedVariant?.price)
+                        : productForm.price ?? 0
+                    }
+                    inheritedFrom={
+                      Number(selectedVariant?.price) > 0 ? "varian" : "produk"
+                    }
+                  />
+                </td>
                 <td className="p-2">{s.stock}</td>
                 <td className="p-2">{s.weight}g</td>
                 <td className="p-2 flex justify-center gap-1">
